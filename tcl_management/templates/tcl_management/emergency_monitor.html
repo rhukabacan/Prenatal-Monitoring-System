@@ -1,0 +1,121 @@
+{% extends 'tcl_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Emergency Alerts Overview -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Active Emergencies<br>in {{ tcl.barangay.name }}</h6>
+                            <h2 class="mb-0">{{ stats.active }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Responded Cases<br>by RHU</h6>
+                            <h2 class="mb-0">{{ stats.responded }}</h2>
+                        </div>
+                        <i class="fas fa-ambulance fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Resolved Cases<br>Today</h6>
+                            <h2 class="mb-0">{{ stats.resolved }}</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Emergencies -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="fas fa-exclamation-circle me-2"></i>Emergency Alerts in {{ tcl.barangay.name }}
+            </h4>
+            <span class="text-muted">View-only mode</span>
+        </div>
+        <div class="card-body">
+            {% if emergencies %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Patient</th>
+                                <th>Location</th>
+                                <th>Status</th>
+                                <th>RHU Response</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in emergencies %}
+                                <tr>
+                                    <td>{{ alert.alert_time|timesince }} ago</td>
+                                    <td>
+                                        <div>
+                                            <h6 class="mb-0">{{ alert.patient.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ alert.patient.contact_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if alert.location %}
+                                            {{ alert.location }}
+                                            <a href="https://www.google.com/maps?q={{ alert.location }}"
+                                               target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">No location data</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
+                                                         {% elif alert.status == 'RESOLVED' %}bg-success
+                                                         {% else %}bg-warning{% endif %}">
+                                            {{ alert.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if alert.response_time %}
+                                            <small class="text-muted">
+                                                Responded {{ alert.response_time|timesince }} ago
+                                            </small>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Pending RHU Response</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+                    <h5>No Emergency Alerts</h5>
+                    <p class="text-muted">No active emergency alerts in {{ tcl.barangay.name }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

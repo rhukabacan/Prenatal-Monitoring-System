@@ -1,0 +1,289 @@
+<!-- report_dashboard.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" style="white-space: nowrap">Total Patients</h6>
+                            <h2 class="mb-0">{{ stats.total_patients }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" style="white-space: nowrap">New Patients</h6>
+                            <h2 class="mb-0">{{ stats.new_patients }}</h2>
+                        </div>
+                        <i class="fas fa-user-plus fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" style="white-space: nowrap">Checkups</h6>
+                            <h2 class="mb-0">{{ stats.total_checkups }}</h2>
+                        </div>
+                        <i class="fas fa-stethoscope fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" style="white-space: nowrap">Appointments</h6>
+                            <h2 class="mb-0">{{ stats.total_appointments }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" style="white-space: nowrap">Emergencies</h6>
+                            <h2 class="mb-0">{{ stats.emergency_alerts }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0" style="white-space: nowrap">Missed Appt.</h6>
+                            <h2 class="mb-0">{{ stats.missed_appointments }}</h2>
+                        </div>
+                        <i class="fas fa-user-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Trends Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendsChart" height="100" style="min-height: 400px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Reports -->
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Recent Reports
+                    </h5>
+                    <div>
+                        <a href="{% url 'rhu_management:generate_report' %}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-2"></i>Generate Report
+                        </a>
+                        <a href="{% url 'rhu_management:analytics_view' %}" class="btn btn-info btn-sm ms-2">
+                            <i class="fas fa-chart-bar me-2"></i>View Analytics
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if recent_reports %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Report Title</th>
+                                        <th>Type</th>
+                                        <th>Date Range</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for report in recent_reports %}
+                                        <tr>
+                                            <td>{{ report.title }}</td>
+                                            <td>
+                                                <span class="badge bg-primary">
+                                                    {{ report.get_type_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {{ report.period_start|date:"M d, Y" }} -
+                                                {{ report.period_end|date:"M d, Y" }}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <a href="{% url 'rhu_management:view_report' report.id %}"
+                                                       class="btn btn-sm btn-primary"
+                                                       target="_blank">  <!-- This makes it open in new tab -->
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <a href="{% url 'rhu_management:download_report' report.id %}"
+                                                       class="btn btn-success btn-sm">
+                                                        <i class="fas fa-download"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-center text-muted my-4">No reports generated yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Reports -->
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3">
+                        <button class="btn btn-outline-primary"
+                                onclick="generateQuickReport('today')">
+                            <i class="fas fa-calendar-day me-2"></i>Today's Summary
+                        </button>
+                        <button class="btn btn-outline-primary"
+                                onclick="generateQuickReport('week')">
+                            <i class="fas fa-calendar-week me-2"></i>Weekly Report
+                        </button>
+                        <button class="btn btn-outline-primary"
+                                onclick="generateQuickReport('month')">
+                            <i class="fas fa-calendar-alt me-2"></i>Monthly Overview
+                        </button>
+                        <button class="btn btn-outline-primary"
+                                onclick="generateQuickReport('checkups')">
+                            <i class="fas fa-stethoscope me-2"></i>Checkup Analysis
+                        </button>
+                        <button class="btn btn-outline-primary"
+                                onclick="generateQuickReport('appointments')">
+                            <i class="fas fa-calendar-check me-2"></i>Appointment Statistics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('trendsChart').getContext('2d');
+        const trendsData = {{ monthly_trends|safe }};
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: trendsData.months,
+                datasets: [
+                    {
+                        label: 'Checkups',
+                        data: trendsData.datasets.checkups,
+                        borderColor: 'rgb(25, 135, 84)', // Bootstrap success
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Appointments',
+                        data: trendsData.datasets.appointments,
+                        borderColor: 'rgb(13, 110, 253)', // Bootstrap primary
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Emergencies',
+                        data: trendsData.datasets.emergencies,
+                        borderColor: 'rgb(220, 53, 69)', // Bootstrap danger
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            drawBorder: false
+                        },
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        grid: {
+                            drawBorder: false
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    });
+
+    function generateQuickReport(type) {
+        window.location.href = `/rhu/reports/generate/?type=${type}`;
+    }
+
+</script>
+{% endblock %}

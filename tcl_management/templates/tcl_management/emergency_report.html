@@ -1,0 +1,111 @@
+{% extends 'tcl_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">
+            <i class="fas fa-chart-bar me-2"></i>Emergency Reports - {{ barangay.name }}
+        </h4>
+        <span class="badge bg-secondary">View Only</span>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total<br>Alerts</h6>
+                            <h2 class="mb-0">{{ stats.total_alerts }}</h2>
+                        </div>
+                        <i class="fas fa-bell fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Active<br>Cases</h6>
+                            <h2 class="mb-0">{{ stats.active_alerts }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Resolved<br>Cases</h6>
+                            <h2 class="mb-0">{{ stats.resolved_cases }}</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Avg Response<br>Time</h6>
+                            <h2 class="mb-0">{{ stats.response_time_avg|default:"N/A" }}</h2>
+                        </div>
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Trend Chart -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>Daily Emergency Trend
+            </h5>
+        </div>
+        <div class="card-body">
+            <canvas id="dailyTrendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Daily trend chart
+    const ctx = document.getElementById('dailyTrendChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [{% for item in daily_trend %}'{{ item.day }}',{% endfor %}],
+            datasets: [{
+                label: 'Emergency Alerts',
+                data: [{% for item in daily_trend %}{{ item.count }},{% endfor %}],
+                borderColor: '#dc3545',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

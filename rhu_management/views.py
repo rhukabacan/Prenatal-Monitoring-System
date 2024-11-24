@@ -1,0 +1,2320 @@
+# rhu_management/views.py
+
+import json
+import os
+from datetime import datetime, timedelta
+from functools import wraps
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import logout, authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.core.paginator import Paginator
+from django.db import transaction, models
+from django.db.models import Count, Avg, Q, OuterRef, Subquery
+from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory
+
+
+def superuser_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_superuser:
+            messages.error(request, 'Only administrators can access this area.')
+            logout(request)
+            return redirect('rhu_management:rhu_login')
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+
+
+def rhu_login(request):
+    """Handle RHU staff login"""
+    if request.user.is_authenticated:
+        if request.user.is_superuser:
+            return redirect('rhu_management:dashboard')
+        else:
+            logout(request)
+            messages.error(request, 'Only administrators can access this area.')
+
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        try:
+            user = authenticate(username=username, password=password)
+            if user is not None and user.is_superuser:
+                login(request, user)
+                messages.success(request, f'Welcome back, {user.get_full_name()}!')
+                return redirect('rhu_management:dashboard')
+            else:
+                messages.error(request, 'Invalid credentials or insufficient permissions.')
+        except Exception as e:
+            messages.error(request, 'An error occurred during login.')
+
+    return render(request, 'rhu_management/login.html', {
+        'title': 'RHU Staff Login'
+    })
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def rhu_logout(request):
+    """Handle RHU staff logout"""
+    logout(request)
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('rhu_management:rhu_login')
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def profile_view(request):
+    if not request.user.is_superuser:
+        return redirect('rhu_management:rhu_login')
+
+    context = {
+        'user': request.user,
+        'title': 'My Profile'
+    }
+    return render(request, 'rhu_management/view_profile.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def profile_update(request):
+    """Handle RHU staff profile update"""
+    staff = get_object_or_404(User, user=request.user)
+
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Update User model
+                user = request.user
+                user.first_name = request.POST.get('first_name')
+                user.last_name = request.POST.get('last_name')
+                user.email = request.POST.get('email')
+                user.save()
+
+                # Update RHUStaff model
+                staff.contact_number = request.POST.get('contact_number')
+                staff.save()
+
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('rhu_management:profile_view')
+
+        except Exception as e:
+            messages.error(request, 'An error occurred while updating your profile.')
+
+    context = {
+        'staff': staff,
+        'title': 'Edit Profile'
+    }
+
+    return render(request, 'rhu_management/edit_profile.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def barangay_list(request):
+    """Display list of barangays and their TCLs"""
+    # Get search query and status filter
+    search_query = request.GET.get('search', '')
+
+    # Base queryset
+    barangays = Barangay.objects.all()
+
+    # Apply search filter
+    if search_query:
+        barangays = barangays.filter(
+            Q(barangay_name__icontains=search_query) |
+            Q(contact_number__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(user__email__icontains=search_query)
+        )
+
+    # Pagination
+    paginator = Paginator(barangays, 10)  # Show 10 barangays per page
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+
+    # Get statistics for displayed barangays
+    for barangay in page_obj:
+        barangay.stats = {
+            'total_patients': Patient.objects.filter(
+                barangay=barangay
+            ).count(),
+            'active_emergencies': EmergencyAlert.objects.filter(
+                patient__barangay=barangay,
+                status='ACTIVE'
+            ).count()
+        }
+
+    context = {
+        'barangays': page_obj,
+        'search_query': search_query,
+        'total_barangays': barangays.count(),
+        'title': 'Barangay Management'
+    }
+    return render(request, 'rhu_management/barangay/barangay_list.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def barangay_detail(request, barangay_id):
+    """Display detailed information about a specific barangay"""
+    barangay = get_object_or_404(Barangay, id=barangay_id)
+
+    # Get statistics
+    stats = {
+        'total_patients': Patient.objects.filter(barangay=barangay).count(),
+        'pregnant_patients': Patient.objects.filter(
+            barangay=barangay,
+            prenatalcheckup__isnull=False,
+            prenatalcheckup__checkup_date__gte=timezone.now() - timedelta(days=280)  # ~9 months
+        ).distinct().count(),
+        'emergency_alerts': EmergencyAlert.objects.filter(
+            patient__barangay=barangay,
+            status='ACTIVE'
+        ).count()
+    }
+
+    # Get patients from this barangay with pagination
+    patients = Patient.objects.filter(barangay=barangay).select_related('user')
+    paginator = Paginator(patients, 10)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+
+    context = {
+        'barangay': barangay,
+        'stats': stats,
+        'page_obj': page_obj,
+        'title': f'Barangay Details - {barangay.barangay_name}'
+    }
+
+    return render(request, 'rhu_management/barangay/barangay_detail.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def barangay_add(request):
+    """Add new barangay"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            password = request.POST.get('password')
+            confirm_password = request.POST.get('confirm_password')
+            barangay_name = request.POST.get('barangay_name')
+            contact_number = request.POST.get('contact_number')
+
+            # Validate passwords match
+            if password != confirm_password:
+                messages.error(request, 'Passwords do not match.')
+                return render(request, 'rhu_management/barangay/barangay_add.html', {
+                    'title': 'Add New Barangay',
+                    'form_data': request.POST
+                })
+
+            # Check if username already exists
+            if User.objects.filter(username=username).exists():
+                messages.error(request, 'Username already exists.')
+                return render(request, 'rhu_management/barangay/barangay_add.html', {
+                    'title': 'Add New Barangay',
+                    'form_data': request.POST
+                })
+
+            # Check if email already exists
+            if User.objects.filter(email=email).exists():
+                messages.error(request, 'Email already exists.')
+                return render(request, 'rhu_management/barangay/barangay_add.html', {
+                    'title': 'Add New Barangay',
+                    'form_data': request.POST
+                })
+
+            # Check if contact number already exists
+            if Barangay.objects.filter(contact_number=contact_number).exists():
+                messages.error(request, 'Contact number already exists.')
+                return render(request, 'rhu_management/barangay/barangay_add.html', {
+                    'title': 'Add New Barangay',
+                    'form_data': request.POST
+                })
+
+            with transaction.atomic():
+                # Create user account
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password
+                )
+
+                # Create barangay
+                barangay = Barangay.objects.create(
+                    user=user,
+                    barangay_name=barangay_name,
+                    contact_number=contact_number
+                )
+
+                messages.success(request, f'Barangay {barangay.barangay_name} created successfully!')
+                return redirect('rhu_management:barangay_list')
+
+        except Exception as e:
+            messages.error(request, f'Error creating barangay: {str(e)}')
+            return render(request, 'rhu_management/barangay/barangay_add.html', {
+                'title': 'Add New Barangay',
+                'form_data': request.POST
+            })
+
+    return render(request, 'rhu_management/barangay/barangay_add.html', {
+        'title': 'Add New Barangay'
+    })
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def barangay_update(request, barangay_id):
+    """Update barangay information"""
+    barangay = get_object_or_404(Barangay, id=barangay_id)
+
+    if request.method == 'POST':
+        try:
+            # Get form data
+            barangay_name = request.POST.get('barangay_name')
+            username = request.POST.get('username')
+            email = request.POST.get('email')
+            contact_number = request.POST.get('contact_number')
+            password = request.POST.get('password')
+            confirm_password = request.POST.get('confirm_password')
+
+            # Validate username if changed
+            if username != barangay.user.username:
+                if User.objects.filter(username=username).exclude(id=barangay.user.id).exists():
+                    messages.error(request, 'Username already exists.')
+                    return render(request, 'rhu_management/barangay/barangay_update.html', {
+                        'title': f'Update Barangay - {barangay.barangay_name}',
+                        'barangay': barangay
+                    })
+
+            # Validate email if changed
+            if email != barangay.user.email:
+                if User.objects.filter(email=email).exclude(id=barangay.user.id).exists():
+                    messages.error(request, 'Email already exists.')
+                    return render(request, 'rhu_management/barangay/barangay_update.html', {
+                        'title': f'Update Barangay - {barangay.barangay_name}',
+                        'barangay': barangay
+                    })
+
+            # Validate contact number if changed
+            if contact_number != barangay.contact_number:
+                if Barangay.objects.filter(contact_number=contact_number).exclude(id=barangay.id).exists():
+                    messages.error(request, 'Contact number already exists.')
+                    return render(request, 'rhu_management/barangay/barangay_update.html', {
+                        'title': f'Update Barangay - {barangay.barangay_name}',
+                        'barangay': barangay
+                    })
+
+            # Validate passwords if provided
+            if password:
+                if password != confirm_password:
+                    messages.error(request, 'Passwords do not match.')
+                    return render(request, 'rhu_management/barangay/barangay_update.html', {
+                        'title': f'Update Barangay - {barangay.barangay_name}',
+                        'barangay': barangay
+                    })
+
+            with transaction.atomic():
+                # Update user information
+                user = barangay.user
+                user.username = username
+                user.email = email
+                if password:
+                    user.set_password(password)
+                user.save()
+
+                # Update barangay information
+                barangay.barangay_name = barangay_name
+                barangay.contact_number = contact_number
+                barangay.save()
+
+                messages.success(request, f'Barangay {barangay.barangay_name} updated successfully!')
+                return redirect('rhu_management:barangay_list')
+
+        except Exception as e:
+            messages.error(request, f'Error updating barangay: {str(e)}')
+
+    context = {
+        'barangay': barangay,
+        'title': f'Update Barangay - {barangay.barangay_name}'
+    }
+
+    return render(request, 'rhu_management/barangay/barangay_update.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def patient_list(request):
+    """Display list of all patients with barangay filtering and search"""
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    barangay_filter = request.GET.get('barangay', '')
+
+    # Base query with related fields
+    patients = Patient.objects.select_related('user', 'barangay').prefetch_related(
+        models.Prefetch(
+            'prenatalcheckup_set',
+            queryset=PrenatalCheckup.objects.filter(
+                Q(status='COMPLETED') |
+                Q(status='SCHEDULED', checkup_date__gt=timezone.now())
+            ).order_by('-checkup_date'),
+            to_attr='checkups'
+        )
+    )
+
+    # Apply barangay filter first
+    if barangay_filter:
+        try:
+            barangay = Barangay.objects.get(id=barangay_filter)
+            patients = patients.filter(barangay=barangay)
+        except Barangay.DoesNotExist:
+            messages.error(request, 'Selected barangay not found.')
+
+    # Then apply search filter within the barangay results if any
+    if search_query:
+        patients = patients.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(contact_number__icontains=search_query)
+        )
+
+    # Get statistics
+    stats = {
+        'total_patients': Patient.objects.count(),
+        'pregnant_patients': Patient.objects.filter(
+            prenatalcheckup__isnull=False,
+            prenatalcheckup__checkup_date__gte=timezone.now() - timedelta(days=280)  # ~9 months
+        ).distinct().count(),
+        'due_this_month': Patient.objects.filter(
+            prenatalcheckup__last_menstrual_period__month=(
+                        timezone.now() - timedelta(days=280)).month,  # ~9 months ago
+            prenatalcheckup__status='SCHEDULED'
+        ).distinct().count()
+    }
+
+    # Get all barangays for the filter dropdown
+    barangays = Barangay.objects.all().order_by('barangay_name')
+
+    # Pagination
+    paginator = Paginator(patients.order_by('-created_at'), 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'barangay_filter': barangay_filter,
+        'barangays': barangays,
+        'stats': stats,
+        'title': 'Patient List'
+    }
+
+    return render(request, 'rhu_management/patient/patient_list.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def patient_detail(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    # Get latest active checkup and calculate pregnancy progress
+    latest_checkups = PrenatalCheckup.objects.filter(
+        patient=patient,
+        status='COMPLETED'
+    ).order_by('-checkup_date')
+
+    # Find the first checkup that hasn't passed its estimated delivery date
+    latest_checkup = None
+    today = timezone.now().date()
+    for checkup in latest_checkups:
+        if checkup.estimated_delivery_date >= today:
+            latest_checkup = checkup
+            break
+
+    current_week = None
+    progress_percentage = None
+    if latest_checkup and latest_checkup.last_menstrual_period:
+        days_pregnant = max((timezone.now().date() - latest_checkup.last_menstrual_period).days, 0)
+        current_week = min(days_pregnant // 7, 42)
+        progress_percentage = min((current_week / 42) * 100, 100)
+
+    context = {
+        'patient': patient,
+        'latest_checkup': latest_checkup,
+        'current_week': current_week,
+        'progress_percentage': progress_percentage,
+        'checkups': PrenatalCheckup.objects.filter(patient=patient).order_by('-checkup_date')[:5],
+        'upcoming_checkups': PrenatalCheckup.objects.filter(
+            patient=patient,
+            checkup_date__gte=timezone.now(),
+            status='SCHEDULED'
+        ).order_by('checkup_date'),
+        'pregnancy_history': PregnancyHistory.objects.filter(patient=patient).order_by('-delivery_date'),
+        'title': f'Patient Details - {patient.user.get_full_name()}'
+    }
+
+    return render(request, 'rhu_management/patient/patient_detail.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def patient_add(request):
+    """Handle new patient registration"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        contact_number = request.POST.get('contact_number')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        # Validate passwords match
+        if password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+            return redirect('rhu_management:patient_add')
+
+        # Check if username already exists
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists.')
+            return redirect('rhu_management:patient_add')
+
+        # Check if email already exists
+        if User.objects.filter(email=email).exists():
+            messages.error(request, 'Email already exists.')
+            return redirect('rhu_management:patient_add')
+
+        # Check if contact number already exists
+        if Patient.objects.filter(contact_number=contact_number).exists():
+            messages.error(request, 'Contact number already exists.')
+            return redirect('rhu_management:patient_add')
+
+        try:
+            with transaction.atomic():
+                # Create User account
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,  # Use provided password instead of random
+                    first_name=request.POST.get('first_name'),
+                    last_name=request.POST.get('last_name')
+                )
+
+                # Create Patient profile
+                patient = Patient.objects.create(
+                    user=user,
+                    contact_number=contact_number,
+                    birth_date=datetime.strptime(request.POST.get('birth_date'), '%Y-%m-%d').date(),
+                    sitio=request.POST.get('sitio'),
+                    barangay=get_object_or_404(Barangay, id=request.POST.get('barangay')),
+                    occupation=request.POST.get('occupation'),
+                    monthly_income=request.POST.get('monthly_income'),
+                    blood_type=request.POST.get('blood_type'),
+                    religion=request.POST.get('religion'),
+                    spouse_name=request.POST.get('spouse_name'),
+                    spouse_occupation=request.POST.get('spouse_occupation'),
+                    spouse_monthly_income=request.POST.get('spouse_monthly_income'),
+                    number_of_children=request.POST.get('number_of_children'),
+                    emergency_contact_name=request.POST.get('emergency_contact_name'),
+                    emergency_contact_number=request.POST.get('emergency_contact_number')
+                )
+
+                messages.success(request, f'Patient {patient.user.get_full_name()} added successfully!')
+                return redirect('rhu_management:patient_detail', patient_id=patient.id)
+
+        except Exception as e:
+            messages.error(request, f'Error adding patient: {str(e)}')
+
+    context = {
+        'barangays': Barangay.objects.all().order_by('barangay_name'),
+        'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
+        'religion_choices': Patient.RELIGION_CHOICES,
+        'title': 'Add New Patient'
+    }
+
+    return render(request, 'rhu_management/patient/add_patient.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def patient_update(request, patient_id):
+    """Update existing patient information"""
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        contact_number = request.POST.get('contact_number')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        # Check if username already exists (excluding current patient)
+        if User.objects.exclude(id=patient.user.id).filter(username=username).exists():
+            messages.error(request, 'Username already exists.')
+            return redirect('rhu_management:patient_update', patient_id=patient.id)
+
+        # Check if email already exists (excluding current patient)
+        if User.objects.exclude(id=patient.user.id).filter(email=email).exists():
+            messages.error(request, 'Email already exists.')
+            return redirect('rhu_management:patient_update', patient_id=patient.id)
+
+        # Check if contact number already exists (excluding current patient)
+        if Patient.objects.exclude(id=patient.id).filter(contact_number=contact_number).exists():
+            messages.error(request, 'Contact number already exists.')
+            return redirect('rhu_management:patient_update', patient_id=patient.id)
+
+        # Validate passwords if provided
+        if password:
+            if password != confirm_password:
+                messages.error(request, 'Passwords do not match.')
+                return redirect('rhu_management:patient_update', patient_id=patient.id)
+
+        try:
+            with transaction.atomic():
+                # Update User information
+                user = patient.user
+                user.username = username
+                user.first_name = request.POST.get('first_name')
+                user.last_name = request.POST.get('last_name')
+                user.email = email
+                if password:
+                    user.set_password(password)
+                user.save()
+
+                # Update Patient information
+                patient.contact_number = contact_number
+                patient.birth_date = datetime.strptime(request.POST.get('birth_date'), '%Y-%m-%d').date()
+                patient.sitio = request.POST.get('sitio')
+                patient.barangay = get_object_or_404(Barangay, id=request.POST.get('barangay'))
+
+                # Add occupation and income fields
+                patient.occupation = request.POST.get('occupation')
+                patient.monthly_income = request.POST.get('monthly_income')
+
+                # Add blood type and religion fields
+                patient.blood_type = request.POST.get('blood_type')
+                patient.religion = request.POST.get('religion')
+
+                # Add family information fields
+                patient.spouse_name = request.POST.get('spouse_name')
+                patient.spouse_occupation = request.POST.get('spouse_occupation')
+                patient.spouse_monthly_income = request.POST.get('spouse_monthly_income')
+                patient.number_of_children = request.POST.get('number_of_children')
+
+                # Emergency contact fields
+                patient.emergency_contact_name = request.POST.get('emergency_contact_name')
+                patient.emergency_contact_number = request.POST.get('emergency_contact_number')
+
+                patient.save()
+
+                messages.success(request, f'Patient {patient.user.get_full_name()} updated successfully!')
+                return redirect('rhu_management:patient_detail', patient_id=patient.id)
+
+        except Exception as e:
+            messages.error(request, f'Error updating patient: {str(e)}')
+
+    context = {
+        'patient': patient,
+        'barangays': Barangay.objects.all().order_by('barangay_name'),
+        'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
+        'religion_choices': Patient.RELIGION_CHOICES,
+        'title': f'Edit Patient - {patient.user.get_full_name()}'
+    }
+
+    return render(request, 'rhu_management/patient/edit_patient.html', context)
+
+
+# Utility functions
+def get_available_time_slots(exclude_checkup=None):
+    """Get available checkup time slots"""
+    # Define clinic hours
+    CLINIC_START_TIME = 8  # 8 AM
+    CLINIC_END_TIME = 17  # 5 PM
+    SLOT_DURATION = 30  # 30 minutes per slot
+
+    # Get today's date
+    today = timezone.now().date()
+
+    # Generate time slots for next 30 days
+    available_slots = []
+    for day in range(30):
+        date = today + timedelta(days=day)
+
+        # Skip weekends
+        if date.weekday() >= 5:
+            continue
+
+        # Generate slots for the day
+        time = timezone.now().replace(
+            hour=CLINIC_START_TIME,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+        while time.hour < CLINIC_END_TIME:
+            slot_datetime = timezone.make_aware(
+                datetime.combine(date, time.time())
+            )
+
+            # Skip if slot is in the past
+            if slot_datetime <= timezone.now():
+                time += timedelta(minutes=SLOT_DURATION)
+                continue
+
+            # Check if slot is available
+            is_available = not PrenatalCheckup.objects.filter(
+                checkup_date=slot_datetime,
+                status='SCHEDULED'
+            ).exists()
+
+            # Include slot if it's available or belongs to the checkup being edited
+            if is_available or (
+                    exclude_checkup and
+                    exclude_checkup.checkup_date == slot_datetime
+            ):
+                available_slots.append({
+                    'datetime': slot_datetime,
+                    'date': date,
+                    'time': time.strftime('%I:%M %p')
+                })
+
+            time += timedelta(minutes=SLOT_DURATION)
+
+    return available_slots
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def checkup_list(request):
+    """Display list of latest checkups per patient with filtering"""
+    # Get filter parameters
+    patient_filter = request.GET.get('patient')
+    barangay_filter = request.GET.get('barangay')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+
+    # Get the latest checkup for each patient using a subquery
+    latest_checkups = PrenatalCheckup.objects.filter(
+        patient=OuterRef('patient')
+    ).order_by('-checkup_date')
+
+    # Base queryset with distinct patients and their latest checkup
+    checkups = PrenatalCheckup.objects.filter(
+        id=Subquery(
+            latest_checkups.values('id')[:1]
+        )
+    ).order_by('-checkup_date')
+
+    # Apply filters
+    if patient_filter:
+        checkups = checkups.filter(patient_id=patient_filter)
+
+    if barangay_filter:
+        checkups = checkups.filter(patient__barangay_id=barangay_filter)
+
+    if date_from:
+        checkups = checkups.filter(checkup_date__gte=date_from)
+
+    if date_to:
+        checkups = checkups.filter(checkup_date__lte=date_to)
+
+    # Get statistics
+    stats = {
+        'total_checkups': PrenatalCheckup.objects.count(),  # Total all checkups
+        'today_checkups': PrenatalCheckup.objects.filter(
+            checkup_date__date=timezone.now().date()
+        ).count(),
+        'this_week': PrenatalCheckup.objects.filter(
+            checkup_date__gte=timezone.now().date() - timedelta(days=7)
+        ).count(),
+        'this_month': PrenatalCheckup.objects.filter(
+            checkup_date__gte=timezone.now().date().replace(day=1)
+        ).count()
+    }
+
+    # Pagination
+    paginator = Paginator(checkups, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Get all patients and barangays for filters
+    patients = Patient.objects.all().order_by('user__first_name', 'user__last_name')
+    barangays = Barangay.objects.all().order_by('barangay_name')
+
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'patients': patients,
+        'barangays': barangays,
+        'patient_filter': patient_filter,
+        'barangay_filter': barangay_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'title': 'Checkup Records'
+    }
+
+    return render(request, 'rhu_management/checkup/checkup_list.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def checkup_create(request, patient_id):
+    """Record new checkup for a patient"""
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    if request.method == 'POST':
+        # Get form data
+        checkup_date = datetime.strptime(request.POST.get('checkup_date'), '%Y-%m-%d').date()
+        checkup_time = datetime.strptime(request.POST.get('checkup_time'), '%H:%M').time()
+
+        try:
+            with transaction.atomic():
+                # Create checkup record
+                checkup = PrenatalCheckup.objects.create(
+                    patient=patient,
+                    checkup_date = datetime.combine(checkup_date, checkup_time),
+                    weight=request.POST.get('weight'),
+                    height=request.POST.get('height'),
+                    blood_pressure=request.POST.get('blood_pressure'),
+                    last_menstrual_period=datetime.strptime(
+                        request.POST.get('last_menstrual_period'),
+                        '%Y-%m-%d'
+                    ).date(),
+                    notes=request.POST.get('notes', ''),
+                )
+
+                messages.success(request, 'Checkup record added successfully!')
+                return redirect('rhu_management:checkup_detail', checkup_id=checkup.id)
+
+        except Exception as e:
+            messages.error(request, 'Error adding checkup record.')
+
+    # Get previous checkup for reference
+    previous_checkup = PrenatalCheckup.objects.filter(
+        patient=patient
+    ).order_by('-checkup_date').first()
+
+    context = {
+        'patient': patient,
+        'previous_checkup': previous_checkup,
+        'title': f'New Checkup - {patient.user.get_full_name()}'
+    }
+
+    return render(request, 'rhu_management/checkup/create_checkup.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def checkup_detail(request, checkup_id):
+    """Display detailed checkup information"""
+    checkup = get_object_or_404(PrenatalCheckup, id=checkup_id)
+
+    # Calculate pregnancy week and progress
+    weeks_pregnant = None
+    progress_percentage = None
+    if checkup.last_menstrual_period:
+        days_pregnant = (timezone.now().date() - checkup.last_menstrual_period).days
+        weeks_pregnant = min(days_pregnant // 7, 42)
+        progress_percentage = min((weeks_pregnant / 42) * 100, 100)
+
+    # Get previous and next checkups for this patient
+    previous_checkup = PrenatalCheckup.objects.filter(
+        patient=checkup.patient,
+        checkup_date__lt=checkup.checkup_date
+    ).order_by('-checkup_date').first()
+
+    next_checkup = PrenatalCheckup.objects.filter(
+        patient=checkup.patient,
+        checkup_date__gt=checkup.checkup_date
+    ).order_by('checkup_date').first()
+
+    context = {
+        'checkup': checkup,
+        'weeks_pregnant': weeks_pregnant,
+        'progress_percentage': progress_percentage,
+        'previous_checkup': previous_checkup,
+        'next_checkup': next_checkup,
+        'title': f'Checkup Details - {checkup.patient.user.get_full_name()}'
+    }
+
+    return render(request, 'rhu_management/checkup/checkup_detail.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def checkup_update(request, checkup_id):
+    """Update existing checkup record"""
+    checkup = get_object_or_404(PrenatalCheckup, id=checkup_id)
+
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Get form data
+                checkup_date = datetime.strptime(request.POST.get('checkup_date'), '%Y-%m-%d').date()
+                checkup_time = datetime.strptime(request.POST.get('checkup_time'), '%H:%M').time()
+
+                # Update checkup details
+                checkup.checkup_date = datetime.combine(checkup_date, checkup_time)
+                checkup.status = request.POST.get('status')
+                checkup.weight = request.POST.get('weight')
+                checkup.height = request.POST.get('height')
+                checkup.blood_pressure = request.POST.get('blood_pressure')
+                checkup.last_menstrual_period = datetime.strptime(
+                    request.POST.get('last_menstrual_period'),
+                    '%Y-%m-%d'
+                ).date()
+                checkup.notes = request.POST.get('notes', '')
+                checkup.save()
+
+                messages.success(request, 'Checkup record updated successfully!')
+                return redirect('rhu_management:checkup_detail', checkup_id=checkup.id)
+
+        except Exception as e:
+            messages.error(request, 'Error updating checkup record.')
+
+    context = {
+        'checkup': checkup,
+        'status_choices': PrenatalCheckup.STATUS_CHOICES,
+        'title': f'Edit Checkup - {checkup.patient.user.get_full_name()}'
+    }
+
+    return render(request, 'rhu_management/checkup/edit_checkup.html', context)
+
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def emergency_list(request):
+    """Display list of all emergency alerts with filters"""
+    # Get filter parameters
+    status_filter = request.GET.get('status', '')
+    barangay_filter = request.GET.get('barangay', '')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+
+    # Base query
+    alerts = EmergencyAlert.objects.all()
+
+    # Apply filters
+    if status_filter:
+        alerts = alerts.filter(status=status_filter)
+    if barangay_filter:
+        alerts = alerts.filter(patient__barangay_id=barangay_filter)
+    if date_from:
+        alerts = alerts.filter(alert_time__date__gte=date_from)
+    if date_to:
+        alerts = alerts.filter(alert_time__date__lte=date_to)
+
+    # Get active and in-progress emergencies
+    active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')
+    in_progress_alerts = alerts.filter(
+        status__in=['RESPONDED', 'EN_ROUTE']
+    ).order_by('-alert_time')
+
+    # Get recent alerts (last 24 hours)
+    recent_alerts = alerts.filter(
+        alert_time__gte=timezone.now() - timedelta(days=1)
+    ).order_by('-alert_time')
+
+    # Calculate statistics
+    stats = {
+        'active_alerts': active_alerts.count(),
+        'in_progress': in_progress_alerts.count(),
+        'resolved_today': EmergencyAlert.objects.filter(
+            status='RESOLVED',
+            resolved_time__date=timezone.now().date()
+        ).count(),
+        'average_response_time': calculate_average_response_time()
+    }
+
+    # Pagination
+    active_paginator = Paginator(active_alerts, 6)  # Show 6 active alerts per page
+    in_progress_paginator = Paginator(in_progress_alerts, 10)  # Show 10 in-progress alerts per page
+    recent_paginator = Paginator(recent_alerts, 10)  # Show 10 recent alerts per page
+
+    # Get page numbers from request
+    active_page = request.GET.get('active_page', 1)
+    in_progress_page = request.GET.get('in_progress_page', 1)
+    recent_page = request.GET.get('recent_page', 1)
+
+    active_page_obj = active_paginator.get_page(active_page)
+    in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
+    recent_page_obj = recent_paginator.get_page(recent_page)
+
+    context = {
+        'active_page_obj': active_page_obj,
+        'in_progress_page_obj': in_progress_page_obj,
+        'recent_page_obj': recent_page_obj,
+        'status_filter': status_filter,
+        'barangay_filter': barangay_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'stats': stats,
+        'status_choices': EmergencyAlert.STATUS_CHOICES,
+        'barangays': Barangay.objects.all(),
+        'active_alerts': active_alerts,
+        'in_progress_alerts': in_progress_alerts,
+        'recent_alerts': recent_alerts,
+        'title': 'Emergency Alerts',
+        'refresh_interval': 30
+    }
+
+    return render(request, 'rhu_management/emergency/emergency_list.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def emergency_respond(request, alert_id):
+    """Handle emergency response actions"""
+    alert = get_object_or_404(EmergencyAlert, id=alert_id)
+
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Get new status from form
+                new_status = request.POST.get('status')
+                current_time = timezone.now()
+
+                # Update alert status
+                alert.status = new_status
+
+                # Record timestamps based on status
+                if new_status == 'RESPONDED' and not alert.response_time:
+                    alert.response_time = current_time
+                elif new_status == 'RESOLVED' and not alert.resolved_time:
+                    alert.resolved_time = current_time
+
+                # Save notes if provided
+                if request.POST.get('notes'):
+                    alert.notes = f"{alert.notes}\n[{current_time.strftime('%Y-%m-%d %H:%M')}] {request.POST.get('notes')}"
+
+                alert.save()
+
+                messages.success(request, 'Emergency alert updated successfully!')
+
+                return redirect('rhu_management:emergency_list')
+
+        except Exception as e:
+            messages.error(request, 'Error updating emergency alert.')
+
+    return redirect('rhu_management:emergency_list')
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def emergency_detail(request, alert_id):
+    """Display detailed emergency alert information"""
+    alert = get_object_or_404(EmergencyAlert, id=alert_id)
+
+    # Calculate response times if available
+    response_time = None
+    resolution_time = None
+
+    if alert.response_time:
+        response_time = (alert.response_time - alert.alert_time).total_seconds() // 60
+
+    if alert.resolved_time and alert.response_time:
+        resolution_time = (alert.resolved_time - alert.response_time).total_seconds() // 60
+
+    context = {
+        'alert': alert,
+        'response_time': response_time,
+        'resolution_time': resolution_time,
+        'title': f'Emergency Alert Details - {alert.patient.user.get_full_name()}'
+    }
+
+    return render(request, 'rhu_management/emergency/emergency_detail.html', context)
+
+
+# Utility Functions
+def calculate_average_response_time():
+    """Calculate average response time for resolved alerts"""
+    resolved_alerts = EmergencyAlert.objects.filter(
+        status='RESOLVED',
+        response_time__isnull=False
+    )
+
+    if not resolved_alerts.exists():
+        return None
+
+    total_response_time = 0
+    count = 0
+
+    for alert in resolved_alerts:
+        response_time = (alert.response_time - alert.alert_time).total_seconds()
+        total_response_time += response_time
+        count += 1
+
+    return total_response_time / count / 60  # Convert to minutes
+
+
+def get_status_notification_message(status):
+    """Get notification message based on alert status"""
+    messages = {
+        'RESPONDED': f'Emergency response team has been notified. RHU is coordinating the response.',
+        'EN_ROUTE': f'Emergency response team is on the way. RHU is leading the response.',
+        'RESOLVED': f'Emergency has been resolved. Thank you for using our emergency alert system.',
+        'CANCELLED': 'Emergency alert has been cancelled.'
+    }
+    return messages.get(status, 'Emergency alert status has been updated.')
+
+
+
+def send_sms(phone_number, message):
+    """Implement SMS sending logic"""
+    # Integrate with your SMS service provider
+    pass
+
+
+def send_email(email, subject, message):
+    """Implement email sending logic"""
+    # Implement using Django's email functionality
+    pass
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def reports_dashboard(request):
+    """Display reports dashboard with overview and quick stats"""
+    # Get date range for statistics
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=30)
+
+    # Calculate general statistics
+    stats = {
+        'total_patients': Patient.objects.filter(is_active=True).count(),
+        'new_patients': Patient.objects.filter(
+            created_at__gte=start_date
+        ).count(),
+        'total_checkups': PrenatalCheckup.objects.filter(
+            checkup_date__gte=start_date
+        ).count(),
+        'total_appointments': Appointment.objects.filter(
+            appointment_date__gte=start_date
+        ).count(),
+        'emergency_alerts': EmergencyAlert.objects.filter(
+            alert_time__gte=start_date
+        ).count(),
+        'missed_appointments': Appointment.objects.filter(
+            status='MISSED',
+            appointment_date__gte=start_date
+        ).count()
+    }
+
+    # Get recent reports
+    recent_reports = RHUReport.objects.all().order_by('-created_at')[:5]
+
+    # Get monthly trends
+    monthly_trends = get_monthly_trends()
+
+    print(monthly_trends)
+
+    context = {
+        'stats': stats,
+        'recent_reports': recent_reports,
+        'monthly_trends': monthly_trends,
+        'title': 'Reports Dashboard'
+    }
+
+    return render(request, 'rhu_management/report_dashboard.html', context)
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def generate_report(request):
+    """Handle report generation with custom parameters"""
+    if request.method == 'POST':
+        try:
+            report_type = request.POST.get('report_type')
+            start_date = datetime.strptime(request.POST.get('start_date'), '%Y-%m-%d').date()
+            end_date = datetime.strptime(request.POST.get('end_date'), '%Y-%m-%d').date()
+
+            # Generate report based on type
+            if report_type == 'DAILY':
+                report_data = generate_daily_report(start_date, end_date)
+            elif report_type == 'WEEKLY':
+                report_data = generate_weekly_report(start_date, end_date)
+            elif report_type == 'MONTHLY':
+                report_data = generate_monthly_report(start_date, end_date)
+            elif report_type == 'QUARTERLY':
+                report_data = generate_quarterly_report(start_date, end_date)
+            elif report_type == 'ANNUAL':
+                report_data = generate_annual_report(start_date, end_date)
+            elif report_type == 'CUSTOM':
+                report_data = generate_custom_report(
+                    start_date,
+                    end_date,
+                    request.POST.getlist('metrics')
+                )
+
+            # Generate summary
+            summary = generate_summary(report_data, report_type, start_date, end_date)
+
+            # Create report
+            report = RHUReport.objects.create(
+                title=request.POST.get('title'),
+                type=report_type,
+                period_start=start_date,
+                period_end=end_date,
+                content=report_data,
+                summary=summary
+            )
+
+            messages.success(request, 'Report generated successfully!')
+            return redirect('rhu_management:reports_dashboard')
+
+        except Exception as e:
+            messages.error(request, f'Error generating report: {str(e)}')
+            return redirect('rhu_management:generate_report')
+
+    context = {
+        'report_types': RHUReport.REPORT_TYPES,
+        'metrics': get_available_metrics(),
+        'title': 'Generate Report'
+    }
+
+    return render(request, 'rhu_management/generate_report.html', context)
+
+
+def get_available_metrics():
+    """Return available metrics for custom reports"""
+    return [
+        {'id': 'patients', 'name': 'Patient Statistics'},
+        {'id': 'checkups', 'name': 'Checkup Analytics'},
+        {'id': 'appointments', 'name': 'Appointment Tracking'},
+        {'id': 'emergencies', 'name': 'Emergency Alerts'},
+        {'id': 'notifications', 'name': 'Notification Stats'}
+    ]
+
+
+def generate_summary(report_data, report_type, start_date, end_date):
+    """Generate a text summary of the report"""
+    summary_lines = [
+        f"Report Period: {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}",
+        f"Report Type: {dict(RHUReport.REPORT_TYPES)[report_type]}"
+    ]
+
+    return "\n".join(summary_lines)
+
+
+def generate_daily_report(start_date, end_date):
+    """Generate daily activity report"""
+    data = {
+        'metadata': {
+            'report_type': 'Daily Report',
+            'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        },
+        'statistics': {
+            'total_patients': Patient.objects.filter(
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date
+            ).count(),
+            'total_checkups': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date
+            ).count(),
+            'total_appointments': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date
+            ).count(),
+            'total_emergencies': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date
+            ).count()
+        },
+        'daily_breakdown': []
+    }
+
+    current_date = start_date
+    while current_date <= end_date:
+        next_date = current_date + timedelta(days=1)
+        daily_data = {
+            'date': current_date.strftime('%Y-%m-%d'),
+            'metrics': {
+                'patients': Patient.objects.filter(
+                    created_at__gte=current_date,
+                    created_at__lt=next_date
+                ).count(),
+                'checkups': PrenatalCheckup.objects.filter(
+                    checkup_date__gte=current_date,
+                    checkup_date__lt=next_date
+                ).count(),
+                'appointments': Appointment.objects.filter(
+                    appointment_date__gte=current_date,
+                    appointment_date__lt=next_date
+                ).count(),
+                'emergencies': EmergencyAlert.objects.filter(
+                    alert_time__gte=current_date,
+                    alert_time__lt=next_date
+                ).count()
+            }
+        }
+        data['daily_breakdown'].append(daily_data)
+        current_date = next_date
+
+    return data
+
+
+def generate_weekly_report(start_date, end_date):
+    """Generate weekly activity report"""
+    data = {
+        'metadata': {
+            'report_type': 'Weekly Report',
+            'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        },
+        'statistics': {
+            'total_patients': Patient.objects.filter(
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count(),
+            'total_checkups': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date
+            ).count(),
+            'total_appointments': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date
+            ).count(),
+            'total_emergencies': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date
+            ).count()
+        },
+        'weekly_breakdown': []
+    }
+
+    current_date = start_date
+    while current_date <= end_date:
+        week_end = min(current_date + timedelta(days=6), end_date)
+        next_date = week_end + timedelta(days=1)
+
+        weekly_data = {
+            'week': f"Week {current_date.strftime('%Y-%m-%d')} to {week_end.strftime('%Y-%m-%d')}",
+            'metrics': {
+                'patients': Patient.objects.filter(
+                    created_at__gte=current_date,
+                    created_at__lt=next_date
+                ).count(),
+                'checkups': PrenatalCheckup.objects.filter(
+                    checkup_date__gte=current_date,
+                    checkup_date__lt=next_date
+                ).count(),
+                'appointments': Appointment.objects.filter(
+                    appointment_date__gte=current_date,
+                    appointment_date__lt=next_date
+                ).count(),
+                'emergencies': EmergencyAlert.objects.filter(
+                    alert_time__gte=current_date,
+                    alert_time__lt=next_date
+                ).count()
+            }
+        }
+        data['weekly_breakdown'].append(weekly_data)
+        current_date = next_date
+
+    return data
+
+
+def generate_monthly_report(start_date, end_date):
+    """Generate monthly activity report"""
+    data = {
+        'metadata': {
+            'report_type': 'Monthly Report',
+            'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        },
+        'statistics': {
+            'total_patients': Patient.objects.filter(
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count(),
+            'total_checkups': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date
+            ).count(),
+            'total_appointments': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date
+            ).count(),
+            'total_emergencies': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date
+            ).count()
+        },
+        'monthly_breakdown': []
+    }
+
+    current_date = start_date.replace(day=1)
+    while current_date <= end_date:
+        # Get last day of current month
+        if current_date.month == 12:
+            month_end = current_date.replace(day=31)
+        else:
+            month_end = current_date.replace(month=current_date.month + 1, day=1) - timedelta(days=1)
+
+        month_end = min(month_end, end_date)
+        next_date = month_end + timedelta(days=1)
+
+        monthly_data = {
+            'month': current_date.strftime('%B %Y'),
+            'metrics': {
+                'patients': Patient.objects.filter(
+                    created_at__gte=current_date,
+                    created_at__lt=next_date
+                ).count(),
+                'checkups': PrenatalCheckup.objects.filter(
+                    checkup_date__gte=current_date,
+                    checkup_date__lt=next_date
+                ).count(),
+                'appointments': Appointment.objects.filter(
+                    appointment_date__gte=current_date,
+                    appointment_date__lt=next_date
+                ).count(),
+                'emergencies': EmergencyAlert.objects.filter(
+                    alert_time__gte=current_date,
+                    alert_time__lt=next_date
+                ).count()
+            }
+        }
+        data['monthly_breakdown'].append(monthly_data)
+
+        # Move to first day of next month
+        if current_date.month == 12:
+            current_date = current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            current_date = current_date.replace(month=current_date.month + 1)
+
+    return data
+
+
+def generate_quarterly_report(start_date, end_date):
+    """Generate quarterly activity report"""
+    data = {
+        'metadata': {
+            'report_type': 'Quarterly Report',
+            'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        },
+        'statistics': {
+            'total_patients': Patient.objects.filter(
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count(),
+            'total_checkups': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date
+            ).count(),
+            'total_appointments': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date
+            ).count(),
+            'total_emergencies': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date
+            ).count()
+        },
+        'quarterly_breakdown': []
+    }
+
+    # Function to get quarter start month
+    def get_quarter_start_month(month):
+        return ((month - 1) // 3) * 3 + 1
+
+    current_date = start_date.replace(month=get_quarter_start_month(start_date.month), day=1)
+    while current_date <= end_date:
+        # Calculate quarter end
+        quarter_end_month = min(current_date.month + 2, 12)
+        if quarter_end_month == 12:
+            quarter_end = current_date.replace(month=12, day=31)
+        else:
+            quarter_end = current_date.replace(month=quarter_end_month + 1, day=1) - timedelta(days=1)
+
+        quarter_end = min(quarter_end, end_date)
+        next_date = quarter_end + timedelta(days=1)
+
+        # Calculate quarter number (Q1, Q2, Q3, Q4)
+        quarter_num = (current_date.month - 1) // 3 + 1
+
+        quarterly_data = {
+            'quarter': f"Q{quarter_num} {current_date.year}",
+            'metrics': {
+                'patients': Patient.objects.filter(
+                    created_at__gte=current_date,
+                    created_at__lt=next_date
+                ).count(),
+                'checkups': PrenatalCheckup.objects.filter(
+                    checkup_date__gte=current_date,
+                    checkup_date__lt=next_date
+                ).count(),
+                'appointments': Appointment.objects.filter(
+                    appointment_date__gte=current_date,
+                    appointment_date__lt=next_date
+                ).count(),
+                'emergencies': EmergencyAlert.objects.filter(
+                    alert_time__gte=current_date,
+                    alert_time__lt=next_date
+                ).count()
+            }
+        }
+        data['quarterly_breakdown'].append(quarterly_data)
+
+        # Move to next quarter
+        if current_date.month >= 10:  # If current quarter is Q4
+            current_date = current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            current_date = current_date.replace(month=current_date.month + 3)
+
+    return data
+
+
+def generate_annual_report(start_date, end_date):
+    """Generate annual activity report"""
+    data = {
+        'metadata': {
+            'report_type': 'Annual Report',
+            'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        },
+        'statistics': {
+            'total_patients': Patient.objects.filter(
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count(),
+            'total_checkups': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date
+            ).count(),
+            'total_appointments': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date
+            ).count(),
+            'total_emergencies': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date
+            ).count()
+        },
+        'yearly_breakdown': []
+    }
+
+    current_date = start_date.replace(month=1, day=1)
+    while current_date <= end_date:
+        year_end = current_date.replace(month=12, day=31)
+        year_end = min(year_end, end_date)
+        next_date = year_end + timedelta(days=1)
+
+        yearly_data = {
+            'year': current_date.year,
+            'metrics': {
+                'patients': Patient.objects.filter(
+                    created_at__gte=current_date,
+                    created_at__lt=next_date
+                ).count(),
+                'checkups': PrenatalCheckup.objects.filter(
+                    checkup_date__gte=current_date,
+                    checkup_date__lt=next_date
+                ).count(),
+                'appointments': Appointment.objects.filter(
+                    appointment_date__gte=current_date,
+                    appointment_date__lt=next_date
+                ).count(),
+                'emergencies': EmergencyAlert.objects.filter(
+                    alert_time__gte=current_date,
+                    alert_time__lt=next_date
+                ).count()
+            }
+        }
+        data['yearly_breakdown'].append(yearly_data)
+        current_date = current_date.replace(year=current_date.year + 1)
+
+    return data
+
+
+def generate_custom_report(start_date, end_date, metrics):
+    """Generate custom report based on selected metrics"""
+    data = {
+        'metadata': {
+            'report_type': 'Custom Report',
+            'period': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'selected_metrics': metrics
+        },
+        'statistics': {}
+    }
+
+    if 'patients' in metrics:
+        data['statistics']['patients'] = {
+            'total': Patient.objects.filter(
+                created_at__gte=start_date,
+                created_at__lte=end_date
+            ).count(),
+            'active': Patient.objects.filter(
+                created_at__gte=start_date,
+                created_at__lte=end_date,
+                is_active=True
+            ).count()
+        }
+
+    if 'checkups' in metrics:
+        data['statistics']['checkups'] = {
+            'total': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date
+            ).count(),
+            'normal': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date,
+                status='NORMAL'
+            ).count(),
+            'high_risk': PrenatalCheckup.objects.filter(
+                checkup_date__gte=start_date,
+                checkup_date__lte=end_date,
+                status='HIGH_RISK'
+            ).count()
+        }
+
+    if 'appointments' in metrics:
+        data['statistics']['appointments'] = {
+            'total': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date
+            ).count(),
+            'completed': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date,
+                status='COMPLETED'
+            ).count(),
+            'missed': Appointment.objects.filter(
+                appointment_date__gte=start_date,
+                appointment_date__lte=end_date,
+                status='MISSED'
+            ).count()
+        }
+
+    if 'emergencies' in metrics:
+        data['statistics']['emergencies'] = {
+            'total': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date
+            ).count(),
+            'resolved': EmergencyAlert.objects.filter(
+                alert_time__gte=start_date,
+                alert_time__lte=end_date,
+                status='RESOLVED'
+            ).count()
+        }
+
+    return data
+
+
+def export_report(report):
+    """Export report to PDF with enhanced formatting"""
+    try:
+        # Create the reports directory if it doesn't exist
+        reports_dir = os.path.join(settings.MEDIA_ROOT, 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+
+        # Generate unique filename
+        filename = f"report_{report.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        filepath = os.path.join(reports_dir, filename)
+
+        # Create the PDF document
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=A4,
+            rightMargin=1.5 * cm,
+            leftMargin=1.5 * cm,
+            topMargin=1.5 * cm,
+            bottomMargin=1.5 * cm
+        )
+
+        # Create custom styles
+        styles = getSampleStyleSheet()
+
+        # Custom Title Style
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor('#2c3e50')
+        )
+
+        # Custom Heading Style
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            spaceBefore=15,
+            spaceAfter=10,
+            textColor=colors.HexColor('#34495e')
+        )
+
+        # Custom Normal Style
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            spaceBefore=6,
+            spaceAfter=6,
+            textColor=colors.HexColor('#2c3e50')
+        )
+
+        # Metadata Style
+        metadata_style = ParagraphStyle(
+            'MetadataStyle',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#7f8c8d'),
+            alignment=TA_CENTER
+        )
+
+        elements = []
+
+        # Add Title
+        elements.append(Paragraph(report.title.upper(), title_style))
+
+        # Add Metadata
+        metadata = [
+            f"Generated on: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
+        ]
+        for meta in metadata:
+            elements.append(Paragraph(meta, metadata_style))
+
+        elements.append(Spacer(1, 30))
+
+        # Add Summary
+        if report.summary:
+            elements.append(Paragraph("Executive Summary", heading_style))
+            summary_paragraphs = report.summary.split('\n')
+            for para in summary_paragraphs:
+                if para.strip():  # Only add non-empty paragraphs
+                    elements.append(Paragraph(para, normal_style))
+            elements.append(Spacer(1, 20))
+
+        # Add Statistics
+        if 'statistics' in report.content:
+            elements.append(Paragraph("Key Statistics", heading_style))
+
+            # Create statistics table data
+            stats_data = []
+            for key, value in report.content['statistics'].items():
+                if isinstance(value, dict):
+                    for sub_key, sub_value in value.items():
+                        stats_data.append([
+                            Paragraph(f"{key.replace('_', ' ').title()} - {sub_key.replace('_', ' ').title()}",
+                                      normal_style),
+                            Paragraph(str(sub_value), normal_style)
+                        ])
+                else:
+                    stats_data.append([
+                        Paragraph(key.replace('_', ' ').title(), normal_style),
+                        Paragraph(str(value), normal_style)
+                    ])
+
+            # Create and style the statistics table
+            stats_table = Table(stats_data, colWidths=[doc.width * 0.7, doc.width * 0.3])
+            stats_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 12),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ecf0f1')),
+                ('LINEBELOW', (0, -1), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+            ]))
+            elements.append(stats_table)
+            elements.append(Spacer(1, 20))
+
+        # Add Breakdown Tables
+        breakdown_keys = [
+            'daily_breakdown', 'weekly_breakdown',
+            'monthly_breakdown', 'quarterly_breakdown',
+            'yearly_breakdown'
+        ]
+
+        for key in breakdown_keys:
+            if key in report.content:
+                elements.append(Paragraph(
+                    f"{key.replace('_', ' ').title()} Analysis",
+                    heading_style
+                ))
+
+                breakdown_data = report.content[key]
+                if breakdown_data:
+                    # Get all metric keys from the first entry
+                    first_entry = breakdown_data[0]
+                    metric_keys = list(first_entry['metrics'].keys())
+
+                    # Define a smaller heading style for tables
+                    table_heading_style = ParagraphStyle(
+                        'TableHeading',
+                        parent=heading_style,
+                        fontSize=11,  # Reduced from 12
+                        spaceAfter=6,  # Reduced padding
+                        spaceBefore=6,
+                    )
+
+                    # Update the table header creation
+                    table_data = [[
+                                      Paragraph('Period', table_heading_style)
+                                  ] + [
+                                      Paragraph(k.replace('_', ' ').title(), table_heading_style)
+                                      for k in metric_keys
+                                  ]]
+
+                    # Add table data
+                    for entry in breakdown_data:
+                        period = entry.get('date', entry.get('week', entry.get('month',
+                                                                               entry.get('quarter',
+                                                                                         entry.get('year', '')))))
+                        row = [Paragraph(str(period), normal_style)]
+                        row.extend([
+                            Paragraph(str(entry['metrics'][k]), normal_style)
+                            for k in metric_keys
+                        ])
+                        table_data.append(row)
+
+                    # Calculate column widths
+                    col_widths = [doc.width / (len(metric_keys) + 1)] * (len(metric_keys) + 1)
+
+                    # Create and style the table
+                    breakdown_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+                    breakdown_table.setStyle(TableStyle([
+                        # Header style
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ecf0f1')),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                        ('FONTSIZE', (0, 0), (-1, 0), 12),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                        ('TOPPADDING', (0, 0), (-1, 0), 12),
+
+                        # Data rows
+                        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
+                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
+                        ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Left align first column
+                        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),  # Center align other columns
+                        ('FONTSIZE', (0, 1), (-1, -1), 10),
+
+                        # Grid
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+
+                        # Alternate row colors
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                         [colors.HexColor('#ffffff'), colors.HexColor('#f9f9f9')]),
+
+                        # Padding
+                        ('TOPPADDING', (0, 1), (-1, -1), 8),
+                        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+                    ]))
+                    elements.append(breakdown_table)
+                    elements.append(Spacer(1, 20))
+
+        # Add footer
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.HexColor('#95a5a6'),
+            alignment=TA_CENTER
+        )
+        elements.append(Paragraph(
+            f"Generated by RHU Management System • Report ID: {report.id}",
+            footer_style
+        ))
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Update report with relative file path
+        relative_path = os.path.join('reports', filename)
+        report.file_path = relative_path
+        report.save(update_fields=['file_path'])
+
+        return relative_path
+
+    except Exception as e:
+        print(f"Error generating PDF: {str(e)}")
+        raise
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def view_report(request, report_id):
+    """View report PDF in browser"""
+    try:
+        report = RHUReport.objects.get(id=report_id)
+
+        if not report.file_path:
+            # Generate the report if it doesn't exist
+            try:
+                report.file_path = export_report(report)
+                report.save()
+            except Exception as e:
+                messages.error(request, f'Error generating report: {str(e)}')
+                return redirect('rhu_management:reports_dashboard')
+
+        file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
+
+        if not os.path.exists(file_path):
+            # Regenerate if file is missing
+            try:
+                report.file_path = export_report(report)
+                report.save()
+                file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
+            except Exception as e:
+                messages.error(request, f'Error generating report: {str(e)}')
+                return redirect('rhu_management:reports_dashboard')
+
+        try:
+            with open(file_path, 'rb') as pdf_file:
+                response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+                response['Content-Disposition'] = f'inline; filename="{os.path.basename(file_path)}"'
+                return response
+        except Exception as e:
+            messages.error(request, f'Error reading report file: {str(e)}')
+            return redirect('rhu_management:reports_dashboard')
+
+    except RHUReport.DoesNotExist:
+        messages.error(request, 'Report not found.')
+        return redirect('rhu_management:reports_dashboard')
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def download_report(request, report_id):
+    """Download exported report file"""
+    try:
+        report = RHUReport.objects.get(id=report_id)
+
+        # Check if file path exists in database
+        if not report.file_path:
+            # Try to generate the report if it doesn't exist
+            try:
+                report.file_path = export_report(report)
+                report.save()
+            except Exception as e:
+                messages.error(request, f'Error generating report: {str(e)}')
+                return redirect('rhu_management:reports_dashboard')
+
+        # Get the full file path
+        file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
+
+        # Check if file exists in filesystem
+        if not os.path.exists(file_path):
+            # Try to regenerate the report
+            try:
+                report.file_path = export_report(report)
+                report.save()
+                file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
+            except Exception as e:
+                messages.error(request, f'Error generating report: {str(e)}')
+                return redirect('rhu_management:reports_dashboard')
+
+        # Serve the file
+        try:
+            with open(file_path, 'rb') as pdf_file:
+                response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                return response
+        except Exception as e:
+            messages.error(request, f'Error reading report file: {str(e)}')
+            return redirect('rhu_management:reports_dashboard')
+
+    except RHUReport.DoesNotExist:
+        messages.error(request, 'Report not found.')
+        return redirect('rhu_management:reports_dashboard')
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def analytics_view(request):
+    """Display detailed analytics and visualizations"""
+    # Get filter parameters
+    time_range = request.GET.get('range', '30')  # Default to 30 days
+    metric_type = request.GET.get('metric', 'all')
+
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=int(time_range))
+
+    # Get patient analytics
+    patient_stats = get_patient_analytics(start_date, end_date)
+
+    # Get checkup analytics
+    checkup_stats = get_checkup_analytics(start_date, end_date)
+
+    # Get emergency response analytics
+    emergency_stats = get_emergency_analytics(start_date, end_date)
+
+    context = {
+        'patient_stats': patient_stats,
+        'checkup_stats': checkup_stats,
+        'appointment_stats': appointment_stats,
+        'emergency_stats': emergency_stats,
+        'time_range': time_range,
+        'metric_type': metric_type,
+        'title': 'Analytics'
+    }
+
+    return render(request, 'rhu_management/report_analytics.html', context)
+
+
+# Analytics Functions
+def get_patient_analytics(start_date, end_date, barangay=None):
+    """Get detailed patient statistics with optional barangay filter"""
+    query = Patient.objects.filter(is_active=True)
+    if barangay:
+        query = query.filter(address__icontains=barangay.name)
+
+    return {
+        'total_patients': query.count(),
+        'new_patients': query.filter(
+            created_at__range=(start_date, end_date)
+        ).count(),
+        'age_distribution': get_age_distribution(barangay),
+        'location_distribution': get_location_distribution(barangay)
+    }
+
+
+def get_checkup_analytics(start_date, end_date, barangay=None):
+    """Get checkup statistics with optional barangay filter"""
+    query = PrenatalCheckup.objects.filter(
+        checkup_date__range=(start_date, end_date)
+    )
+    if barangay:
+        query = query.filter(patient__address__icontains=barangay.name)
+
+    return {
+        'total_checkups': query.count(),
+        'avg_checkups_per_patient': query.values('patient').annotate(
+            count=Count('id')
+        ).aggregate(avg=Avg('count'))['avg'],
+        'weekly_distribution': get_weekly_checkup_distribution(query)
+    }
+
+
+def get_emergency_analytics(start_date, end_date, barangay=None):
+    """Get emergency statistics with optional barangay filter"""
+    query = EmergencyAlert.objects.filter(
+        alert_time__range=(start_date, end_date)
+    )
+    if barangay:
+        query = query.filter(patient__address__icontains=barangay.name)
+
+    return {
+        'total_alerts': query.count(),
+        'response_times': calculate_response_times(query),
+        'status_distribution': get_status_distribution(query)
+    }
+
+
+def get_appointment_analytics(start_date, end_date):
+    """Get checkup statistics and outcomes"""
+    checkups = PrenatalCheckup.objects.filter(
+        checkup_date__range=(start_date, end_date)
+    )
+
+    return {
+        'total_checkups': checkups.count(),
+        'status_distribution': get_appointment_status_distribution(checkups),
+        'attendance_rate': calculate_attendance_rate(checkups)
+    }
+
+
+def get_age_distribution(barangay=None):
+    """Calculate patient age distribution"""
+    age_groups = {
+        '18-24': (18, 24),
+        '25-29': (25, 29),
+        '30-34': (30, 34),
+        '35+': (35, 150)
+    }
+
+    distribution = {}
+    for group, (min_age, max_age) in age_groups.items():
+        min_date = timezone.now() - timedelta(days=365 * max_age)
+        max_date = timezone.now() - timedelta(days=365 * min_age)
+
+        if barangay:
+            query = Patient.objects.filter(
+                address__icontains=barangay.name,
+                birth_date__gte=min_date,
+                birth_date__lte=max_date
+            )
+        else:
+            query = Patient.objects.filter(
+                birth_date__gte=min_date,
+                birth_date__lte=max_date
+            )
+
+        count = query.count()
+        distribution[group] = count
+
+    return distribution
+
+
+def get_location_distribution(barangay=None):
+    """Get distribution of patients by location"""
+    if barangay:
+        query = Patient.objects.filter(
+            address__icontains=barangay.name
+        ).values('address').annotate(
+            count=Count('id')
+        ).order_by('-count')[:10]
+    else:
+        return Patient.objects.values('address').annotate(
+            count=Count('id')
+        ).order_by('-count')[:10]
+
+
+def get_weekly_checkup_distribution(checkups):
+    """Get distribution of checkups by day of week"""
+    distribution = {}
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    for day in range(7):
+        count = checkups.filter(checkup_date__week_day=day + 1).count()
+        distribution[days[day]] = count
+
+    return distribution
+
+
+def get_appointment_status_distribution(appointments):
+    """Calculate distribution of appointment statuses"""
+    return appointments.values('status').annotate(
+        count=Count('id')
+    ).order_by('status')
+
+
+def calculate_attendance_rate(appointments):
+    """Calculate appointment attendance rate"""
+    total = appointments.count()
+    if total == 0:
+        return 0
+
+    attended = appointments.filter(status='COMPLETED').count()
+    return (attended / total) * 100
+
+
+def calculate_avg_response_time(alerts):
+    """Calculate average emergency response time in minutes"""
+    responded_alerts = alerts.filter(
+        response_time__isnull=False
+    ).exclude(status='CANCELLED')
+
+    if not responded_alerts.exists():
+        return None
+
+    total_minutes = 0
+    count = 0
+
+    for alert in responded_alerts:
+        response_time = (alert.response_time - alert.alert_time).total_seconds() / 60
+        total_minutes += response_time
+        count += 1
+
+    return total_minutes / count if count > 0 else None
+
+
+def calculate_resolution_rate(alerts):
+    """Calculate emergency resolution rate"""
+    total = alerts.exclude(status='CANCELLED').count()
+    if total == 0:
+        return 0
+
+    resolved = alerts.filter(status='RESOLVED').count()
+    return (resolved / total) * 100
+
+
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def rhu_dashboard(request):
+    """Display RHU dashboard with overview and quick stats"""
+    # Get time range
+    today = timezone.now().date()
+    tomorrow = today + timezone.timedelta(days=1)
+    this_month_start = today.replace(day=1)
+    thirty_days_ago = today - timedelta(days=30)
+
+    # Quick Statistics
+    stats = {
+        # Patient Stats
+        'total_patients': Patient.objects.filter(is_active=True).count(),
+        'new_patients': Patient.objects.filter(
+            created_at__gte=thirty_days_ago
+        ).count(),
+
+        # Checkup Stats
+        'today_checkups': PrenatalCheckup.objects.filter(
+            checkup_date=today
+        ).count(),
+        'tomorrow_checkups': PrenatalCheckup.objects.filter(
+            checkup_date=tomorrow
+        ).count(),
+        'monthly_checkups': PrenatalCheckup.objects.filter(
+            checkup_date__gte=this_month_start
+        ).count(),
+        'upcoming_checkups': PrenatalCheckup.objects.filter(
+            checkup_date__gt=today,
+            status='SCHEDULED'
+        ).count(),
+
+        # Emergency Stats
+        'active_emergencies': EmergencyAlert.objects.filter(
+            status='ACTIVE'
+        ).count(),
+        'monthly_emergencies': EmergencyAlert.objects.filter(
+            alert_time__gte=this_month_start
+        ).count()
+    }
+
+    # Get upcoming checkups for today and tomorrow
+    upcoming_checkups = PrenatalCheckup.objects.filter(
+        checkup_date__range=[today, today + timedelta(days=1)],
+        status='SCHEDULED'
+    ).order_by('checkup_date')[:5]
+
+    # Get recent checkups
+    recent_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).order_by('-checkup_date')[:5]
+
+    # Get active emergency alerts
+    active_emergencies = EmergencyAlert.objects.filter(
+        status='ACTIVE'
+    ).select_related('patient__user').order_by('-alert_time')
+
+    # Get recent activity feed
+    recent_activities = get_recent_activities()
+
+    # Get pending tasks
+    pending_tasks = get_pending_tasks()
+
+    # Monthly trends
+    monthly_trends = get_monthly_trends()
+
+    context = {
+        'stats': stats,
+        'upcoming_checkups': upcoming_checkups,
+        'recent_checkups': recent_checkups,
+        'active_emergencies': active_emergencies,
+        'recent_activities': recent_activities,
+        'pending_tasks': pending_tasks,
+        'monthly_trends': monthly_trends,
+        'title': 'RHU Dashboard'
+    }
+
+    return render(request, 'rhu_management/dashboard.html', context)
+
+
+def get_recent_activities():
+    """Get recent activities across all models"""
+    activities = []
+
+    # Get recent checkups
+    recent_checkups = PrenatalCheckup.objects.order_by('-checkup_date')[:10]
+    for checkup in recent_checkups:
+        activities.append({
+            'type': 'checkup',
+            'time': timezone.localtime(
+                timezone.make_aware(datetime.combine(checkup.checkup_date, datetime.min.time()))),
+            'patient': checkup.patient,
+            'description': f"{checkup.patient.user.get_full_name()} had a prenatal checkup"
+        })
+
+    # Sort all activities by time
+    activities.sort(key=lambda x: x['time'], reverse=True)
+    return activities[:10]
+
+
+def get_pending_tasks(staff=None):
+    """Get pending tasks for staff member"""
+    tasks = []
+    today = timezone.now().date()
+
+    # Check unresponded emergency alerts
+    active_emergencies = EmergencyAlert.objects.filter(
+        status='ACTIVE'
+    ).count()
+    if active_emergencies > 0:
+        tasks.append({
+            'type': 'emergency',
+            'description': f'{active_emergencies} active emergency alerts need response',
+            'priority': 'high',
+            'url': 'rhu_management:emergency_dashboard'
+        })
+
+    # Check patients needing follow-up
+    need_followup = PrenatalCheckup.objects.filter(
+        checkup_date__gte=today - timedelta(days=30)
+    ).count()
+    if need_followup > 0:
+        tasks.append({
+            'type': 'followup',
+            'description': f'{need_followup} patients need follow-up checkups',
+            'priority': 'normal',
+            'url': 'rhu_management:checkup_list'
+        })
+
+    return tasks
+
+
+def get_monthly_trends():
+    """Calculate trends for dashboard charts"""
+    now = timezone.now()
+    months = []
+    data = {
+        'checkups': [],
+        'emergencies': []
+    }
+
+    # Get data for last 6 months
+    for i in range(6):
+        month_start = (now - timedelta(days=30 * i)).replace(
+            day=1,
+            hour=0,
+            minute=0,
+            second=0
+        )
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        months.append(month_start.strftime('%B %Y'))
+
+        # Get counts for each type
+        data['checkups'].append(
+            PrenatalCheckup.objects.filter(
+                checkup_date__range=(month_start, month_end)
+            ).count()
+        )
+
+        data['emergencies'].append(
+            EmergencyAlert.objects.filter(
+                alert_time__range=(month_start, month_end)
+            ).count()
+        )
+
+    return {
+        'months': list(reversed(months)),
+        'datasets': {k: list(reversed(v)) for k, v in data.items()}
+    }

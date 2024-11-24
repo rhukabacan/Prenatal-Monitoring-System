@@ -1,0 +1,216 @@
+<!-- emergency_detail.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Emergency Alert Details
+                        </h4>
+                        <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
+                                          {% elif alert.status == 'RESOLVED' %}bg-success
+                                          {% else %}bg-warning{% endif %}">
+                            {{ alert.status }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Patient Information -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-user me-2"></i>Patient Information
+                    </h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <strong>Name:</strong><br>
+                                {{ alert.patient.user.get_full_name }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Contact:</strong><br>
+                                {{ alert.patient.contact_number }}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <strong>Address:</strong><br>
+                                {{ alert.patient.address }}
+                            </p>
+                            {% if alert.location %}
+                                <p class="mb-2">
+                                    <strong>Emergency Location:</strong><br>
+                                    <a href="https://www.google.com/maps?q={{ alert.location }}"
+                                       target="_blank" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-map-marker-alt me-2"></i>View on Map
+                                    </a>
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Alert Timeline -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-clock me-2"></i>Alert Timeline
+                    </h5>
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <div class="timeline">
+                                <!-- Alert Raised -->
+                                <div class="d-flex mb-3">
+                                    <div class="flex-shrink-0">
+                                        <span class="badge rounded-pill bg-danger">&nbsp;</span>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">Emergency Alert Raised</h6>
+                                        <small class="text-muted">
+                                            {{ alert.alert_time|date:"F d, Y - g:i A" }}
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <!-- Response Time -->
+                                {% if alert.response_time %}
+                                    <div class="d-flex mb-3">
+                                        <div class="flex-shrink-0">
+                                            <span class="badge rounded-pill bg-warning">&nbsp;</span>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">Response Initiated</h6>
+                                            <small class="text-muted">
+                                                {{ alert.response_time|date:"F d, Y - g:i A" }}
+                                                ({{ response_time }} minutes after alert)
+                                            </small>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Resolution Time -->
+                                {% if alert.resolved_time %}
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0">
+                                            <span class="badge rounded-pill bg-success">&nbsp;</span>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">Emergency Resolved</h6>
+                                            <small class="text-muted">
+                                                {{ alert.resolved_time|date:"F d, Y - g:i A" }}
+                                                {% if resolution_time %}
+                                                    ({{ resolution_time }} minutes to resolve)
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes and Updates -->
+                    {% if alert.notes %}
+                        <h5 class="mb-3">
+                            <i class="fas fa-clipboard-list me-2"></i>Notes and Updates
+                        </h5>
+                        <div class="card bg-light">
+                            <div class="card-body py-0">
+                                {{ alert.notes|linebreaks }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Action Buttons -->
+                    {% if alert.status != 'RESOLVED' %}
+                        <div class="text-center mt-4">
+                            {% if alert.status == 'ACTIVE' %}
+                                <button type="button" class="btn btn-warning ms-2">
+                                    <i class="fas fa-headset me-2"></i>Respond
+                                </button>
+                                <button type="button" class="btn btn-info ms-2">
+                                    <i class="fas fa-ambulance me-2"></i>En Route
+                                </button>
+                            {% endif %}
+                            {% if alert.status != 'ACTIVE' %}
+                                <button type="button" class="btn btn-success ms-2">
+                                    <i class="fas fa-check-circle me-2"></i>Mark as Resolved
+                                </button>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Medical History Card -->
+            <div class="card shadow mt-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Patient Medical History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Latest Checkup -->
+                    {% if latest_checkup %}
+                        <h6 class="mb-3">Latest Checkup ({{ latest_checkup.checkup_date|date:"F d, Y" }})</h6>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <p class="mb-1">
+                                    <strong>Blood Pressure:</strong><br>
+                                    {{ latest_checkup.blood_pressure }}
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1">
+                                    <strong>Weight:</strong><br>
+                                    {{ latest_checkup.weight }} kg
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1">
+                                    <strong>Pregnancy Week:</strong><br>
+                                    Week {{ latest_checkup.get_pregnancy_week.weeks }}
+                                </p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No checkup records available</p>
+                    {% endif %}
+
+                    <!-- Previous Emergency Alerts -->
+                    <h6 class="mb-3">Previous Emergency Alerts</h6>
+                    {% if previous_alerts %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Response Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for prev_alert in previous_alerts %}
+                                        <tr>
+                                            <td>{{ prev_alert.alert_time|date:"F d, Y" }}</td>
+                                            <td>
+                                                <span class="badge {% if prev_alert.status == 'RESOLVED' %}bg-success
+                                                                  {% else %}bg-warning{% endif %}">
+                                                    {{ prev_alert.status }}
+                                                </span>
+                                            </td>
+                                            <td>{{ prev_alert.get_response_time_minutes }} minutes</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No previous emergency alerts</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

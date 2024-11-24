@@ -1,0 +1,179 @@
+<!-- checkup_list.html -->
+{% extends 'patient_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Today's Checkup</h6>
+                            <h2 class="mb-0">{{ stats.today }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Upcoming Checkup</h6>
+                            <h2 class="mb-0">{{ stats.upcoming }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Completed Checkup</h6>
+                            <h2 class="mb-0">{{ stats.completed }}</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Cancelled/Missed Checkup</h6>
+                            <h2 class="mb-0">{{ stats.cancelled }}</h2>
+                        </div>
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Checkup List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-list-alt me-2"></i>My Checkups
+                    </h4>
+                    <a href="{% url 'patient_management:request_checkup' %}" class="btn btn-light">
+                        <i class="fas fa-calendar-plus me-2"></i>Request Checkup
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Sort Options -->
+                    <div class="mb-3">
+                        <div class="btn-group">
+                            <a href="?sort=-checkup_date" class="btn btn-outline-primary
+                                {% if current_sort == '-checkup_date' %}active{% endif %}">
+                                Newest First
+                            </a>
+                            <a href="?sort=checkup_date" class="btn btn-outline-primary
+                                {% if current_sort == 'checkup_date' %}active{% endif %}">
+                                Oldest First
+                            </a>
+                        </div>
+                    </div>
+
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Last Menstrual Period</th>
+                                        <th>Estimated Delivery Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for checkup in page_obj %}
+                                        <tr>
+                                            <td>{{ checkup.checkup_date|date:"M. d, Y - g:i A" }}</td>
+                                            <td>{{ checkup.last_menstrual_period }}</td>
+                                            <td>{{ checkup.estimated_delivery_date }}</td>
+                                            <td>
+                                                <span class="badge {% if checkup.status == 'SCHEDULED' %}bg-primary
+                                                                  {% elif checkup.status == 'COMPLETED' %}bg-success
+                                                                  {% elif checkup.status == 'REQUESTED' %}bg-warning text-dark
+                                                                  {% else %}bg-danger{% endif %}">
+                                                    {{ checkup.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-1">
+                                                    <a href="{% url 'patient_management:checkup_detail' checkup_id=checkup.id %}"
+                                                       class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Page navigation" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&sort={{ current_sort }}">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}&sort={{ current_sort }}">
+                                                    {{ num }}
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}&sort={{ current_sort }}">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-notes-medical fa-3x text-muted mb-3"></i>
+                            <h5>No checkup records found</h5>
+                            <p class="text-muted">Start by adding your first checkup record</p>
+                            <a href="{% url 'patient_management:request_checkup' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Request Checkup
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

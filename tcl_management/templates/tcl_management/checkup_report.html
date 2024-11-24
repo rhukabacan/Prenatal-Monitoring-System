@@ -1,0 +1,110 @@
+{% extends 'tcl_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">
+            <i class="fas fa-stethoscope me-2"></i>Checkup Reports - {{ barangay.name }}
+        </h4>
+        <span class="badge bg-secondary">View Only</span>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total<br>Checkups</h6>
+                            <h2 class="mb-0">{{ stats.total_checkups }}</h2>
+                        </div>
+                        <i class="fas fa-stethoscope fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">This Month's<br>Checkups</h6>
+                            <h2 class="mb-0">{{ stats.this_month }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">High BP<br>Cases</h6>
+                            <h2 class="mb-0">{{ stats.high_bp_cases }}</h2>
+                        </div>
+                        <i class="fas fa-heart fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Completed<br>Checkups</h6>
+                            <h2 class="mb-0">{{ stats.completed }}</h2>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Trend Chart -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>Weekly Checkup Trend
+            </h5>
+        </div>
+        <div class="card-body">
+            <canvas id="weeklyTrendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [{% for item in weekly_trend %}'{{ item.week }}',{% endfor %}],
+            datasets: [{
+                label: 'Number of Checkups',
+                data: [{% for item in weekly_trend %}{{ item.count }},{% endfor %}],
+                borderColor: '#0dcaf0',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

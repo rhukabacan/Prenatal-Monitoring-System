@@ -1,0 +1,188 @@
+<!-- add_patient.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>Add New Patient
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- Personal Information -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3"><i class="fa fa-user me-2"></i>Personal Information</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="first_name" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="last_name" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="contact_number" class="form-label">Contact Number</label>
+                                    <input type="tel" class="form-control" id="contact_number" name="contact_number" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="birth_date" class="form-label">Birth Date</label>
+                                    <input type="date" class="form-control" id="birth_date" name="birth_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sitio" class="form-label">Sitio</label>
+                                    <input type="text" class="form-control" id="sitio" name="sitio" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="barangay" class="form-label">Barangay</label>
+                                    <select class="form-select" id="barangay" name="barangay" required>
+                                        <option value="">Select Barangay</option>
+                                        {% for barangay in barangays %}
+                                            <option value="{{ barangay.id }}">{{ barangay.barangay_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="occupation" class="form-label">Occupation</label>
+                                    <input type="text" class="form-control" id="occupation" name="occupation" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="monthly_income" class="form-label">Monthly Income</label>
+                                    <input type="number" class="form-control" id="monthly_income" name="monthly_income" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="blood_type" class="form-label">Blood Type</label>
+                                    <select class="form-select" id="blood_type" name="blood_type" required>
+                                        <option value="">Select Blood Type</option>
+                                        {% for value, label in blood_type_choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="religion" class="form-label">Religion</label>
+                                    <select class="form-select" id="religion" name="religion" required>
+                                        <option value="">Select Religion</option>
+                                        {% for value, label in religion_choices %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Account Information -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3"><i class="fa fa-user-lock me-2"></i>Account Information</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="confirm_password" class="form-label">Confirm Password</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Family Information -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3"><i class="fa fa-house-user me-2"></i>Family Information</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="spouse_name" class="form-label">Spouse Name</label>
+                                    <input type="text" class="form-control" id="spouse_name" name="spouse_name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="spouse_occupation" class="form-label">Spouse Occupation</label>
+                                    <input type="text" class="form-control" id="spouse_occupation" name="spouse_occupation" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="spouse_monthly_income" class="form-label">Spouse Monthly Income</label>
+                                    <input type="number" class="form-control" id="spouse_monthly_income" name="spouse_monthly_income" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="number_of_children" class="form-label">Number of Children</label>
+                                    <input type="number" class="form-control" id="number_of_children" name="number_of_children" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contact -->
+                        <div class="row mb-4">
+                            <h5 class="mb-3"><i class="fa fa-exclamation-circle me-2"></i>Emergency Contact</h5>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="emergency_contact_name" class="form-label">Contact Name</label>
+                                    <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="emergency_contact_number" class="form-label">Contact Number</label>
+                                    <input type="tel" class="form-control" id="emergency_contact_number" name="emergency_contact_number" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <a href="{% url 'rhu_management:patient_list' %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Patient
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

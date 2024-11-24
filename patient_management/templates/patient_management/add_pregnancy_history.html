@@ -1,0 +1,98 @@
+<!-- add_pregnancy_history.html -->
+{% extends 'patient_base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-baby me-2"></i>Add Pregnancy History
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <!-- Delivery Information -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-hospital me-2"></i>Delivery Information
+                    </h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="delivery_date" class="form-label">Delivery Date</label>
+                                <input type="date" class="form-control" id="delivery_date"
+                                       name="delivery_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="delivery_type" class="form-label">Type of Delivery</label>
+                                <select class="form-select" id="delivery_type" name="delivery_type" required>
+                                    <option value="">Select Delivery Type</option>
+                                    <option value="NORMAL">Normal Delivery</option>
+                                    <option value="CS">Cesarean Section</option>
+                                    <option value="ASSISTED">Assisted Delivery</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Details -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-info-circle me-2"></i>Additional Details
+                    </h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="delivery_location" class="form-label">Delivery Location</label>
+                                <input type="text" class="form-control" id="delivery_location"
+                                       name="delivery_location"
+                                       placeholder="Hospital/Clinic Name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="birth_weight" class="form-label">Birth Weight (kg)</label>
+                                <input type="number" step="0.01" class="form-control"
+                                       id="birth_weight"
+                                       name="birth_weight"
+                                       placeholder="Between 0.5 and 6 kg" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Complications -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Complications
+                    </h5>
+                    <div class="mb-4">
+                        <textarea class="form-control" id="complications" name="complications"
+                                  rows="4" placeholder="Enter any complications or leave blank if none"></textarea>
+                    </div>
+
+                    <div class="text-center">
+                        <a href="{% url 'patient_management:pregnancy_history_list' %}" class="btn btn-secondary me-2">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Record
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Get current date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
+    // Set max date for Delivery Date (can't select future dates)
+    document.getElementById('delivery_date').setAttribute('max', today);
+</script>
+{% endblock %}

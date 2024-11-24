@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Prenatal Care</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --header-height: 70px;
+            --header-height-mobile: 60px;
+            --primary-color: #4F46E5;
+            --secondary-color: #818CF8;
+            --navbar-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        body {
+            min-height: 100vh;
+            background-color: #F3F4F6;
+            padding-top: calc(var(--header-height) + 10px);
+        }
+
+        .navbar-main {
+            background: var(--navbar-bg);
+            height: var(--header-height);
+            padding: 0 1rem;
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            z-index: 1030;
+            transition: height 0.3s ease;
+        }
+
+        .navbar-brand {
+            color: white !important;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            margin-right: 2rem;
+            font-size: 1.25rem;
+            white-space: nowrap;
+        }
+
+        .navbar-brand i {
+            font-size: 1.2rem;
+        }
+
+        .navbar-nav .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            padding: 0.75rem 1rem;
+            position: relative;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: white !important;
+        }
+
+        .navbar-nav .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0.75rem;
+            right: 0.75rem;
+            height: 3px;
+            background-color: white;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .nav-link i {
+            margin-right: 0.5rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 0.25rem;
+            right: 0.25rem;
+            min-width: 1.25rem;
+            height: 1.25rem;
+            font-size: 0.75rem;
+            padding: 2px;
+        }
+
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .dropdown-item {
+            white-space: normal;
+        }
+
+        .main-content {
+            padding: 1rem;
+            transition: padding 0.3s ease;
+        }
+
+    .emergency-container {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1000;
+    }
+
+    .emergency-button {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background-color: #dc3545;
+        border: none;
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.5);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        font-size: 0.8em
+    }
+
+    .emergency-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.6);
+    }
+
+    .emergency-button:active {
+        transform: scale(0.95);
+    }
+
+    .emergency-pulse {
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+        70% { box-shadow: 0 0 0 20px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    .location-status {
+        position: absolute;
+        bottom: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        font-size: 0.8rem;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 2px 8px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 768px) {
+        .emergency-button {
+            width: 80px;
+            height: 80px;
+            font-size: 0.6em
+        }
+    }
+
+        /* Mobile Styles */
+        @media (max-width: 991.98px) {
+            body {
+                padding-top: var(--header-height-mobile);
+            }
+
+            .navbar-main {
+                height: var(--header-height-mobile);
+            }
+
+            .navbar-brand {
+                font-size: 1.1rem;
+                padding: 0.25rem 0.5rem;
+                margin-right: 0;
+                order: 0;
+            }
+
+            /* Move navbar-toggler to the left */
+            .navbar-toggler {
+                padding: 0.25rem 0.5rem;
+                order: -1;
+            }
+
+            .navbar-toggler:focus {
+                box-shadow: none;
+            }
+
+            /* Keep notification and profile visible */
+            .navbar-nav.top-nav {
+                flex-direction: row;
+                order: 1;
+            }
+
+            /* Main navigation goes full width when collapsed */
+            .navbar-collapse {
+                background: var(--navbar-bg);
+                position: fixed;
+                top: var(--header-height-mobile);
+                left: 0;
+                right: 0;
+                max-height: calc(100vh - var(--header-height-mobile));
+                overflow-y: auto;
+                padding: 0.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+
+            .navbar-collapse .nav-link {
+                padding: 1rem;
+                border-radius: 0.375rem;
+            }
+
+            .navbar-collapse .nav-link:hover,
+            .navbar-collapse .nav-link.active {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .navbar-collapse .nav-link.active::after {
+                display: none;
+            }
+
+            /* Container for mobile nav layout */
+            .mobile-nav-container {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+            }
+
+            /* Mobile dropdown styles */
+            .top-nav .dropdown-menu {
+                position: absolute;
+                min-width: 200px;
+                width: auto;
+                max-width: 250px;
+                margin-top: 0.5rem;
+                font-size: 0.875rem;
+                padding: 0.25rem;
+            }
+
+            .top-nav .dropdown-item {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.875rem;
+            }
+
+            .top-nav .dropdown-item i {
+                font-size: 0.875rem;
+                width: 16px;
+                margin-right: 0.375rem;
+            }
+
+            .top-nav .dropdown-divider {
+                margin: 0.25rem 0;
+            }
+
+            /* Main navigation dropdown stays full width */
+            .navbar-collapse .dropdown-menu {
+                width: 100%;
+                margin: 0.25rem 0;
+                padding: 0.25rem;
+            }
+        }
+
+        /* Small Mobile Devices */
+        @media (max-width: 575.98px) {
+            .navbar-brand i {
+                margin-right: 0.25rem;
+            }
+
+            .top-nav .dropdown-menu {
+                min-width: 180px;
+                max-width: 220px;
+                font-size: 0.8125rem;
+            }
+
+            .top-nav .dropdown-item {
+                padding: 0.4375rem 0.625rem;
+            }
+
+            .main-content {
+                padding: 0.75rem;
+            }
+
+            .alert {
+                margin-bottom: 0.75rem;
+                padding: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Main Navigation -->
+<nav class="navbar navbar-expand-lg navbar-main">
+    <div class="container-fluid">
+        <!-- Mobile Layout Container -->
+        <div class="mobile-nav-container d-lg-none">
+            <!-- Mobile Toggle -->
+            <button class="navbar-toggler text-white border-0" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false"
+                    aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <!-- Brand -->
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'patient_management:dashboard' %}">
+                <i class="fas fa-heartbeat me-2"></i>
+                Prenatal Care
+            </a>
+
+            <!-- Top Nav Items (always visible) -->
+            <ul class="navbar-nav top-nav">
+                <!-- Notifications -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        <i class="fas fa-bell"></i>
+                        {% if notifications_count %}
+                        <span class="notification-badge badge rounded-pill bg-danger">
+                            {{ notifications_count }}
+                        </span>
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-lg-end">
+                        {% if notifications %}
+                        {% for notification in notifications %}
+                        <li><a class="dropdown-item" href="#">{{ notification.message }}</a></li>
+                        {% endfor %}
+                        {% else %}
+                        <li><span class="dropdown-item text-muted">No new notifications</span></li>
+                        {% endif %}
+                    </ul>
+                </li>
+                <!-- Profile -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle fa-lg"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'patient_management:profile_view' %}">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{% url 'patient_management:logout' %}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Desktop Layout -->
+        <a class="navbar-brand d-none d-lg-flex align-items-center" href="{% url 'patient_management:dashboard' %}">
+            <i class="fas fa-heartbeat me-2"></i>
+            Prenatal Care
+        </a>
+
+        <!-- Navigation Items -->
+        <div class="collapse navbar-collapse" id="navbarMain">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a href="{% url 'patient_management:dashboard' %}"
+                       class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-home"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'patient_management:checkup_list' %}"
+                       class="nav-link {% if 'checkups' in request.path %}active{% endif %}">
+                        <i class="fas fa-calendar-check"></i>
+                        Checkups
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'patient_management:pregnancy_history_list' %}"
+                       class="nav-link {% if 'pregnancy-history' in request.path %}active{% endif %}">
+                        <i class="fas fa-history"></i>
+                        History
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'patient_management:emergency_history' %}"
+                       class="nav-link {% if 'emergency/history' in request.path %}active{% endif %}">
+                        <i class="fas fa-ambulance"></i>
+                        Emergency
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Desktop Top Nav Items -->
+            <ul class="navbar-nav d-none d-lg-flex">
+                <!-- Notifications -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown"
+                       aria-expanded="false">
+                        <i class="fas fa-bell"></i>
+                        {% if notifications_count %}
+                        <span class="notification-badge badge rounded-pill bg-danger">
+                            {{ notifications_count }}
+                        </span>
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% if notifications %}
+                        {% for notification in notifications %}
+                        <li><a class="dropdown-item" href="#">{{ notification.message }}</a></li>
+                        {% endfor %}
+                        {% else %}
+                        <li><span class="dropdown-item text-muted">No new notifications</span></li>
+                        {% endif %}
+                    </ul>
+                </li>
+                <!-- Profile -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle fa-lg me-1"></i>
+                        {{ request.user.get_full_name }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'patient_management:profile_view' %}">
+                                <i class="fas fa-user me-2"></i>Profile
+                            </a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{% url 'patient_management:logout' %}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main-content container-fluid">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<!-- Emergency Button -->
+<div class="emergency-container">
+    <button id="emergencyBtn" class="emergency-button emergency-pulse" onclick="confirmEmergency()">
+        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <i class="fas fa-exclamation-triangle fa-2x text-white mb-1"></i>
+            <span class="text-white fw-bold">EMERGENCY</span>
+        </div>
+    </button>
+    <div id="locationStatus" class="location-status text-muted">
+        <i class="fas fa-location-dot me-1"></i>Getting location...
+    </div>
+</div>
+
+<!-- Emergency Modal -->
+<div class="modal fade" id="emergencyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Emergency Alert
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-exclamation-circle fa-4x text-danger mb-3"></i>
+                    <h4>Confirm Emergency Alert</h4>
+                </div>
+                <p class="text-center mb-4">Are you sure you want to trigger an emergency alert?</p>
+                <div class="alert alert-warning">
+                    <p class="mb-2"><strong>This will:</strong></p>
+                    <ul class="mb-0">
+                        <li>Notify your assigned healthcare provider immediately</li>
+                        <li>Share your current location</li>
+                        <li>Record the emergency event</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pb-4">
+                <button type="button" class="btn btn-lg btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-lg btn-danger" onclick="triggerEmergency()">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Trigger Alert
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+let userLocation = null;
+
+if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+        userLocation = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+        };
+        document.getElementById('locationStatus').innerHTML =
+            '<i class="fas fa-check-circle text-success me-1"></i>Location ready';
+    }, function(error) {
+        document.getElementById('locationStatus').innerHTML =
+            '<i class="fas fa-exclamation-circle text-warning me-1"></i>Location unavailable';
+    });
+} else {
+    document.getElementById('locationStatus').innerHTML =
+        '<i class="fas fa-times-circle text-danger me-1"></i>Location not supported';
+}
+
+function confirmEmergency() {
+    const modal = new bootstrap.Modal(document.getElementById('emergencyModal'));
+    modal.show();
+}
+
+function triggerEmergency() {
+    const button = document.getElementById('emergencyBtn');
+    button.disabled = true;
+    button.classList.remove('emergency-pulse');
+
+    fetch("{% url 'patient_management:emergency_alert' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            location: userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = "{% url 'patient_management:emergency_history' %}";
+        } else {
+            alert('Error: ' + data.message);
+            button.disabled = false;
+            button.classList.add('emergency-pulse');
+        }
+    })
+    .catch(error => {
+        alert('Error triggering emergency alert. Please call emergency services directly.');
+        button.disabled = false;
+        button.classList.add('emergency-pulse');
+    });
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

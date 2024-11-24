@@ -1,0 +1,154 @@
+{% extends 'tcl_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total Checkups<br>in {{ tcl.barangay.name }}</h6>
+                            <h2 class="mb-0">{{ stats.total_checkups }}</h2>
+                        </div>
+                        <i class="fas fa-stethoscope fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Today's<br>Checkups</h6>
+                            <h2 class="mb-0">{{ stats.today_checkups }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkup List -->
+    <div class="card shadow">
+        <div class="card-header bg-white">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h4 class="mb-0">
+                        <i class="fas fa-notes-medical me-2"></i>Checkup Records
+                    </h4>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Filters -->
+            <form method="GET" class="mb-4">
+                <div class="row">
+                    <div class="col-md-4">
+                        <select class="form-select" name="patient">
+                            <option value="">All Patients</option>
+                            {% for patient in barangay_patients %}
+                                <option value="{{ patient.id }}"
+                                        {% if patient_filter == patient.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ patient.user.get_full_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" class="form-control" name="date_from"
+                               value="{{ date_from }}" placeholder="From Date">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" class="form-control" name="date_to"
+                               value="{{ date_to }}" placeholder="To Date">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-2"></i>Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Checkup Table -->
+            {% if checkups %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Patient</th>
+                                <th>Purpose</th>
+                                <th>Weight</th>
+                                <th>Blood Pressure</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for checkup in checkups %}
+                                <tr>
+                                    <td>{{ checkup.checkup_date|date:"F d, Y" }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <h6 class="mb-0">{{ checkup.patient.user.get_full_name }}</h6>
+                                                <small class="text-muted">
+                                                    {{ checkup.patient.contact_number }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ checkup.purpose }}</td>
+                                    <td>{{ checkup.weight }} kg</td>
+                                    <td>{{ checkup.blood_pressure }}</td>
+                                    <td>
+                                        <a href="{% url 'tcl_management:checkup_detail' checkup.id %}"
+                                           class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if checkups.has_other_pages %}
+                    <nav class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if checkups.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ checkups.previous_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in checkups.paginator.page_range %}
+                                <li class="page-item {% if checkups.number == num %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endfor %}
+
+                            {% if checkups.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ checkups.next_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-notes-medical fa-3x text-muted mb-3"></i>
+                    <h5>No checkup records found</h5>
+                    <p class="text-muted">Try adjusting your filters</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

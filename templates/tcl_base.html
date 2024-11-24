@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TCL System{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        /* Using same base styles as RHU template */
+        :root {
+            --sidebar-width: 280px;
+            --header-height: 70px;
+            --primary-color: #2c3e50;
+            --sidebar-hover: #34495e;
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        /* Improved Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: linear-gradient(to bottom, var(--primary-color), #34495e);
+            transition: transform var(--transition-speed) ease;
+            z-index: 1040;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-brand {
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-menu a {
+            padding: 0.75rem 1.5rem;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            transition: all var(--transition-speed);
+        }
+
+        .sidebar-menu a:hover {
+            background: var(--sidebar-hover);
+            color: white;
+            padding-left: 1.75rem;
+        }
+
+        .sidebar-menu a.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left: 4px solid #3498db;
+        }
+
+        .sidebar-heading {
+            color: rgba(255,255,255,0.4);
+            padding: 1rem 1.5rem 0.5rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Enhanced Header */
+        .header {
+            height: var(--header-height);
+            background-color: white;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: var(--sidebar-width);
+            z-index: 1030;
+            transition: left var(--transition-speed);
+        }
+
+        /* Improved Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin var(--transition-speed);
+            padding-top: var(--header-height);
+        }
+
+        .content-area {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Enhanced Cards */
+        .card {
+            border: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.1);
+        }
+
+        /* Improved Dropdown */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.1);
+            padding: 0.5rem 0;
+        }
+
+        .dropdown-item {
+            padding: 0.6rem 1.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .dropdown-header {
+            padding: 0.75rem 1.5rem;
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .header {
+                left: 0;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .content-area {
+                padding: 1rem;
+            }
+
+            /* Overlay when sidebar is active */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 1035;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+
+        /* Animation Classes */
+        .fade-enter {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .fade-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        /* Custom theme colors */
+        .bg-primary-gradient {
+            background: linear-gradient(45deg, #4e73df 0%, #224abe 100%);
+        }
+
+        .bg-success-gradient {
+            background: linear-gradient(45deg, #1cc88a 0%, #13855c 100%);
+        }
+
+        .bg-info-gradient {
+            background: linear-gradient(45deg, #36b9cc 0%, #258391 100%);
+        }
+
+        .bg-warning-gradient {
+            background: linear-gradient(45deg, #f6c23e 0%, #dda20a 100%);
+        }
+
+        .bg-danger-gradient {
+            background: linear-gradient(45deg, #e74a3b 0%, #be2617 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h4 class="text-white mb-0">TCL Portal</h4>
+                <small class="text-white-50 d-block">{{ user.tclprofile.barangay.name }}</small>
+            </div>
+
+            <div class="sidebar-menu mt-4">
+                <!-- Dashboard -->
+                <a href="{% url 'tcl_management:dashboard' %}" class="mb-2">
+                    <i class="fas fa-tachometer-alt me-3"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <!-- Patient Management -->
+                <div class="sidebar-heading">Patient Management</div>
+                <a href="{% url 'tcl_management:patient_list' %}" class="mb-2">
+                    <i class="fas fa-users me-3"></i>
+                    <span>Patients</span>
+                </a>
+                <a href="{% url 'tcl_management:checkup_list' %}" class="mb-2">
+                    <i class="fas fa-stethoscope me-3"></i>
+                    <span>Checkups</span>
+                </a>
+
+                <!-- Emergency Monitoring -->
+                <div class="sidebar-heading">Emergency</div>
+                <a href="{% url 'tcl_management:emergency_monitor' %}" class="mb-2">
+                    <i class="fas fa-ambulance me-3"></i>
+                    <span>Emergency Alerts</span>
+                    {% if active_emergencies_count > 0 %}
+                        <span class="badge bg-danger ms-auto">{{ active_emergencies_count }}</span>
+                    {% endif %}
+                </a>
+
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <nav class="navbar h-100">
+                    <div class="container-fluid px-4">
+                        <div class="d-flex align-items-center">
+                            <button id="sidebarToggle" class="btn btn-link text-dark d-lg-none">
+                                <i class="fas fa-bars fa-lg"></i>
+                            </button>
+                            <h5 class="mb-0 ms-lg-0 ms-3">{{ title }}</h5>
+                        </div>
+
+                        <div class="d-flex align-items-center">
+                            <div class="dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-circle fa-lg me-2"></i>
+                                    <span class="d-none d-md-inline">{{ user.get_full_name }}</span>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end">
+                                    <div class="dropdown-header">
+                                        TCL - {{ user.tclprofile.barangay.name }}
+                                    </div>
+                                    <a class="dropdown-item" href="{% url 'tcl_management:profile' %}">
+                                        <i class="fas fa-user me-2"></i>Profile
+                                    </a>
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logoutModal">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Modal -->
+    <div class="modal fade" id="logoutModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Ready to Leave?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-0">Select "Logout" below if you are ready to end your current session.</p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <a href="{% url 'tcl_management:logout' %}" class="btn btn-primary">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sidebar Toggle
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarOverlay = document.querySelector('.sidebar-overlay');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('active');
+                sidebarOverlay.classList.toggle('active');
+            }
+
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            sidebarOverlay.addEventListener('click', toggleSidebar);
+
+            // Handle active menu items
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(
+                document.querySelectorAll('[data-bs-toggle="tooltip"]')
+            );
+            tooltipTriggerList.map(tooltipTriggerEl =>
+                new bootstrap.Tooltip(tooltipTriggerEl)
+            );
+
+            // Close sidebar on menu item click (mobile)
+            if (window.innerWidth <= 992) {
+                document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                    link.addEventListener('click', () => {
+                        sidebar.classList.remove('active');
+                        sidebarOverlay.classList.remove('active');
+                    });
+                });
+            }
+
+            // Handle page transitions
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const contentArea = document.querySelector('.content-area');
+                    contentArea.classList.add('fade-enter');
+                    setTimeout(() => {
+                        contentArea.classList.remove('fade-enter');
+                    }, 300);
+                });
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

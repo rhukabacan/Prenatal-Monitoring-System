@@ -1,0 +1,155 @@
+<!-- pregnancy_history_list.html -->
+{% extends 'patient_base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">Total Pregnancies</h6>
+                                <h2 class="mb-0">{{ stats.total_pregnancies }}</h2>
+                            </div>
+                            <i class="fas fa-baby fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">Normal Deliveries</h6>
+                                <h2 class="mb-0">{{ stats.normal_deliveries }}</h2>
+                            </div>
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">C-Section</h6>
+                                <h2 class="mb-0">{{ stats.cs_deliveries }}</h2>
+                            </div>
+                            <i class="fas fa-hospital fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">Assisted Deliveries</h6>
+                                <h2 class="mb-0">{{ stats.assisted_deliveries }}</h2>
+                            </div>
+                            <i class="fas fa-hands-helping fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History List -->
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Pregnancy History
+                </h4>
+                <a href="{% url 'patient_management:pregnancy_history_create' %}" class="btn btn-light">
+                    <i class="fas fa-plus me-2"></i>Add New Record
+                </a>
+            </div>
+            <div class="card-body">
+                {% if histories %}
+                    <div class="timeline">
+                        {% for history in histories %}
+                            <div class="row mb-4">
+                                <div class="col-auto text-center flex-column d-none d-sm-flex">
+                                    <div class="row h-50">
+                                        <div class="col border-end">&nbsp;</div>
+                                        <div class="col">&nbsp;</div>
+                                    </div>
+                                    <h5 class="m-2">
+                                        <span class="badge rounded-circle bg-primary">&nbsp;</span>
+                                    </h5>
+                                    <div class="row h-50">
+                                        <div class="col border-end">&nbsp;</div>
+                                        <div class="col">&nbsp;</div>
+                                    </div>
+                                </div>
+                                <div class="col py-2">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h5 class="card-title text-primary">
+                                                    {{ history.delivery_date|date:"F d, Y" }}
+                                                </h5>
+                                                <a href="{% url 'patient_management:pregnancy_history_update' history_id=history.id %}"
+                                                   class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <p class="mb-2">
+                                                        <i class="fas fa-hospital me-2"></i>
+                                                        <strong>Location:</strong><br>
+                                                        {{ history.delivery_location }}
+                                                    </p>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <p class="mb-2">
+                                                        <i class="fas fa-baby-carriage me-2"></i>
+                                                        <strong>Type:</strong><br>
+                                                        {{ history.get_delivery_type_display }}
+                                                    </p>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <p class="mb-2">
+                                                        <i class="fas fa-weight me-2"></i>
+                                                        <strong>Birth Weight:</strong><br>
+                                                        {{ history.birth_weight }} kg
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {% if history.complications %}
+                                                <div class="mt-2">
+                                                    <p class="mb-0">
+                                                        <i class="fas fa-exclamation-circle me-2"></i>
+                                                        <strong>Complications:</strong><br>
+                                                        {{ history.complications }}
+                                                    </p>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h5>No pregnancy history records found</h5>
+                        <p class="text-muted">Start by adding your first pregnancy record</p>
+                        <a href="{% url 'patient_management:pregnancy_history_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Add Pregnancy Record
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

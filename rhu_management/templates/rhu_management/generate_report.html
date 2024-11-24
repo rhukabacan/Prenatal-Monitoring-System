@@ -1,0 +1,177 @@
+<!-- generate_report.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-file-medical me-2"></i>Generate Report
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="reportForm">
+                        {% csrf_token %}
+
+                        <!-- Report Title -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label">Report Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+
+                        <!-- Report Type -->
+                        <div class="mb-4">
+                            <label class="form-label">Report Type</label>
+                            <div class="row">
+                                {% for value, label in report_types %}
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input type="radio" class="form-check-input"
+                                                   name="report_type" id="type_{{ value }}"
+                                                   value="{{ value }}" required>
+                                            <label class="form-check-label" for="type_{{ value }}">
+                                                {{ label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="mb-4">
+                            <label class="form-label">Date Range</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="start_date" class="form-label">Start Date</label>
+                                        <input type="date" class="form-control" id="start_date"
+                                               name="start_date" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="end_date" class="form-label">End Date</label>
+                                        <input type="date" class="form-control" id="end_date"
+                                               name="end_date" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Quick Date Selectors -->
+                            <div class="btn-group mt-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        onclick="setDateRange('today')">Today</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        onclick="setDateRange('week')">This Week</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        onclick="setDateRange('month')">This Month</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        onclick="setDateRange('year')">This Year</button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Metrics (for custom reports) -->
+                        <div id="customMetrics" class="mb-4" style="display: none;">
+                            <label class="form-label">Select Metrics</label>
+                            <div class="row">
+                                {% for metric in metrics %}
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input"
+                                                   name="metrics" value="{{ metric.id }}"
+                                                   id="metric_{{ metric.id }}">
+                                            <label class="form-check-label" for="metric_{{ metric.id }}">
+                                                {{ metric.name }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-file-download me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show/hide custom metrics based on report type
+document.getElementsByName('report_type').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.getElementById('customMetrics').style.display =
+            this.value === 'CUSTOM' ? 'block' : 'none';
+    });
+});
+
+// Date range utilities
+function setDateRange(range) {
+    const today = new Date();
+    let start = new Date();
+
+    switch(range) {
+        case 'today':
+            break;
+        case 'week':
+            start.setDate(today.getDate() - today.getDay());
+            break;
+        case 'month':
+            start.setDate(1);
+            break;
+        case 'year':
+            start = new Date(today.getFullYear(), 0, 1);
+            break;
+    }
+
+    document.getElementById('start_date').value = formatDate(start);
+    document.getElementById('end_date').value = formatDate(today);
+}
+
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+
+// Initialize date inputs with today's date
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date();
+    document.getElementById('end_date').value = formatDate(today);
+    document.getElementById('start_date').value = formatDate(today);
+});
+
+
+// Form validation
+document.getElementById('reportForm').addEventListener('submit', function(e) {
+    if (!this.checkValidity()) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    const startDate = new Date(document.getElementById('start_date').value);
+    const endDate = new Date(document.getElementById('end_date').value);
+
+    if (endDate < startDate) {
+        e.preventDefault();
+        alert('End date cannot be before start date');
+    }
+
+    if (this.report_type.value === 'CUSTOM' &&
+        !document.querySelector('input[name="metrics"]:checked')) {
+        e.preventDefault();
+        alert('Please select at least one metric for custom reports');
+    }
+});
+</script>
+{% endblock %}

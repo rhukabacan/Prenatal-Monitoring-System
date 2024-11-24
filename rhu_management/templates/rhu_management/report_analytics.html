@@ -1,0 +1,397 @@
+<!-- report_analytics.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="GET" class="row align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">Time Range</label>
+                    <select class="form-select" name="range" onchange="this.form.submit()">
+                        <option value="7" {% if time_range == '7' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="30" {% if time_range == '30' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="90" {% if time_range == '90' %}selected{% endif %}>Last 90 Days</option>
+                        <option value="180" {% if time_range == '180' %}selected{% endif %}>Last 6 Months</option>
+                        <option value="365" {% if time_range == '365' %}selected{% endif %}>Last Year</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Metric Type</label>
+                    <select class="form-select" name="metric" onchange="this.form.submit()">
+                        <option value="all" {% if metric_type == 'all' %}selected{% endif %}>All Metrics</option>
+                        <option value="patients" {% if metric_type == 'patients' %}selected{% endif %}>
+                            Patient Analytics
+                        </option>
+                        <option value="checkups" {% if metric_type == 'checkups' %}selected{% endif %}>
+                            Checkup Analytics
+                        </option>
+                        <option value="appointments" {% if metric_type == 'appointments' %}selected{% endif %}>
+                            Appointment Analytics
+                        </option>
+                        <option value="emergencies" {% if metric_type == 'emergencies' %}selected{% endif %}>
+                            Emergency Analytics
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" class="btn btn-primary w-100" onclick="exportAnalytics()">
+                        <i class="fas fa-download me-2"></i>Export Analytics
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patient Analytics -->
+    {% if metric_type in 'all,patients' %}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <!-- Age Distribution -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-users me-2"></i>Age Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="ageChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <!-- Location Distribution -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-map-marker-alt me-2"></i>Geographic Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="locationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Checkup Analytics -->
+    {% if metric_type in 'all,checkups' %}
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <!-- Checkup Trends -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Checkup Trends
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="checkupTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <!-- Weekly Distribution -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-week me-2"></i>Weekly Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="weeklyDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Appointment Analytics -->
+    {% if metric_type in 'all,appointments' %}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <!-- Appointment Status -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-check me-2"></i>Appointment Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="appointmentStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <!-- Attendance Rate -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-check me-2"></i>Attendance Rate
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="attendance-gauge" id="attendanceGauge"></div>
+                        <h3 class="mt-3">{{ appointment_stats.attendance_rate|floatformat:1 }}%</h3>
+                        <p class="text-muted">Overall Attendance Rate</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Emergency Analytics -->
+    {% if metric_type in 'all,emergencies' %}
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <!-- Response Time -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock me-2"></i>Avg. Response Time
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="response-time">
+                            <h2>{{ emergency_stats.avg_response_time|floatformat:1 }}</h2>
+                            <p class="text-muted">Minutes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <!-- Resolution Rate -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-check-circle me-2"></i>Resolution Rate
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="resolution-gauge" id="resolutionGauge"></div>
+                        <h3 class="mt-3">{{ emergency_stats.resolution_rate|floatformat:1 }}%</h3>
+                        <p class="text-muted">Emergency Resolution Rate</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <!-- Emergency Types -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Emergency Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="emergencyTypesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gauge.js"></script>
+
+<script>
+// Age Distribution Chart
+{% if metric_type in 'all,patients' %}
+const ageCtx = document.getElementById('ageChart').getContext('2d');
+new Chart(ageCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys({{ patient_stats.age_distribution|safe }}),
+        datasets: [{
+            label: 'Patients',
+            data: Object.values({{ patient_stats.age_distribution|safe }}),
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgb(54, 162, 235)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Location Distribution Chart
+const locationCtx = document.getElementById('locationChart').getContext('2d');
+new Chart(locationCtx, {
+    type: 'pie',
+    data: {
+        labels: {{ patient_stats.location_distribution|map:'address'|list|safe }},
+        datasets: [{
+            data: {{ patient_stats.location_distribution|map:'count'|list|safe }},
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.5)',
+                'rgba(54, 162, 235, 0.5)',
+                'rgba(255, 206, 86, 0.5)',
+                'rgba(75, 192, 192, 0.5)',
+                'rgba(153, 102, 255, 0.5)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+{% endif %}
+
+// Checkup Trends Chart
+{% if metric_type in 'all,checkups' %}
+const checkupCtx = document.getElementById('checkupTrendsChart').getContext('2d');
+new Chart(checkupCtx, {
+    type: 'line',
+    data: {
+        labels: {{ checkup_stats.weekly_distribution|keys|safe }},
+        datasets: [{
+            label: 'Checkups',
+            data: {{ checkup_stats.weekly_distribution|values|safe }},
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Weekly Distribution Chart
+const weeklyCtx = document.getElementById('weeklyDistributionChart').getContext('2d');
+new Chart(weeklyCtx, {
+    type: 'radar',
+    data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+            label: 'Checkups',
+            data: Object.values({{ checkup_stats.weekly_distribution|safe }}),
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgb(54, 162, 235)',
+            pointBackgroundColor: 'rgb(54, 162, 235)'
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+{% endif %}
+
+// Appointment Status Chart
+{% if metric_type in 'all,appointments' %}
+const appointmentCtx = document.getElementById('appointmentStatusChart').getContext('2d');
+new Chart(appointmentCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ appointment_stats.status_distribution|map:'status'|list|safe }},
+        datasets: [{
+            data: {{ appointment_stats.status_distribution|map:'count'|list|safe }},
+            backgroundColor: [
+                'rgba(75, 192, 192, 0.5)',
+                'rgba(255, 99, 132, 0.5)',
+                'rgba(255, 206, 86, 0.5)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+
+// Attendance Gauge
+const attendanceGauge = new Gauge(document.getElementById('attendanceGauge')).setOptions({
+    angle: 0.15,
+    lineWidth: 0.44,
+    radiusScale: 1,
+    pointer: {
+        length: 0.6,
+        strokeWidth: 0.035,
+        color: '#000000'
+    },
+    limitMax: false,
+    limitMin: false,
+    colorStart: '#6FADCF',
+    colorStop: '#8FC0DA',
+    strokeColor: '#E0E0E0',
+    generateGradient: true,
+    highDpiSupport: true
+});
+attendanceGauge.maxValue = 100;
+attendanceGauge.setMinValue(0);
+attendanceGauge.animationSpeed = 32;
+attendanceGauge.set({{ appointment_stats.attendance_rate }});
+{% endif %}
+
+// Emergency Analytics
+{% if metric_type in 'all,emergencies' %}
+// Resolution Gauge
+const resolutionGauge = new Gauge(document.getElementById('resolutionGauge')).setOptions({
+    angle: 0.15,
+    lineWidth: 0.44,
+    radiusScale: 1,
+    pointer: {
+        length: 0.6,
+        strokeWidth: 0.035,
+        color: '#000000'
+    },
+    limitMax: false,
+    limitMin: false,
+    colorStart: '#FF4646',
+    colorStop: '#FF7676',
+    strokeColor: '#E0E0E0',
+    generateGradient: true,
+    highDpiSupport: true
+});
+resolutionGauge.maxValue = 100;
+resolutionGauge.setMinValue(0);
+resolutionGauge.animationSpeed = 32;
+resolutionGauge.set({{ emergency_stats.resolution_rate }});
+
+// Emergency Types Chart
+const emergencyCtx = document.getElementById('emergencyTypesChart').getContext('2d');
+new Chart(emergencyCtx, {
+    type: 'pie',
+    data: {
+        labels: {{ emergency_stats.type_distribution|keys|safe }},
+        datasets: [{
+            data: {{ emergency_stats.type_distribution|values|safe }},
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.5)',
+                'rgba(54, 162, 235, 0.5)',
+                'rgba(255, 206, 86, 0.5)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+{% endif %}
+
+// Export Analytics
+function exportAnalytics() {
+    const params = new URLSearchParams(window.location.search);
+    window.location.href = `/rhu/reports/analytics/export/?${params.toString()}`;
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltips.forEach(tooltip => new bootstrap.Tooltip(tooltip));
+});
+</script>
+{% endblock %}

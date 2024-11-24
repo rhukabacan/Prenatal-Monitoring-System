@@ -1,0 +1,229 @@
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Main Content -->
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-notes-medical me-2"></i>Checkup Details
+                </h4>
+                <div class="d-flex">
+                    <a href="{% url 'rhu_management:checkup_update' checkup.id %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-edit me-2"></i>Edit Record
+                    </a>
+                    <a href="{% url 'rhu_management:checkup_create' checkup.patient.id %}" class="btn btn-light btn-sm ms-2">
+                        <i class="fas fa-plus me-2"></i>New Checkup
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-header bg-white border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+                <!-- Previous Checkup -->
+                {% if previous_checkup %}
+                <a href="{% url 'rhu_management:checkup_detail' previous_checkup.id %}"
+                   class="btn btn-outline-primary">
+                    <i class="fas fa-chevron-left me-2"></i>Previous Checkup
+                    <small class="d-block text-muted">
+                        {{ previous_checkup.checkup_date|date:"M d, Y" }}
+                    </small>
+                </a>
+                {% else %}
+                <button class="btn btn-outline-secondary disabled">
+                    <i class="fas fa-chevron-left me-2"></i>
+                    No Previous Checkup
+                </button>
+                {% endif %}
+
+                <!-- Current Checkup Date -->
+                <div class="text-center">
+                    <h5 class="mb-0">{{ checkup.checkup_date|date:"F d, Y" }}</h5>
+                    <small class="text-muted">{{ checkup.checkup_date|date:"g:i A" }}</small>
+                </div>
+
+                <!-- Next Checkup -->
+                {% if next_checkup %}
+                <a href="{% url 'rhu_management:checkup_detail' next_checkup.id %}"
+                   class="btn btn-outline-primary">
+                    Next Checkup<i class="fas fa-chevron-right ms-2"></i>
+                    <small class="d-block text-muted">
+                        {{ next_checkup.checkup_date|date:"M d, Y" }}
+                    </small>
+                </a>
+                {% else %}
+                <button class="btn btn-outline-secondary disabled">
+                    No Next Checkup
+                    <i class="fas fa-chevron-right ms-2"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Basic Information -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
+                            <i class="fas fa-user text-primary"></i>
+                        </div>
+                        <h5 class="mb-0">Patient Information</h5>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user text-primary me-3"></i>
+                            <div>
+                                <small class="text-muted d-block">Patient Name</small>
+                                <a href="{% url 'rhu_management:patient_detail' checkup.patient.id %}"
+                                   class="text-decoration-none">
+                                    <strong>{{ checkup.patient.user.get_full_name }}</strong>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-calendar text-primary me-3"></i>
+                            <div>
+                                <small class="text-muted d-block">Checkup Date</small>
+                                <strong>{{ checkup.checkup_date|date:"F d, Y g:i A" }}</strong>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-check text-primary me-3"></i>
+                            <div>
+                                <small class="text-muted d-block">Status</small>
+                                <span class="badge {% if checkup.status == 'SCHEDULED' %}bg-primary
+                                              {% elif checkup.status == 'COMPLETED' %}bg-success
+                                              {% elif checkup.status == 'REQUESTED' %}bg-warning text-dark
+                                              {% elif checkup.status == 'CANCELLED' %}bg-danger
+                                              {% elif checkup.status == 'MISSED' %}bg-secondary
+                                              {% endif %}">
+                                    {{ checkup.status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vital Signs -->
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info bg-opacity-10 rounded-circle p-2 me-2">
+                            <i class="fas fa-heartbeat text-info"></i>
+                        </div>
+                        <h5 class="mb-0">Vital Signs</h5>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        <!-- Row 1 -->
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-weight text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Weight</small>
+                                        <strong>{{ checkup.weight }} kg</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-ruler-vertical text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Height</small>
+                                        <strong>{{ checkup.height }} cm</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Row 2 -->
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-heart text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Blood Pressure</small>
+                                        <strong>{{ checkup.blood_pressure }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calculator text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">BMI</small>
+                                        {% if checkup.get_bmi %}
+                                        <strong>{{ checkup.get_bmi|floatformat:1 }}</strong>
+                                        <span class="text-muted">({{ checkup.get_bmi_category }})</span>
+                                        {% else %}
+                                        <span class="text-muted">Not available</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pregnancy Progress -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-2 me-2">
+                            <i class="fas fa-baby text-success"></i>
+                        </div>
+                        <h5 class="mb-0">Pregnancy Progress</h5>
+                    </div>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: {{ progress_percentage }}%"
+                             aria-valuenow="{{ weeks_pregnant }}"
+                             aria-valuemin="0" aria-valuemax="42">
+                            Week {{ weeks_pregnant }} of 42
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-alt text-success me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Last Menstrual Period</small>
+                                    <strong>{{ checkup.last_menstrual_period|date:"F d, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check text-success me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Estimated Delivery Date</small>
+                                    <strong>{{ checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if checkup.notes %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-warning bg-opacity-10 rounded-circle p-2 me-2">
+                            <i class="fas fa-clipboard-list text-warning"></i>
+                        </div>
+                        <h5 class="mb-0">Notes & Observations</h5>
+                    </div>
+                    <div class="card bg-light shadow-sm">
+                        <div class="card-body py-2">
+                            {{ checkup.notes|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

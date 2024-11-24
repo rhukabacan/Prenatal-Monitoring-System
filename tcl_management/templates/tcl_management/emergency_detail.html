@@ -1,0 +1,107 @@
+{% extends 'tcl_base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Emergency Alert Details
+                        </h4>
+                        <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
+                                          {% elif alert.status == 'RESOLVED' %}bg-success
+                                          {% else %}bg-warning{% endif %}">
+                            {{ alert.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Patient Information -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-user me-2"></i>Patient Information
+                    </h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <strong>Name:</strong><br>
+                                {{ alert.patient.user.get_full_name }}
+                            </p>
+                            <p class="mb-2">
+                                <strong>Contact:</strong><br>
+                                {{ alert.patient.contact_number }}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <strong>Address:</strong><br>
+                                {{ alert.patient.address }}
+                            </p>
+                            {% if alert.location %}
+                                <p class="mb-2">
+                                    <strong>Emergency Location:</strong><br>
+                                    {{ alert.location }}
+                                    <a href="https://www.google.com/maps?q={{ alert.location }}"
+                                       target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                                        <i class="fas fa-map-marker-alt"></i> View Map
+                                    </a>
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Medical History -->
+                    {% if latest_checkup %}
+                        <h5 class="mb-3">
+                            <i class="fas fa-notes-medical me-2"></i>Latest Checkup Information
+                        </h5>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <strong>Date:</strong><br>
+                                    {{ latest_checkup.checkup_date|date:"F d, Y" }}
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <strong>Blood Pressure:</strong><br>
+                                    {{ latest_checkup.blood_pressure }}
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <strong>Weight:</strong><br>
+                                    {{ latest_checkup.weight }} kg
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- RHU Response -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-ambulance me-2"></i>RHU Response Status
+                    </h5>
+                    <div class="alert {% if alert.status == 'ACTIVE' %}alert-danger
+                                     {% elif alert.status == 'RESOLVED' %}alert-success
+                                     {% else %}alert-warning{% endif %}">
+                        <h6 class="alert-heading">{{ alert.get_status_display }}</h6>
+                        {% if alert.response_time %}
+                            <p class="mb-0">
+                                Responded {{ alert.response_time|timesince }} ago
+                                {% if alert.response_notes %}
+                                    <br>
+                                    <small>{{ alert.response_notes }}</small>
+                                {% endif %}
+                            </p>
+                        {% else %}
+                            <p class="mb-0">Awaiting RHU response</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

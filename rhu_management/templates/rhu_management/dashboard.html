@@ -1,0 +1,316 @@
+<!-- dashboard.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-primary-gradient text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">
+                                Total<br>Patients
+                            </div>
+                            <div class="h4 mb-0 font-weight-bold">{{ stats.total_patients }}</div>
+                        </div>
+                        <div>
+                            <i class="fas fa-users fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="text-xs mt-2">
+                        {{ stats.new_patients }} new this month
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-success-gradient text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">
+                                Today's<br>Checkups
+                            </div>
+                            <div class="h4 mb-0 font-weight-bold">{{ stats.today_checkups }}</div>
+                        </div>
+                        <div>
+                            <i class="fas fa-stethoscope fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="text-xs mt-2">
+                        {{ stats.monthly_checkups }} this month
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-info-gradient text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">
+                                Upcoming<br>Checkups
+                            </div>
+                            <div class="h4 mb-0 font-weight-bold">
+                                {{ stats.upcoming_checkups }}
+                            </div>
+                        </div>
+                        <div>
+                            <i class="fas fa-clock fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="text-xs mt-2">
+                        {{ stats.tomorrow_checkups }} checkup tomorrow
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-danger-gradient text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">
+                                Active<br>Emergencies
+                            </div>
+                            <div class="h4 mb-0 font-weight-bold">
+                                {{ stats.active_emergencies }}
+                            </div>
+                        </div>
+                        <div>
+                            <i class="fas fa-ambulance fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="text-xs mt-2">
+                        {{ stats.monthly_emergencies }} this month
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row">
+        <!-- Activity Chart -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Monthly Activity Overview</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-link text-muted" type="button"
+                                data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end">
+                            <a class="dropdown-item" href="{% url 'rhu_management:analytics_view' %}">
+                                View Details
+                            </a>
+                            <a class="dropdown-item" href="#" onclick="exportChart()">
+                                Export Data
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Checkups -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-calendar-day me-2"></i>Today's Schedule
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_checkups %}
+                        <div class="timeline">
+                            {% for checkup in upcoming_checkups %}
+                                <div class="timeline-item mb-3">
+                                    <div class="timeline-marker bg-primary"></div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex justify-content-between">
+                                            <strong>
+                                                {{ checkup.checkup_date|date:"g:i A" }}
+                                            </strong>
+                                            <span class="badge bg-primary">
+                                                {{ checkup.get_status_display }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <a href="{% url 'rhu_management:patient_detail' checkup.patient.id %}"
+                                               class="text-decoration-none">
+                                                {{ checkup.patient.user.get_full_name }}
+                                            </a>
+                                        </div>
+                                        <small class="text-muted">{{ checkup.purpose }}</small>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-calendar-day fa-3x mb-3"></i>
+                            <p>No checkups scheduled for today</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row -->
+    <div class="row">
+        <!-- Recent Activity -->
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_activities %}
+                        {% for activity in recent_activities %}
+                            <div class="activity-item mb-3 pb-3 border-bottom">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        {% if activity.type == 'checkup' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-stethoscope me-1"></i>Checkup
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-exclamation-circle me-1"></i>Emergency
+                                            </span>
+                                        {% endif %}
+                                        <small class="text-muted ms-2">
+                                            {{ activity.time|timesince }} ago
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{% url 'rhu_management:patient_detail' activity.patient.id %}"
+                                       class="text-decoration-none">
+                                        {{ activity.patient.user.get_full_name }}
+                                    </a>
+                                    {% if activity.type == 'checkup' %}
+                                        had a prenatal checkup
+                                    {% else %}
+                                        triggered an emergency alert
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div class="text-center">
+                            <a href="{% url 'rhu_management:reports_dashboard' %}" class="btn btn-link text-decoration-none">
+                                View All Activity
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-history fa-3x mb-3"></i>
+                            <p>No recent activity</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks & Notifications -->
+        <div class="col-lg-4">
+            <!-- Pending Tasks -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-tasks me-2"></i>Pending Tasks
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if pending_tasks %}
+                        {% for task in pending_tasks %}
+                            <div class="task-item mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge {% if task.priority == 'high' %}bg-danger
+                                                      {% elif task.priority == 'medium' %}bg-warning
+                                                      {% else %}bg-info{% endif %} me-2">
+                                        {{ task.priority|title }}
+                                    </span>
+                                    <div>{{ task.description }}</div>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{% url task.url %}" class="btn btn-sm btn-outline-primary">
+                                        Take Action
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>All tasks completed</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Activity Chart
+const ctx = document.getElementById('activityChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ monthly_trends.months|safe }},
+        datasets: [
+            {
+                label: 'Checkups',
+                data: {{ monthly_trends.datasets.checkups|safe }},
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            },
+            {
+                label: 'Emergencies',
+                data: {{ monthly_trends.datasets.emergencies|safe }},
+                borderColor: 'rgb(255, 99, 132)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            title: {
+                display: true,
+                text: 'Monthly Activity Overview'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+function exportChart() {
+    // Implement chart data export functionality
+}
+</script>
+{% endblock %}

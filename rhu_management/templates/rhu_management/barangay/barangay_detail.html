@@ -1,0 +1,161 @@
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Barangay Overview -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-map-marker-alt me-2"></i>{{ barangay.barangay_name }}
+                </h4>
+                <a href="{% url 'rhu_management:barangay_update' barangay.id %}" class="btn btn-light btn-sm">
+                    <i class="fas fa-edit me-2"></i>Edit Barangay
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Contact Information</h5>
+                    <p><strong>Username:</strong> {{ barangay.user.username }}</p>
+                    <p><strong>Email:</strong> {{ barangay.user.email }}</p>
+                    <p><strong>Contact Number:</strong> {{ barangay.contact_number }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="mb-3">Account Details</h5>
+                    <p><strong>Created:</strong> {{ barangay.created_at|date:"F d, Y" }}</p>
+                    <p><strong>Last Updated:</strong> {{ barangay.updated_at|date:"F d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total<br>Patients</h6>
+                            <h2 class="mb-0">{{ stats.total_patients }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Pregnant<br>Patients</h6>
+                            <h2 class="mb-0">{{ stats.pregnant_patients }}</h2>
+                        </div>
+                        <i class="fas fa-baby fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Active<br>Emergencies</h6>
+                            <h2 class="mb-0">{{ stats.emergency_alerts }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient List -->
+    <div class="card shadow">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="fas fa-users me-2"></i>Patients in {{ barangay.barangay_name }}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Email</th>
+                                <th>Sitio</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for patient in page_obj %}
+                                <tr>
+                                    <td>{{ patient.user.get_full_name }}</td>
+                                    <td>{{ patient.contact_number }}</td>
+                                    <td>{{ patient.user.email }}</td>
+                                    <td>{{ patient.sitio }}</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'rhu_management:patient_detail' patient.id %}"
+                                               class="btn btn-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No patients found in this barangay</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

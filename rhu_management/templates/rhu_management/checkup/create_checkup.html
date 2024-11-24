@@ -1,0 +1,188 @@
+<!-- create_checkup.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-notes-medical me-2"></i>New Checkup Record
+                        <small class="d-block mt-1">Patient: {{ patient.user.get_full_name }}</small>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- Checkup Schedule -->
+                        <h5 class="mb-3">
+                            <i class="fas fa-clipboard-list me-2"></i>Checkup Schedule
+                        </h5>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="checkup_date" class="form-label">Checkup Date</label>
+                                    <input type="date" class="form-control" id="checkup_date"
+                                           name="checkup_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="checkup_time" class="form-label">Checkup Time</label>
+                                    <input type="time" class="form-control" id="checkup_time"
+                                           name="checkup_time" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vital Signs -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-heartbeat me-2"></i>Vital Signs
+                                    </h5>
+                                    {% if previous_checkup.is_initial_record %}
+                                        <div class="badge bg-light text-dark p-2">
+                                            <i class="fas fa-flag me-1"></i>Initial Record
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="weight" class="form-label">Weight (kg)</label>
+                                    <input type="number" step="0.1" class="form-control" id="weight"
+                                           name="weight" value="{{ previous_checkup.weight }}" min="30" max="200" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="height" class="form-label">Height (cm)</label>
+                                    <input type="number" step="0.1" class="form-control" id="height"
+                                           name="height" value="{{ previous_checkup.height }}" min="100" max="250" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="blood_pressure" class="form-label">Blood Pressure</label>
+                                    <input type="text" class="form-control" id="blood_pressure"
+                                           name="blood_pressure" value="{{ previous_checkup.blood_pressure }}" placeholder="120/80" pattern="\d{2,3}\/\d{2,3}" required>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+
+                        <!-- Pregnancy Information -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-baby me-2"></i>Pregnancy Information
+                                    </h5>
+                                    {% if previous_checkup.is_initial_record %}
+                                        <div class="badge bg-light text-dark p-2">
+                                            <i class="fas fa-flag me-1"></i>Initial Record
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="last_menstrual_period" class="form-label">
+                                        Last Menstrual Period
+                                    </label>
+                                    <input type="date" class="form-control" id="last_menstrual_period"
+                                           name="last_menstrual_period" value="{{ previous_checkup.last_menstrual_period|date:'Y-m-d' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="estimated_delivery_date" class="form-label">
+                                        Estimated Delivery Date
+                                        <small class="text-muted fst-italic">(Auto-calculated)</small>
+                                    </label>
+                                    <input type="date" class="form-control" id="estimated_delivery_date"
+                                           value="{{ previous_checkup.estimated_delivery_date|date:'Y-m-d' }}"
+                                           readonly disabled>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
+                        </div>
+
+
+                        <!-- Notes -->
+                        <h5 class="mb-3">
+                            <i class="fas fa-clipboard-list me-2"></i>Notes & Observations
+                        </h5>
+                        <div class="mb-4">
+                            <textarea class="form-control" id="notes" name="notes" rows="4"></textarea>
+                        </div>
+
+                        <!-- Previous Checkup Reference -->
+                        {% if previous_checkup %}
+                            <div class="alert alert-info mb-4">
+                                <h6 class="mb-2">Previous Checkup Reference</h6>
+                                <small>
+                                    <strong>Date:</strong>
+                                    {{ previous_checkup.checkup_date|date:"F d, Y" }}<br>
+                                    <strong>Weight:</strong> {{ previous_checkup.weight }} kg<br>
+                                    <strong>Blood Pressure:</strong> {{ previous_checkup.blood_pressure }}
+                                </small>
+                            </div>
+                        {% endif %}
+
+                        <div class="text-center">
+                            <a href="{% url 'rhu_management:patient_detail' patient.id %}"
+                               class="btn btn-secondary me-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Record
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Get current date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
+    // Set min date for Checkup Date (can't select past dates)
+    document.getElementById('checkup_date').setAttribute('min', today);
+
+    // Set max date for Last Menstrual Period (can't select future dates)
+    document.getElementById('last_menstrual_period').setAttribute('max', today);
+</script>
+
+<script>
+    // Calculate EDD when LMP changes
+    document.getElementById('last_menstrual_period').addEventListener('change', function() {
+        const lmpDate = new Date(this.value);
+        if (lmpDate) {
+            const edd = new Date(lmpDate.getTime() + (280 * 24 * 60 * 60 * 1000));
+            // Format date as YYYY-MM-DD
+            const year = edd.getFullYear();
+            const month = String(edd.getMonth() + 1).padStart(2, '0');
+            const day = String(edd.getDate()).padStart(2, '0');
+            document.getElementById('estimated_delivery_date').value = `${year}-${month}-${day}`;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,100 @@
+<!-- edit_profile.html -->
+{% extends 'rhu_base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>Edit Profile
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        <!-- Basic Information -->
+                        <h5 class="mb-3">
+                            <i class="fas fa-user me-2"></i>Basic Information
+                        </h5>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="first_name" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="first_name"
+                                           name="first_name" value="{{ staff.user.first_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="last_name" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="last_name"
+                                           name="last_name" value="{{ staff.user.last_name }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <h5 class="mb-3">
+                            <i class="fas fa-address-card me-2"></i>Contact Information
+                        </h5>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email"
+                                           name="email" value="{{ staff.user.email }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="contact_number" class="form-label">Contact Number</label>
+                                    <input type="tel" class="form-control" id="contact_number"
+                                           name="contact_number" value="{{ staff.contact_number }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Professional Information -->
+                        <h5 class="mb-3">
+                            <i class="fas fa-certificate me-2"></i>Professional Information
+                        </h5>
+                        <div class="mb-4">
+                            <div class="mb-3">
+                                <label for="license_number" class="form-label">License Number</label>
+                                <input type="text" class="form-control" id="license_number"
+                                       name="license_number" value="{{ staff.license_number }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="specialization" class="form-label">Specialization</label>
+                                <input type="text" class="form-control" id="specialization"
+                                       name="specialization" value="{{ staff.specialization }}">
+                            </div>
+                        </div>
+
+                        <!-- Address -->
+                        <h5 class="mb-3">
+                            <i class="fas fa-map-marker-alt me-2"></i>Address
+                        </h5>
+                        <div class="mb-4">
+                            <textarea class="form-control" id="address" name="address"
+                                      rows="3" required>{{ staff.address }}</textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <a href="{% url 'rhu_management:profile_view' %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
