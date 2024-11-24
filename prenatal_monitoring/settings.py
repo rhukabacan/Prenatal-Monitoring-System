@@ -138,8 +138,6 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Make sure the MEDIA_ROOT directory exists
-os.makedirs(os.path.join(MEDIA_ROOT, 'reports'), exist_ok=True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
