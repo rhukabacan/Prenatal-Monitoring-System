@@ -10,7 +10,7 @@ urlpatterns = [
     path('logout/', views.rhu_logout, name='rhu_logout'),
 
     # Dashboard
-    path('dashboard/', views.rhu_dashboard, name='dashboard'),
+    path('', views.rhu_dashboard, name='dashboard'),
 
     # Profile Management
     path('profile/', views.profile_view, name='profile_view'),

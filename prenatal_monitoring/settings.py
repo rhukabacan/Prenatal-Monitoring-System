@@ -90,14 +90,13 @@ WSGI_APPLICATION = 'prenatal_monitoring.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'verceldb',
-        'USER': 'default',
-        'PASSWORD': '7Wxso9mLPCQw',
-        'HOST': 'ep-crimson-mode-a1qul73v-pooler.ap-southeast-1.aws.neon.tech',
-        'PORT': '5432',
+        'NAME': 'railway',
+        'USER': 'postgres',
+        'PASSWORD': 'HeOAJcLuckfwQOwPZNmwDfxJGkpMzfrM',
+        'HOST': 'junction.proxy.rlwy.net',
+        'PORT': '41476',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
