@@ -2161,7 +2161,7 @@ def rhu_dashboard(request):
     # Quick Statistics
     stats = {
         # Patient Stats
-        'total_patients': Patient.objects.filter(is_active=True).count(),
+        'total_patients': Patient.objects.all().count(),
         'new_patients': Patient.objects.filter(
             created_at__gte=thirty_days_ago
         ).count(),
