@@ -1,0 +1,378 @@
+{% extends 'patient_base.html' %}
+
+{% block extra_css %}
+<style>
+    /* Main Card */
+    .request-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #FF69B4, #FF1493);
+        padding: 1.5rem;
+        border: none;
+    }
+
+    /* Form Sections */
+    .form-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .form-section:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Form Controls */
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid var(--light-pink);
+        padding: 0.6rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(255, 105, 180, 0.25);
+    }
+
+    /* Info Alerts */
+    .alert {
+        border: none;
+        border-radius: 15px;
+        padding: 1.25rem;
+    }
+
+    .alert-info {
+        background: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+    }
+
+    .alert-warning {
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+    }
+
+    /* Previous Info Display */
+    .info-display {
+        background: var(--light-pink);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .info-display:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Section Headers */
+    .section-header {
+        color: var(--primary-color);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--light-pink);
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.5rem 1.5rem;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+        background: var(--primary-gradient);
+        border: none;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 105, 180, 0.4);
+    }
+
+    .btn-secondary {
+        background: var(--light-pink);
+        border: none;
+        color: var(--primary-color);
+    }
+
+    .btn-secondary:hover {
+        background: var(--medium-pink);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* Input Group Styling */
+    .input-group-text {
+        background: var(--light-pink);
+        border: 2px solid var(--light-pink);
+        border-right: none;
+        color: var(--primary-color);
+    }
+
+    /* Time Input Styling */
+    input[type="time"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.5) sepia(1) saturate(5) hue-rotate(300deg);
+    }
+
+    /* Textarea Styling */
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    /* Value Display */
+    .value-display {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    /* Form Label */
+    .form-label {
+        color: var(--secondary-color);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Small Text */
+    .text-muted {
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="request-card">
+            <div class="card-header">
+                <h4 class="text-white mb-0">
+                    <i class="fas fa-calendar-plus me-2"></i>Request Checkup
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <!-- Schedule Section -->
+                    <div class="form-section">
+                        <h5 class="section-header">
+                            <i class="fas fa-clock me-2"></i>Preferred Schedule
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="checkup_date" class="form-label">
+                                        <i class="fas fa-calendar-alt me-2"></i>Preferred Date
+                                    </label>
+                                    <input type="date" class="form-control" id="checkup_date"
+                                           name="checkup_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="checkup_time" class="form-label">
+                                        <i class="fas fa-clock me-2"></i>Preferred Time
+                                    </label>
+                                    <input type="time" class="form-control" id="checkup_time"
+                                           name="checkup_time" required>
+                                    <small class="text-muted">RHU operating hours: 8 AM to 4 PM</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if not has_previous_checkup %}
+                    <!-- Initial Checkup Information -->
+                    <div class="form-section">
+                        <div class="alert alert-danger mb-4">
+                            <h5 class="alert-heading mb-2">
+                                <i class="fas fa-info-circle me-2"></i>First Checkup Information
+                            </h5>
+                            <p class="mb-0">Since this is your first checkup, please provide the following information:</p>
+                        </div>
+
+                        <!-- Vital Signs -->
+                        <h5 class="section-header">
+                            <i class="fas fa-heartbeat me-2"></i>Vital Signs
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="weight" class="form-label">
+                                        <i class="fas fa-weight me-2"></i>Weight (kg)
+                                    </label>
+                                    <input type="number" step="0.1" class="form-control" id="weight"
+                                           name="weight" required min="30" max="200">
+                                    <small class="text-muted">Enter weight in kilograms</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="height" class="form-label">
+                                        <i class="fas fa-ruler-vertical me-2"></i>Height (cm)
+                                    </label>
+                                    <input type="number" step="0.1" class="form-control" id="height"
+                                           name="height" required min="100" max="250">
+                                    <small class="text-muted">Enter height in centimeters</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="blood_pressure" class="form-label">
+                                        <i class="fas fa-heartbeat me-2"></i>Blood Pressure
+                                    </label>
+                                    <input type="text" class="form-control" id="blood_pressure"
+                                           name="blood_pressure" placeholder="120/80" required
+                                           pattern="\d{2,3}\/\d{2,3}">
+                                    <small class="text-muted">Format: systolic/diastolic</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pregnancy Information -->
+                        <h5 class="section-header mt-4">
+                            <i class="fas fa-baby me-2"></i>Pregnancy Information
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="last_menstrual_period" class="form-label">
+                                        <i class="fas fa-calendar-alt me-2"></i>Last Menstrual Period
+                                    </label>
+                                    <input type="date" class="form-control" id="last_menstrual_period"
+                                           name="last_menstrual_period" required>
+                                    <small class="text-muted">This helps calculate your delivery date</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="estimated_delivery_date" class="form-label">
+                                        <i class="fas fa-calendar-check me-2"></i>Estimated Delivery Date
+                                    </label>
+                                    <input type="date" class="form-control" id="estimated_delivery_date"
+                                           name="estimated_delivery_date" readonly>
+                                    <small class="text-muted">Automatically calculated</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Previous Checkup Information -->
+                    <div class="form-section">
+                        <h5 class="section-header">
+                            <i class="fas fa-history me-2"></i>Previous Checkup Information
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="info-display">
+                                    <small class="text-muted d-block">Weight</small>
+                                    <span class="value-display">{{ initial_checkup.weight }} kg</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-display">
+                                    <small class="text-muted d-block">Height</small>
+                                    <span class="value-display">{{ initial_checkup.height }} cm</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-display">
+                                    <small class="text-muted d-block">Blood Pressure</small>
+                                    <span class="value-display">{{ initial_checkup.blood_pressure }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-display">
+                                    <small class="text-muted d-block">BMI</small>
+                                    <span class="value-display">{{ initial_checkup.get_bmi|floatformat:1 }}</span>
+                                    <small>({{ initial_checkup.get_bmi_category }})</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-danger mt-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check me-3 fa-2x"></i>
+                                <div>
+                                    <h6 class="mb-1">Estimated Delivery Date</h6>
+                                    <strong>{{ initial_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes Section -->
+                    <div class="form-section">
+                        <h5 class="section-header">
+                            <i class="fas fa-clipboard-list me-2"></i>Notes & Observations
+                        </h5>
+                        <textarea class="form-control" id="notes" name="notes" rows="4"
+                                placeholder="Please describe your reason for the checkup" required></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="text-center">
+                        <a href="{% url 'patient_management:checkup_list' %}" class="btn btn-secondary me-2">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Get current date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+
+    // Set min date for Checkup Date (can't select past dates)
+    document.getElementById('checkup_date').setAttribute('min', today);
+
+    {% if not has_previous_checkup %}
+    // Set max date for Last Menstrual Period (can't select future dates)
+    document.getElementById('last_menstrual_period').setAttribute('max', today);
+
+    // Calculate EDD when LMP changes
+    document.getElementById('last_menstrual_period').addEventListener('change', function() {
+        const lmpDate = new Date(this.value);
+        if (lmpDate) {
+            const edd = new Date(lmpDate.getTime() + (280 * 24 * 60 * 60 * 1000));
+            // Format date as YYYY-MM-DD
+            const year = edd.getFullYear();
+            const month = String(edd.getMonth() + 1).padStart(2, '0');
+            const day = String(edd.getDate()).padStart(2, '0');
+            document.getElementById('estimated_delivery_date').value = `${year}-${month}-${day}`;
+        }
+    });
+    {% endif %}
+
+    // Validate time input
+    document.getElementById('checkup_time').addEventListener('change', function() {
+        const time = this.value;
+        const hour = parseInt(time.split(':')[0]);
+
+        if (hour < 8 || hour >= 16) {
+            alert('Please select a time between 8 AM and 4 PM');
+            this.value = '';
+        }
+    });
+</script>
+{% endblock %}

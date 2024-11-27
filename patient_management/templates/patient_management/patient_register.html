@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Registration - Prenatal Care</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #FFF5F7 0%, #FFF0F7 100%);
+            padding: 2rem 0;
+        }
+
+        .register-container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .register-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .register-header {
+            background: linear-gradient(135deg, #FF69B4, #FF1493);
+            padding: 2rem 1.5rem;
+            text-align: center;
+            color: white;
+        }
+
+        .register-logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .register-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .register-subtitle {
+            opacity: 0.9;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .register-body {
+            padding: 2rem;
+        }
+
+        .nav-tabs {
+            border-bottom: 2px solid #FF69B4;
+            margin-bottom: 2rem;
+        }
+
+        .nav-tabs .nav-link {
+            border: none;
+            color: #666;
+            padding: 1rem 1.5rem;
+            font-weight: 500;
+            position: relative;
+            background: transparent;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #FF1493;
+            background: transparent;
+        }
+
+        .nav-tabs .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #FF1493;
+        }
+
+        .nav-tabs .nav-link i {
+            margin-right: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            border: 2px solid #eee;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #FF69B4;
+            box-shadow: 0 0 0 0.2rem rgba(255, 105, 180, 0.25);
+        }
+
+        .btn-register {
+            background: linear-gradient(135deg, #FF69B4, #FF1493);
+            border: none;
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 105, 180, 0.4);
+            color: white;
+        }
+
+        .register-footer {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            text-align: center;
+            border-top: 1px solid #eee;
+        }
+
+        .register-footer a {
+            color: #FF69B4;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .register-footer a:hover {
+            color: #FF1493;
+        }
+
+        .tab-content {
+            padding: 1rem;
+        }
+
+        .progress-bar {
+            background-color: #FF69B4;
+        }
+
+        .is-invalid {
+            border-color: #dc3545 !important;
+            padding-right: calc(1.5em + 0.75rem) !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e") !important;
+            background-repeat: no-repeat !important;
+            background-position: right calc(0.375em + 0.1875rem) center !important;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem) !important;
+        }
+
+        .invalid-feedback {
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+
+        .nav-center {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            border-bottom: 2px solid #FF69B4;
+            margin-bottom: 2rem;
+        }
+
+        .nav-center .nav-item {
+            flex: 1;
+            max-width: 200px;
+            text-align: center;
+        }
+
+        .nav-center .nav-link {
+            width: 100%;
+            padding: 1rem 0.5rem;
+            white-space: nowrap;
+            border: none;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .nav-center .nav-link.active {
+            color: #FF1493;
+            background: transparent;
+            font-weight: 600;
+        }
+
+        .nav-center .nav-link i {
+            display: block;
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+
+        /* Make tabs more responsive on mobile */
+        @media (max-width: 768px) {
+            .nav-center .nav-item {
+                max-width: none;
+            }
+            
+            .nav-center .nav-link {
+                font-size: 0.9rem;
+                padding: 0.75rem 0.25rem;
+            }
+            
+            .nav-center .nav-link i {
+                font-size: 1rem;
+                margin-bottom: 0.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="register-card">
+            <div class="register-header">
+                <div class="register-logo">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                <h1 class="register-title">Join Our Prenatal Care Family</h1>
+                <p class="register-subtitle">Create your account to start your pregnancy journey</p>
+            </div>
+
+            <div class="register-body">
+                <form method="POST" id="registrationForm">
+                    {% csrf_token %}
+
+                    <!-- Progress Bar -->
+                    <div class="progress mb-4" style="height: 5px;">
+                        <div class="progress-bar" role="progressbar" style="width: 25%;" id="progressBar"></div>
+                    </div>
+
+                    <!-- Message Alert -->
+                    {% if messages %}
+                       {% for message in messages %}
+                           <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %} mb-4">
+                               {{ message }}
+                           </div>
+                       {% endfor %}
+                   {% endif %}
+
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs nav-center" id="registerTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button">
+                                <i class="fas fa-user"></i>Personal
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button">
+                                <i class="fas fa-user-lock"></i>Account
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="family-tab" data-bs-toggle="tab" data-bs-target="#family" type="button">
+                                <i class="fas fa-house-user"></i>Family
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="emergency-tab" data-bs-toggle="tab" data-bs-target="#emergency" type="button">
+                                <i class="fas fa-exclamation-circle"></i>Emergency
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="registerTabContent">
+                        <!-- Personal Information Tab -->
+                        <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                            <div class="row">
+                                <!-- Existing Personal Information fields -->
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="first_name" class="form-label">First Name</label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ form_data.first_name }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="last_name" class="form-label">Last Name</label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ form_data.last_name }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="contact_number" class="form-label">Contact Number</label>
+                                        <input type="tel" class="form-control" id="contact_number" name="contact_number" value="{{ form_data.contact_number }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="birth_date" class="form-label">Birth Date</label>
+                                        <input type="date" class="form-control" id="birth_date" name="birth_date" value="{{ form_data.birth_date }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="sitio" class="form-label">Sitio</label>
+                                        <input type="text" class="form-control" id="sitio" name="sitio" value="{{ form_data.sitio }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="barangay" class="form-label">Barangay</label>
+                                        <select class="form-select" id="barangay" name="barangay" required>
+                                            <option value="">Select Barangay</option>
+                                            {% for barangay in barangays %}
+                                                <option value="{{ barangay.id }}" {% if form_data.barangay|stringformat:"s" == barangay.id|stringformat:"s" %}selected{% endif %}>
+                                                    {{ barangay.barangay_name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="occupation" class="form-label">Occupation</label>
+                                        <input type="text" class="form-control" id="occupation" name="occupation" value="{{ form_data.occupation }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="monthly_income" class="form-label">Monthly Income</label>
+                                        <input type="number" class="form-control" id="monthly_income" name="monthly_income" value="{{ form_data.monthly_income }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="blood_type" class="form-label">Blood Type</label>
+                                        <select class="form-select" id="blood_type" name="blood_type" required>
+                                            <option value="">Select Blood Type</option>
+                                            {% for value, label in blood_type_choices %}
+                                                <option value="{{ value }}" {% if form_data.blood_type == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="religion" class="form-label">Religion</label>
+                                        <select class="form-select" id="religion" name="religion" required>
+                                            <option value="">Select Religion</option>
+                                            {% for value, label in religion_choices %}
+                                                <option value="{{ value }}" {% if form_data.religion == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-1 mt-3">
+                                <button type="button" class="btn btn-register next-tab">Next <i class="fas fa-arrow-right ms-2"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Account Information Tab -->
+                        <div class="tab-pane fade" id="account" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="username" name="username" value="{{ form_data.username }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" value="{{ form_data.email }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="password" name="password" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-1 mt-3">
+                                <button type="button" class="btn btn-outline-secondary prev-tab"><i class="fas fa-arrow-left me-2"></i>Previous</button>
+                                <button type="button" class="btn btn-register next-tab">Next <i class="fas fa-arrow-right ms-2"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Family Information Tab -->
+                        <div class="tab-pane fade" id="family" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="spouse_name" class="form-label">Spouse Name</label>
+                                        <input type="text" class="form-control" id="spouse_name" name="spouse_name" value="{{ form_data.spouse_name }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="spouse_occupation" class="form-label">Spouse Occupation</label>
+                                        <input type="text" class="form-control" id="spouse_occupation" name="spouse_occupation" value="{{ form_data.spouse_occupation }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="spouse_monthly_income" class="form-label">Spouse Monthly Income</label>
+                                        <input type="number" class="form-control" id="spouse_monthly_income" name="spouse_monthly_income" value="{{ form_data.spouse_monthly_income }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="number_of_children" class="form-label">Number of Children</label>
+                                        <input type="number" class="form-control" id="number_of_children" name="number_of_children" value="{{ form_data.number_of_children }}" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-1 mt-3">
+                                <button type="button" class="btn btn-outline-secondary prev-tab"><i class="fas fa-arrow-left me-2"></i>Previous</button>
+                                <button type="button" class="btn btn-register next-tab">Next <i class="fas fa-arrow-right ms-2"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contact Tab -->
+                        <div class="tab-pane fade" id="emergency" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="emergency_contact_name" class="form-label">Contact Name</label>
+                                        <input type="text" class="form-control" id="emergency_contact_name"
+                                               name="emergency_contact_name" value="{{ form_data.emergency_contact_name }}" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="emergency_contact_number" class="form-label">Contact Number</label>
+                                        <input type="tel" class="form-control" id="emergency_contact_number"
+                                               name="emergency_contact_number" value="{{ form_data.emergency_contact_number }}" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-1 mt-3">
+                                <button type="button" class="btn btn-outline-secondary prev-tab"><i class="fas fa-arrow-left me-2"></i>Previous</button>
+                                <button type="submit" class="btn btn-register">
+                                    <i class="fas fa-user-plus me-2"></i>Complete Registration
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="register-footer">
+                Already have an account? <a href="{% url 'patient_management:login' %}">Login here</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = ['personal', 'account', 'family', 'emergency'];
+            const progressBar = document.getElementById('progressBar');
+
+            // Next button handlers
+            document.querySelectorAll('.next-tab').forEach(button => {
+                button.addEventListener('click', function() {
+                    const currentTab = this.closest('.tab-pane');
+                    const currentIndex = tabs.indexOf(currentTab.id);
+                    
+                    // Validate all required fields in current tab
+                    const requiredFields = currentTab.querySelectorAll('input[required], select[required]');
+                    let isValid = true;
+                    let firstInvalidField = null;
+
+                    requiredFields.forEach(field => {
+                        if (!field.value.trim()) {
+                            isValid = false;
+                            field.classList.add('is-invalid');
+                            if (!firstInvalidField) firstInvalidField = field;
+                        } else {
+                            field.classList.remove('is-invalid');
+                        }
+                    });
+
+                    // If validation fails, focus on first invalid field and show alert
+                    if (!isValid) {
+                        firstInvalidField.focus();
+                        const invalidFeedback = firstInvalidField.nextElementSibling;
+                        if (!invalidFeedback || !invalidFeedback.classList.contains('invalid-feedback')) {
+                            const feedback = document.createElement('div');
+                            feedback.className = 'invalid-feedback';
+                            feedback.textContent = 'This field is required';
+                            firstInvalidField.parentNode.appendChild(feedback);
+                        }
+                        return;
+                    }
+
+                    // If all fields are valid, proceed to next tab
+                    const nextTab = document.querySelector(`#${tabs[currentIndex + 1]}-tab`);
+                    nextTab.click();
+                    updateProgress(currentIndex + 2);
+                });
+            });
+
+            // Previous button handlers
+            document.querySelectorAll('.prev-tab').forEach(button => {
+                button.addEventListener('click', function() {
+                    const currentTab = this.closest('.tab-pane');
+                    const currentIndex = tabs.indexOf(currentTab.id);
+                    const prevTab = document.querySelector(`#${tabs[currentIndex - 1]}-tab`);
+                    prevTab.click();
+                    updateProgress(currentIndex);
+                });
+            });
+
+            // Add input event listeners to remove invalid state when user starts typing
+            document.querySelectorAll('input[required], select[required]').forEach(field => {
+                field.addEventListener('input', function() {
+                    if (this.value.trim()) {
+                        this.classList.remove('is-invalid');
+                        const feedback = this.nextElementSibling;
+                        if (feedback && feedback.classList.contains('invalid-feedback')) {
+                            feedback.remove();
+                        }
+                    }
+                });
+            });
+
+            // Form submission validation
+            document.getElementById('registrationForm').addEventListener('submit', function(e) {
+                const allRequiredFields = this.querySelectorAll('input[required], select[required]');
+                let isValid = true;
+                let firstInvalidField = null;
+
+                allRequiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        isValid = false;
+                        field.classList.add('is-invalid');
+                        if (!firstInvalidField) {
+                            firstInvalidField = field;
+                            // Find which tab contains this field
+                            const tabPane = field.closest('.tab-pane');
+                            const tabId = tabPane.id;
+                            // Switch to that tab
+                            document.querySelector(`#${tabId}-tab`).click();
+                        }
+                    }
+                });
+
+                if (!isValid) {
+                    e.preventDefault();
+                    firstInvalidField.focus();
+                }
+            });
+
+            function updateProgress(step) {
+                const progress = (step / tabs.length) * 100;
+                progressBar.style.width = `${progress}%`;
+            }
+
+            // Set max date for Birthday
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('birth_date').setAttribute('max', today);
+        });
+    </script>
+</body>
+</html>

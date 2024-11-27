@@ -11,10 +11,14 @@
         :root {
             --header-height: 70px;
             --header-height-mobile: 60px;
-            --primary-color: #4F46E5;
-            --secondary-color: #818CF8;
+            --primary-color: #FF69B4;
+            --secondary-color: #FF1493;
+            --light-pink: #FFF0F7;
+            --medium-pink: #FFB6C1;
+            --primary-gradient: linear-gradient(135deg, #FF69B4, #FF1493);
             --navbar-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
         }
+
 
         body {
             min-height: 100vh;
@@ -291,6 +295,8 @@
             }
         }
     </style>
+
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
 <!-- Main Navigation -->

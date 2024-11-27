@@ -1,174 +1,331 @@
 <!-- emergency_history.html -->
 {% extends 'patient_base.html' %}
 
+{% block extra_css %}
+<style>
+    /* Stat Cards */
+    .stat-card {
+        border-radius: 20px;
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(
+            circle,
+            rgba(255, 255, 255, 0.1) 0%,
+            transparent 70%
+        );
+        transform: rotate(45deg);
+        transition: all 0.6s ease;
+    }
+
+    .stat-card:hover::before {
+        transform: rotate(90deg);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-icon {
+        opacity: 0.8;
+        transition: all 0.3s ease;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    /* Emergency History Card */
+    .history-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #FF69B4, #FF1493);
+        padding: 1.5rem;
+        border: none;
+    }
+
+    /* Alert Items */
+    .alert-item {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        border-left: 4px solid;
+    }
+
+    .alert-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .alert-item.active {
+        border-left-color: #dc3545;
+    }
+
+    .alert-item.responded {
+        border-left-color: #ffc107;
+    }
+
+    .alert-item.resolved {
+        border-left-color: #198754;
+    }
+
+    .alert-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: white;
+    }
+
+    .location-link {
+        padding: 0.35rem 0.75rem;
+        border-radius: 15px;
+        background: var(--light-pink);
+        color: var(--secondary-color);
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .location-link:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .empty-state::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at center,
+            var(--light-pink) 0%,
+            transparent 70%
+        );
+        opacity: 0.5;
+        z-index: -1;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+
+    /* Pagination */
+    .page-link {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin: 0 0.25rem;
+        border: none;
+        color: var(--secondary-color);
+        transition: all 0.3s ease;
+    }
+
+    .page-link:hover {
+        background: var(--light-pink);
+        color: var(--primary-color);
+    }
+
+    .page-item.active .page-link {
+        background: var(--primary-gradient);
+    }
+
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Total Alerts</h6>
-                                <h2 class="mb-0">{{ stats.total_alerts }}</h2>
-                            </div>
-                            <i class="fas fa-bell fa-2x"></i>
-                        </div>
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Total Alerts</h6>
+                        <h2 class="mb-0">{{ stats.total_alerts }}</h2>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-danger text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Active Alerts</h6>
-                                <h2 class="mb-0">{{ stats.active_alerts }}</h2>
-                            </div>
-                            <i class="fas fa-exclamation-circle fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Resolved</h6>
-                                <h2 class="mb-0">{{ stats.resolved_alerts }}</h2>
-                            </div>
-                            <i class="fas fa-check-circle fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Last 30 Days</h6>
-                                <h2 class="mb-0">{{ stats.recent_alerts }}</h2>
-                            </div>
-                            <i class="fas fa-calendar-alt fa-2x"></i>
-                        </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-bell fa-2x"></i>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Alert History -->
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">
-                    <i class="fas fa-history me-2"></i>Emergency Alert History
-                </h4>
+        <div class="col-md-3">
+            <div class="stat-card bg-danger text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Active Alerts</h6>
+                        <h2 class="mb-0">{{ stats.active_alerts }}</h2>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                {% if page_obj %}
-                    <div class="timeline">
-                        {% for alert in page_obj %}
-                            <div class="alert {% if alert.status == 'ACTIVE' %}alert-danger
-                                            {% elif alert.status == 'RESPONDED' %}alert-warning
-                                            {% else %}alert-success{% endif %} mb-3">
-                                <div class="d-flex justify-content-between align-items-start">
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-success text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Resolved</h6>
+                        <h2 class="mb-0">{{ stats.resolved_alerts }}</h2>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Last 30 Days</h6>
+                        <h2 class="mb-0">{{ stats.recent_alerts }}</h2>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency History -->
+    <div class="history-card">
+        <div class="card-header">
+            <h4 class="text-white mb-0">
+                <i class="fas fa-history me-2"></i>Emergency Alert History
+            </h4>
+        </div>
+
+        <div class="card-body p-4">
+            {% if page_obj %}
+                {% for alert in page_obj %}
+                    <div class="alert-item {{ alert.status|lower }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-3">Emergency Alert #{{ alert.id }}</h5>
+                                <div class="d-flex flex-wrap gap-3">
                                     <div>
-                                        <h5 class="alert-heading">
-                                            Emergency Alert #{{ alert.id }}
-                                        </h5>
-                                        <p class="mb-1">
-                                            <strong>Time:</strong>
-                                            {{ alert.alert_time|date:"F d, Y - g:i A" }}
-                                        </p>
-                                        <p class="mb-1">
-                                            <strong>Status:</strong>
-                                            <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
+                                        <small class="text-muted d-block mb-1">Time</small>
+                                        <strong>{{ alert.alert_time|date:"F d, Y - g:i A" }}</strong>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted d-block mb-1">Status</small>
+                                        <span class="alert-badge {% if alert.status == 'ACTIVE' %}bg-danger
                                                               {% elif alert.status == 'RESPONDED' %}bg-warning
                                                               {% else %}bg-success{% endif %}">
-                                                {{ alert.status }}
-                                            </span>
-                                        </p>
-                                        {% if alert.location %}
-                                            <p class="mb-1">
-                                                <strong>Location:</strong>
-                                                <a href="https://www.google.com/maps?q={{ alert.location }}"
-                                                   target="_blank" class="text-decoration-none">
-                                                    <i class="fas fa-map-marker-alt me-1"></i>View on Map
-                                                </a>
-                                            </p>
-                                        {% endif %}
-                                        {% if alert.response_time %}
-                                            <p class="mb-1">
-                                                <strong>Response Time:</strong>
-                                                {{ alert.response_time|date:"F d, Y - g:i A" }}
-                                            </p>
-                                        {% endif %}
-                                        {% if alert.notes %}
-                                            <p class="mb-0">
-                                                <strong>Notes:</strong><br>
-                                                {{ alert.notes|linebreaks }}
-                                            </p>
-                                        {% endif %}
+                                            {{ alert.status }}
+                                        </span>
                                     </div>
-                                    <div>
-                                        {% if alert.status == 'ACTIVE' %}
-                                            <span class="badge bg-danger">
-                                                <i class="fas fa-exclamation-triangle me-1"></i>Active
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Pagination -->
-                    {% if page_obj.has_other_pages %}
-                        <nav aria-label="Page navigation" class="mt-4">
-                            <ul class="pagination justify-content-center">
-                                {% if page_obj.has_previous %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
-                                            <i class="fas fa-chevron-left"></i>
-                                        </a>
-                                    </li>
-                                {% endif %}
-
-                                {% for num in page_obj.paginator.page_range %}
-                                    {% if page_obj.number == num %}
-                                        <li class="page-item active">
-                                            <span class="page-link">{{ num }}</span>
-                                        </li>
-                                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="?page={{ num }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
-                                                {{ num }}
+                                    {% if alert.location %}
+                                        <div>
+                                            <small class="text-muted d-block mb-1">Location</small>
+                                            <a href="https://www.google.com/maps?q={{ alert.location }}"
+                                               target="_blank" class="location-link">
+                                                <i class="fas fa-map-marker-alt me-2"></i>View on Map
                                             </a>
-                                        </li>
+                                        </div>
                                     {% endif %}
-                                {% endfor %}
+                                </div>
+                                {% if alert.notes %}
+                                    <div class="mt-3">
+                                        <small class="text-muted d-block">Notes</small>
+                                        <p class="mb-0">{{ alert.notes|linebreaks }}</p>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
 
-                                {% if page_obj.has_next %}
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
-                                            <i class="fas fa-chevron-right"></i>
+                                        <a class="page-link" href="?page={{ num }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                            {{ num }}
                                         </a>
                                     </li>
                                 {% endif %}
-                            </ul>
-                        </nav>
-                    {% endif %}
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
-                        <h5>No Emergency Alerts</h5>
-                        <p class="text-muted">No emergency alerts have been triggered yet</p>
-                    </div>
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
                 {% endif %}
-            </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <h5>No Emergency Alerts</h5>
+                    <p class="text-muted">No emergency alerts have been triggered yet</p>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

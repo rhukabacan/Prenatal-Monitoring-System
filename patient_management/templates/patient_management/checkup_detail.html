@@ -1,31 +1,146 @@
 {% extends 'patient_base.html' %}
 
+{% block extra_css %}
+<style>
+    /* Main Card */
+    .detail-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #FF69B4, #FF1493);
+        padding: 1.5rem;
+        border: none;
+    }
+
+    .back-btn {
+        background: white;
+        color: var(--secondary-color);
+        border: 2px solid white;
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 25px;
+        text-decoration:none;
+        transition: all 0.3s ease;
+    }
+
+    .back-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* Time Remaining Alert */
+    .time-alert {
+        background: rgba(13, 110, 253, 0.1);
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .time-alert:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .time-icon {
+        background: white;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Info Cards */
+    .info-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        height: 100%;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+
+    .info-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Progress Bar */
+    .progress {
+        height: 1.5rem;
+        border-radius: 1rem;
+        background: rgba(255, 105, 180, 0.1);
+    }
+
+    .progress-bar {
+        background: linear-gradient(135deg, #FF69B4, #FF1493);
+        border-radius: 1rem;
+    }
+
+    /* Value Cards */
+    .value-card {
+        background: var(--light-pink);
+        border-radius: 10px;
+        padding: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .value-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Change Badge */
+    .change-badge {
+        background: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+        padding: 0.35rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    /* Notes Section */
+    .notes-section {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 15px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--primary-color);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">
+        <div class="detail-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="text-white mb-0">
                     <i class="fas fa-clipboard-check me-2"></i>Checkup Details
                 </h4>
-                <div>
-                    <a href="{% url 'patient_management:checkup_list' %}" class="btn btn-light btn-sm ms-2">
-                        <i class="fas fa-list me-2"></i>Back to List
-                    </a>
-                </div>
+                <a href="{% url 'patient_management:checkup_list' %}" class="back-btn">
+                    <i class="fas fa-list me-2"></i>Back to List
+                </a>
             </div>
-            <div class="card-body">
-                <!-- Time Remaining Card (if upcoming) -->
+            
+            <div class="card-body p-4">
                 {% if checkup.status == 'SCHEDULED' %}
-                <div class="alert alert-primary mb-4 shadow-sm">
+                <div class="time-alert p-4 mb-4">
                     <div class="d-flex align-items-center">
-                        <div class="rounded-circle bg-white p-3 me-3">
+                        <div class="time-icon me-3">
                             <i class="fas fa-clock fa-2x text-primary"></i>
                         </div>
                         <div>
-                            <h5 class="alert-heading mb-1">Time Until Checkup</h5>
+                            <h5 class="mb-1">Time Until Checkup</h5>
                             <p class="mb-0 fs-5">
-                                {% if days_remaining > 0 %} {{ days_remaining }} days and {% endif %}{{ hours_remaining }} hours remaining
+                                {% if days_remaining > 0 %}{{ days_remaining }} days and {% endif %}
+                                {{ hours_remaining }} hours remaining
                             </p>
                         </div>
                     </div>
@@ -33,120 +148,99 @@
                 {% endif %}
 
                 <!-- Pregnancy Information -->
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-body">
-                        <h5 class="mb-3 text-primary">
-                            <i class="fas fa-baby me-2"></i>Pregnancy Information
-                        </h5>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="card h-100 bg-light border-0">
-                                    <div class="card-body">
-                                        <small class="text-muted d-block">Last Menstrual Period</small>
-                                        <strong>{{ checkup.last_menstrual_period|date:"F d, Y" }}</strong>
+                <div class="info-card mb-4">
+                    <h5 class="text-primary mb-3">
+                        <i class="fas fa-baby me-2"></i>Pregnancy Information
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="value-card">
+                                <small class="text-muted d-block">Last Menstrual Period</small>
+                                <strong>{{ checkup.last_menstrual_period|date:"F d, Y" }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="value-card">
+                                <small class="text-muted d-block">Estimated Delivery Date</small>
+                                <strong>{{ checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                            </div>
+                        </div>
+                        
+                        {% if weeks_pregnant %}
+                        <div class="col-12">
+                            <div class="info-card">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-child me-2 text-primary"></i>Pregnancy Progress
+                                </h6>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Week {{ weeks_pregnant }}</span>
+                                    <span>42 Weeks</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar"
+                                         style="width: {{ progress_percentage }}%"
+                                         aria-valuenow="{{ weeks_pregnant }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="42">
+                                        {{ weeks_pregnant }} weeks
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="card h-100 bg-light border-0">
-                                    <div class="card-body">
-                                        <small class="text-muted d-block">Estimated Delivery Date</small>
-                                        <strong>{{ checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
-                                    </div>
-                                </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Measurements -->
+                <div class="info-card">
+                    <h5 class="text-primary mb-3">
+                        <i class="fas fa-weight me-2"></i>Measurements
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="value-card">
+                                <small class="text-muted d-block">Weight</small>
+                                <strong>{{ checkup.weight }} kg</strong>
+                                {% if checkup.weight != checkup.initial_weight %}
+                                <span class="change-badge ms-2">Changed</span>
+                                {% endif %}
                             </div>
-                            <div class="col-md-12">
-                                <!-- Pregnancy Progress -->
-                                {% if weeks_pregnant %}
-                                <div class="card h-100 bg-light border-0 shadow-sm">
-                                    <div class="card-body">
-                                        <h6 class="mb-3">
-                                            <i class="fas fa-child me-2 text-primary"></i>Pregnancy Progress
-                                        </h6>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span>Week {{ weeks_pregnant }}</span>
-                                            <span>42 Weeks</span>
-                                        </div>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-primary" role="progressbar"
-                                                 style="width: {{ progress_percentage }}%"
-                                                 aria-valuenow="{{ weeks_pregnant }}" aria-valuemin="0"
-                                                 aria-valuemax="42">
-                                                {{ weeks_pregnant }} weeks
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="value-card">
+                                <small class="text-muted d-block">Blood Pressure</small>
+                                <strong>{{ checkup.blood_pressure }}</strong>
+                                {% if checkup.blood_pressure != checkup.initial_blood_pressure %}
+                                <span class="change-badge ms-2">Changed</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="value-card">
+                                <small class="text-muted d-block">Height</small>
+                                <strong>{{ checkup.height }} cm</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="value-card">
+                                <small class="text-muted d-block">BMI</small>
+                                {% if checkup.get_bmi %}
+                                <strong>{{ checkup.get_bmi|floatformat:1 }}</strong>
+                                <span class="change-badge ms-2">{{ checkup.get_bmi_category }}</span>
+                                {% else %}
+                                <span class="text-muted">Not available</span>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Current Values -->
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5 class="mb-3 text-primary">
-                                    <i class="fas fa-calendar-check me-2"></i>Current Checkup Information
-                                </h5>
-                                <div class="list-group list-group-flush">
-                                    <div class="list-group-item">
-                                        <small class="text-muted d-block">Checkup Date</small>
-                                        <strong>{{ checkup.checkup_date|date:"F d, Y - g:i A" }}</strong>
-                                    </div>
-                                    <div class="list-group-item">
-                                        <small class="text-muted d-block">Blood Pressure</small>
-                                        <strong>{{ checkup.blood_pressure }}</strong>
-                                        {% if checkup.blood_pressure != checkup.initial_blood_pressure %}
-                                        <span class="badge bg-info ms-2">Changed</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <h5 class="mb-3 text-primary">
-                                    <i class="fas fa-weight me-2"></i>Current Measurements
-                                </h5>
-                                <div class="list-group list-group-flush">
-                                    <div class="list-group-item">
-                                        <small class="text-muted d-block">Weight</small>
-                                        <strong>{{ checkup.weight }} kg</strong>
-                                        {% if checkup.weight != checkup.initial_weight %}
-                                        <span class="badge bg-info ms-2">Changed</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="list-group-item">
-                                        <small class="text-muted d-block">Height</small>
-                                        <strong>{{ checkup.height }} cm</strong>
-                                    </div>
-                                    <div class="list-group-item">
-                                        <small class="text-muted d-block">BMI</small>
-                                        {% if checkup.get_bmi %}
-                                        <strong>{{ checkup.get_bmi|floatformat:1 }}</strong>
-                                        <span class="badge bg-secondary ms-2">{{ checkup.get_bmi_category }}</span>
-                                        {% else %}
-                                        <span class="text-muted">Not available</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Notes -->
                 {% if checkup.notes %}
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <h5 class="mb-3 text-primary">
-                            <i class="fas fa-clipboard-list me-2"></i>Notes & Observations
-                        </h5>
-                        <div class="bg-light p-3 rounded">
-                            {{ checkup.notes|linebreaks }}
-                        </div>
-                    </div>
+                <div class="notes-section mt-4">
+                    <h5 class="text-primary mb-3">
+                        <i class="fas fa-clipboard-list me-2"></i>Notes & Observations
+                    </h5>
+                    {{ checkup.notes|linebreaks }}
                 </div>
                 {% endif %}
             </div>

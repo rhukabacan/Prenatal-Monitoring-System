@@ -1,154 +1,438 @@
 <!-- pregnancy_history_list.html -->
 {% extends 'patient_base.html' %}
 
+{% block extra_css %}
+<style>
+    /* Stat Cards */
+    .stat-card {
+        border-radius: 20px;
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(
+            circle,
+            rgba(255, 255, 255, 0.1) 0%,
+            transparent 70%
+        );
+        transform: rotate(45deg);
+        transition: all 0.6s ease;
+    }
+
+    .stat-card:hover::before {
+        transform: rotate(90deg);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-icon {
+        opacity: 0.8;
+        transition: all 0.3s ease;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    /* History Card */
+    .history-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #FF69B4, #FF1493);
+        padding: 1.5rem;
+        border: none;
+    }
+
+    .add-record-btn {
+        background: white;
+        color: var(--secondary-color);
+        border: 2px solid white;
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 25px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .add-record-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* Timeline */
+    .timeline {
+        position: relative;
+        padding: 1rem 0;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, 
+            rgba(255, 105, 180, 0.3),
+            rgba(255, 20, 147, 0.3));
+    }
+
+    .timeline-item {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        position: relative;
+        margin-left: 15px;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .timeline-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .timeline-date {
+        color: var(--secondary-color);
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .timeline-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        position: relative;
+    }
+
+    .timeline-content::after {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: 20px;
+        width: 20px;
+        height: 20px;
+        background: var(--light-pink);
+        transform: rotate(45deg);
+        z-index: -1;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: start;
+        padding: 0.75rem;
+        border-radius: 10px;
+        background: var(--light-pink);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .info-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.2), 
+            rgba(255, 105, 180, 0.1));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .info-item:hover::before {
+        opacity: 1;
+    }
+
+    .info-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        margin-right: 0.75rem;
+        background: white;
+        color: var(--secondary-color);
+    }
+
+    .info-content {
+        flex: 1;
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .edit-btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+
+    .edit-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .empty-state::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at center,
+            var(--light-pink) 0%,
+            transparent 70%
+        );
+        opacity: 0.5;
+        z-index: -1;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+
+    /* Badge Styles */
+    .delivery-type-badge {
+        padding: 0.35rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .delivery-type-normal {
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+    }
+
+    .delivery-type-cs {
+        background: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+    }
+
+    .delivery-type-assisted {
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+    }
+
+    /* Complications Alert */
+    .complications-alert {
+        background: rgba(220, 53, 69, 0.1);
+        border-left: 4px solid #dc3545;
+        padding: 1rem;
+        border-radius: 0 10px 10px 0;
+        margin-top: 1rem;
+    }
+
+    /* Floating Icons Animation */
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+    }
+
+    .stat-icon {
+        animation: float 3s ease-in-out infinite;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Total Pregnancies</h6>
-                                <h2 class="mb-0">{{ stats.total_pregnancies }}</h2>
-                            </div>
-                            <i class="fas fa-baby fa-2x"></i>
-                        </div>
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Total Pregnancies</h6>
+                        <h2 class="mb-0">{{ stats.total_pregnancies }}</h2>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Normal Deliveries</h6>
-                                <h2 class="mb-0">{{ stats.normal_deliveries }}</h2>
-                            </div>
-                            <i class="fas fa-check-circle fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">C-Section</h6>
-                                <h2 class="mb-0">{{ stats.cs_deliveries }}</h2>
-                            </div>
-                            <i class="fas fa-hospital fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-warning text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0">Assisted Deliveries</h6>
-                                <h2 class="mb-0">{{ stats.assisted_deliveries }}</h2>
-                            </div>
-                            <i class="fas fa-hands-helping fa-2x"></i>
-                        </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-baby fa-2x"></i>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- History List -->
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">
-                    <i class="fas fa-history me-2"></i>Pregnancy History
-                </h4>
-                <a href="{% url 'patient_management:pregnancy_history_create' %}" class="btn btn-light">
-                    <i class="fas fa-plus me-2"></i>Add New Record
-                </a>
+        <div class="col-md-3">
+            <div class="stat-card bg-success text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Normal Deliveries</h6>
+                        <h2 class="mb-0">{{ stats.normal_deliveries }}</h2>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                {% if histories %}
-                    <div class="timeline">
-                        {% for history in histories %}
-                            <div class="row mb-4">
-                                <div class="col-auto text-center flex-column d-none d-sm-flex">
-                                    <div class="row h-50">
-                                        <div class="col border-end">&nbsp;</div>
-                                        <div class="col">&nbsp;</div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">C-Section</h6>
+                        <h2 class="mb-0">{{ stats.cs_deliveries }}</h2>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-hospital fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-warning text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Assisted Deliveries</h6>
+                        <h2 class="mb-0">{{ stats.assisted_deliveries }}</h2>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-hands-helping fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History List -->
+    <div class="history-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="text-white mb-0">
+                <i class="fas fa-history me-2"></i>Pregnancy History
+            </h4>
+            <a href="{% url 'patient_management:pregnancy_history_create' %}" class="add-record-btn">
+                <i class="fas fa-plus me-2"></i>Add New Record
+            </a>
+        </div>
+
+        <div class="card-body p-4">
+            {% if histories %}
+                <div class="timeline">
+                    {% for history in histories %}
+                        <div class="timeline-item">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="timeline-date">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    {{ history.delivery_date|date:"F d, Y" }}
+                                </div>
+                                <a href="{% url 'patient_management:pregnancy_history_update' history_id=history.id %}"
+                                   class="edit-btn btn btn-warning">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                            
+                            <div class="timeline-content">
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <i class="fas fa-hospital"></i>
                                     </div>
-                                    <h5 class="m-2">
-                                        <span class="badge rounded-circle bg-primary">&nbsp;</span>
-                                    </h5>
-                                    <div class="row h-50">
-                                        <div class="col border-end">&nbsp;</div>
-                                        <div class="col">&nbsp;</div>
+                                    <div class="info-content">
+                                        <div class="info-label">Location</div>
+                                        <div class="info-value">{{ history.delivery_location }}</div>
                                     </div>
                                 </div>
-                                <div class="col py-2">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <h5 class="card-title text-primary">
-                                                    {{ history.delivery_date|date:"F d, Y" }}
-                                                </h5>
-                                                <a href="{% url 'patient_management:pregnancy_history_update' history_id=history.id %}"
-                                                   class="btn btn-sm btn-warning">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <p class="mb-2">
-                                                        <i class="fas fa-hospital me-2"></i>
-                                                        <strong>Location:</strong><br>
-                                                        {{ history.delivery_location }}
-                                                    </p>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <p class="mb-2">
-                                                        <i class="fas fa-baby-carriage me-2"></i>
-                                                        <strong>Type:</strong><br>
-                                                        {{ history.get_delivery_type_display }}
-                                                    </p>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <p class="mb-2">
-                                                        <i class="fas fa-weight me-2"></i>
-                                                        <strong>Birth Weight:</strong><br>
-                                                        {{ history.birth_weight }} kg
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            {% if history.complications %}
-                                                <div class="mt-2">
-                                                    <p class="mb-0">
-                                                        <i class="fas fa-exclamation-circle me-2"></i>
-                                                        <strong>Complications:</strong><br>
-                                                        {{ history.complications }}
-                                                    </p>
-                                                </div>
-                                            {% endif %}
+
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <i class="fas fa-baby-carriage"></i>
+                                    </div>
+                                    <div class="info-content">
+                                        <div class="info-label">Type</div>
+                                        <div class="info-value">
+                                            <span class="delivery-type-badge 
+                                                {% if history.delivery_type == 'NORMAL' %}delivery-type-normal
+                                                {% elif history.delivery_type == 'CS' %}delivery-type-cs
+                                                {% else %}delivery-type-assisted{% endif %}">
+                                                {{ history.get_delivery_type_display }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
+
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <i class="fas fa-weight"></i>
+                                    </div>
+                                    <div class="info-content">
+                                        <div class="info-label">Birth Weight</div>
+                                        <div class="info-value">{{ history.birth_weight }} kg</div>
+                                    </div>
+                                </div>
                             </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
-                        <h5>No pregnancy history records found</h5>
-                        <p class="text-muted">Start by adding your first pregnancy record</p>
-                        <a href="{% url 'patient_management:pregnancy_history_create' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Add Pregnancy Record
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
+
+                            {% if history.complications %}
+                            <div class="complications-alert">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-exclamation-triangle text-danger me-3 mt-1"></i>
+                                    <div>
+                                        <h6 class="text-danger mb-1">Complications Reported</h6>
+                                        <p class="mb-0">{{ history.complications }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <h5>No pregnancy history records found</h5>
+                    <p class="text-muted mb-4">Start by adding your first pregnancy record</p>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

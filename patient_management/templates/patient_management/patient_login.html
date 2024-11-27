@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+{%load static %}
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Patient Login - Prenatal Care</title>
+   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+   <style>
+       body {
+           min-height: 100vh;
+           background: linear-gradient(135deg, #FFF5F7 0%, #FFF0F7 100%);
+           display: flex;
+           align-items: center;
+           justify-content: center;
+       }
+        .login-container {
+           width: 100%;
+           max-width: 450px;
+           padding: 1.5rem;
+       }
+        .login-card {
+           background: rgba(255, 255, 255, 0.95);
+           border-radius: 20px;
+           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+           overflow: hidden;
+           position: relative;
+       }
+        .login-header {
+           background: linear-gradient(135deg, #FF69B4, #FF1493);
+           padding: 2rem 1.5rem;
+           text-align: center;
+           color: white;
+       }
+        .login-logo {
+           font-size: 3rem;
+           margin-bottom: 1rem;
+       }
+        .login-title {
+           font-size: 1.5rem;
+           font-weight: 600;
+           margin: 0;
+       }
+        .login-subtitle {
+           opacity: 0.9;
+           font-size: 0.9rem;
+           margin-top: 0.5rem;
+       }
+        .login-body {
+           padding: 2rem;
+       }
+        .form-control {
+           border-radius: 10px;
+           padding: 0.75rem 1rem;
+           border: 2px solid #eee;
+           transition: all 0.3s;
+       }
+        .form-control:focus {
+           border-color: #FF69B4;
+           box-shadow: 0 0 0 0.2rem rgba(255, 105, 180, 0.25);
+       }
+        .input-group-text {
+           border-radius: 10px 0 0 10px;
+           border: 2px solid #eee;
+           border-right: none;
+           background-color: white;
+       }
+        .btn-login {
+           background: linear-gradient(135deg, #FF69B4, #FF1493);
+           border: none;
+           border-radius: 10px;
+           padding: 0.75rem 2rem;
+           font-weight: 600;
+           transition: all 0.3s;
+       }
+        .btn-login:hover {
+           transform: translateY(-2px);
+           box-shadow: 0 5px 15px rgba(255, 105, 180, 0.4);
+       }
+        .login-footer {
+           background-color: #f8f9fa;
+           padding: 1rem;
+           text-align: center;
+           border-top: 1px solid #eee;
+       }
+        .login-footer a {
+           color: #FF69B4;
+           text-decoration: none;
+           font-weight: 500;
+       }
+        .login-footer a:hover {
+           color: #FF1493;
+       }
+        .decorative-icon {
+           position: absolute;
+           opacity: 0.1;
+           font-size: 8rem;
+           color: #FF69B4;
+           z-index: 0;
+       }
+        .icon-left {
+           left: -2rem;
+           top: -2rem;
+           transform: rotate(-45deg);
+       }
+        .icon-right {
+           right: -2rem;
+           bottom: -2rem;
+           transform: rotate(135deg);
+       }
+   </style>
+</head>
+<body>
+   <div class="login-container">
+       <div class="login-card">
+           <i class="fas fa-baby decorative-icon icon-left"></i>
+           <i class="fas fa-heartbeat decorative-icon icon-right"></i>
+
+           <div class="login-header">
+               <div class="login-logo">
+                   <i class="fas fa-heartbeat"></i>
+               </div>
+               <h1 class="login-title">Welcome to Prenatal Care</h1>
+               <p class="login-subtitle">Please login to access your pregnancy journey</p>
+           </div>
+            <div class="login-body">
+               <form method="POST">
+                   {% csrf_token %}
+                    {% if messages %}
+                       {% for message in messages %}
+                           <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %} mb-4">
+                               {{ message }}
+                           </div>
+                       {% endfor %}
+                   {% endif %}
+                    <div class="mb-4">
+                       <label for="username" class="form-label">Username</label>
+                       <div class="input-group">
+                           <span class="input-group-text"><i class="fas fa-user"></i></span>
+                           <input type="text" class="form-control" id="username" name="username" required>
+                       </div>
+                   </div>
+                    <div class="mb-4">
+                       <label for="password" class="form-label">Password</label>
+                       <div class="input-group">
+                           <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                           <input type="password" class="form-control" id="password" name="password" required>
+                       </div>
+                   </div>
+                    <div class="text-center">
+                       <button type="submit" class="btn btn-login text-white w-100">
+                           <i class="fas fa-sign-in-alt me-2"></i>Login
+                       </button>
+                   </div>
+               </form>
+           </div>
+            <div class="login-footer">
+               <p class="mb-0">
+                   Don't have an account? <a href="{% url 'patient_management:register' %}">Register here</a>
+               </p>
+           </div>
+       </div>
+   </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

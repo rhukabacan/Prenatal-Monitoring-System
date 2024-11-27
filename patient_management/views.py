@@ -135,7 +135,7 @@ def patient_dashboard(request):
         'title': 'Dashboard'
     }
 
-    return render(request, 'patient_management/dashboard.html', context)
+    return render(request, 'patient_management/patient_dashboard.html', context)
 
 
 def patient_register(request):
@@ -155,7 +155,7 @@ def patient_register(request):
             # Validate passwords match
             if password != confirm_password:
                 messages.error(request, 'Passwords do not match.')
-                return render(request, 'patient_management/register.html', {
+                return render(request, 'patient_management/patient_register.html', {
                     'title': 'Patient Registration',
                     'barangays': Barangay.objects.all(),
                     'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -166,7 +166,7 @@ def patient_register(request):
             # Check if username already exists
             if User.objects.filter(username=username).exists():
                 messages.error(request, 'Username already exists.')
-                return render(request, 'patient_management/register.html', {
+                return render(request, 'patient_management/patient_register.html', {
                     'title': 'Patient Registration',
                     'barangays': Barangay.objects.all(),
                     'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -177,7 +177,7 @@ def patient_register(request):
             # Check if email already exists
             if User.objects.filter(email=email).exists():
                 messages.error(request, 'Email already exists.')
-                return render(request, 'patient_management/register.html', {
+                return render(request, 'patient_management/patient_register.html', {
                     'title': 'Patient Registration',
                     'barangays': Barangay.objects.all(),
                     'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -188,7 +188,7 @@ def patient_register(request):
             # Check if contact number already exists
             if Patient.objects.filter(contact_number=contact_number).exists():
                 messages.error(request, 'Contact number already exists.')
-                return render(request, 'patient_management/register.html', {
+                return render(request, 'patient_management/patient_register.html', {
                     'title': 'Patient Registration',
                     'barangays': Barangay.objects.all(),
                     'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -233,7 +233,7 @@ def patient_register(request):
 
         except Exception as e:
             messages.error(request, f'Error during registration: {str(e)}')
-            return render(request, 'patient_management/register.html', {
+            return render(request, 'patient_management/patient_register.html', {
                 'title': 'Patient Registration',
                 'barangays': Barangay.objects.all(),
                 'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -241,7 +241,7 @@ def patient_register(request):
                 'form_data': request.POST
             })
 
-    return render(request, 'patient_management/register.html', {
+    return render(request, 'patient_management/patient_register.html', {
         'title': 'Patient Registration',
         'barangays': Barangay.objects.all(),
         'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -274,7 +274,7 @@ def patient_login(request):
         else:
             messages.error(request, 'Invalid email or password.')
 
-    return render(request, 'patient_management/login.html', {
+    return render(request, 'patient_management/patient_login.html', {
         'title': 'Patient Login'
     })
 
@@ -294,7 +294,7 @@ def profile_view(request):
     """Display patient profile"""
     patient = get_object_or_404(Patient, user=request.user)
 
-    return render(request, 'patient_management/view_profile.html', {
+    return render(request, 'patient_management/profile_view.html', {
         'patient': patient,
         'title': 'My Profile'
     })
@@ -376,7 +376,7 @@ def profile_update(request):
         except Exception as e:
             messages.error(request, f'Error updating profile: {str(e)}')
 
-    return render(request, 'patient_management/edit_profile.html', {
+    return render(request, 'patient_management/profile_edit.html', {
         'patient': patient,
         'barangays': Barangay.objects.all().order_by('barangay_name'),
         'blood_type_choices': Patient.BLOOD_TYPE_CHOICES,
@@ -517,7 +517,7 @@ def request_checkup(request):
         except Exception as e:
             messages.error(request, str(e))
 
-    return render(request, 'patient_management/request_checkup.html', {
+    return render(request, 'patient_management/checkup_request.html', {
         'has_previous_checkup': bool(initial_checkup),
         'initial_checkup': initial_checkup,
         'title': 'Request Checkup'
@@ -545,7 +545,7 @@ def pregnancy_history_create(request):
         except Exception as e:
             messages.error(request, 'Error adding pregnancy history.')
 
-    return render(request, 'patient_management/add_pregnancy_history.html', {
+    return render(request, 'patient_management/pregnancy_history_add.html', {
         'title': 'Add Pregnancy History'
     })
 
@@ -593,7 +593,7 @@ def pregnancy_history_update(request, history_id):
         except Exception as e:
             messages.error(request, 'Error updating pregnancy history.')
 
-    return render(request, 'patient_management/edit_pregnancy_history.html', {
+    return render(request, 'patient_management/pregnancy_history_edit.html', {
         'history': history,
         'title': 'Edit Pregnancy History'
     })

@@ -52,7 +52,7 @@ def tcl_login(request):
         else:
             messages.error(request, 'Invalid username or password.')
 
-    return render(request, 'tcl_management/login.html', {
+    return render(request, 'tcl_management/patient_login.html', {
         'title': 'TCL Login'
     })
 
@@ -71,7 +71,7 @@ def tcl_logout(request):
 def profile_view(request):
     """Display TCL profile"""
     tcl = request.user.barangay
-    return render(request, 'tcl_management/view_profile.html', {
+    return render(request, 'tcl_management/profile_view.html', {
         'tcl': tcl,
         'title': 'My Profile'
     })
@@ -102,7 +102,7 @@ def profile_update(request):
         except Exception as e:
             messages.error(request, 'An error occurred while updating your profile.')
 
-    return render(request, 'tcl_management/edit_profile.html', {
+    return render(request, 'tcl_management/profile_edit.html', {
         'tcl': tcl,
         'title': 'Edit Profile'
     })
@@ -151,7 +151,7 @@ def dashboard(request):
         'title': f'TCL Dashboard - {tcl.barangay_name}'
     }
 
-    return render(request, 'tcl_management/dashboard.html', context)
+    return render(request, 'tcl_management/patient_dashboard.html', context)
 
 
 # Patient Management Views

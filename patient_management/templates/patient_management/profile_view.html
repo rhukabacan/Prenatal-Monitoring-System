@@ -1,15 +1,58 @@
 {% extends 'patient_base.html' %}
 
+{% block extra_css %}
+<style>
+    /* Profile List Card */
+    .profile-card  {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #FF69B4, #FF1493);
+        padding: 1.5rem;
+        border: none;
+    }
+
+    .info-title {
+        color: var(--secondary-color);
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--light-pink);
+    }
+    .edit-profile-btn {
+        background: white;
+        color: var(--secondary-color);
+        border: 2px solid white;
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+        border-radius: 25px;
+        text-decoration:none;
+        transition: all 0.3s ease;
+    }
+
+    .edit-profile-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        transform: translateY(-2px);
+    }
+</style>
+
+{% endblock %}
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div class="profile-card card shadow">
+                <div class="card-header text-white d-flex justify-content-between align-items-center"
+                     style="background-color: var(--secondary-color); padding: 2rem 1.5rem">
                     <h4 class="mb-0">
                         <i class="fas fa-user me-2"></i>My Profile
                     </h4>
-                    <a href="{% url 'patient_management:profile_update' %}" class="btn btn-light btn-sm">
+                    <a href="{% url 'patient_management:profile_update' %}" class="edit-profile-btn">
                         <i class="fas fa-edit me-2"></i>Edit Profile
                     </a>
                 </div>
@@ -19,7 +62,7 @@
                         <div class="col-md-6">
                             <div class="card border-0 bg-light">
                                 <div class="card-body">
-                                    <h5 class="mb-3">
+                                    <h5 class="mb-3 info-title">
                                         <i class="fas fa-user me-2"></i>Personal Information
                                     </h5>
                                     <div class="d-flex flex-column gap-3">
@@ -54,25 +97,25 @@
                         <div class="col-md-6">
                             <div class="card border-0 bg-light">
                                 <div class="card-body">
-                                    <h5 class="mb-3">
+                                    <h5 class="mb-3 info-title">
                                         <i class="fas fa-user-lock me-2"></i>Account Information
                                     </h5>
                                     <div class="d-flex flex-column gap-3">
-    <div class="d-flex align-items-center">
-        <i class="fas fa-user-circle text-warning me-3"></i>
-        <div>
-            <small class="text-muted d-block">Username</small>
-            <strong>{{ patient.user.username }}</strong>
-        </div>
-    </div>
-    <div class="d-flex align-items-center">
-        <i class="fas fa-envelope text-danger me-3"></i>
-        <div>
-            <small class="text-muted d-block">Email Address</small>
-            <strong>{{ patient.user.email }}</strong>
-        </div>
-    </div>
-</div>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-circle text-warning me-3"></i>
+                                            <div>
+                                                <small class="text-muted d-block">Username</small>
+                                                <strong>{{ patient.user.username }}</strong>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-envelope text-danger me-3"></i>
+                                            <div>
+                                                <small class="text-muted d-block">Email Address</small>
+                                                <strong>{{ patient.user.email }}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -81,7 +124,7 @@
                         <div class="col-md-6">
                             <div class="card border-0 bg-light">
                                 <div class="card-body">
-                                    <h5 class="mb-3">
+                                    <h5 class="mb-3 info-title">
                                         <i class="fas fa-info-circle me-2"></i>Additional Information
                                     </h5>
                                     <div class="d-flex flex-column gap-3">
@@ -122,7 +165,7 @@
                         <div class="col-md-6">
                             <div class="card border-0 bg-light">
                                 <div class="card-body">
-                                    <h5 class="mb-3">
+                                    <h5 class="mb-3 info-title">
                                         <i class="fas fa-users me-2"></i>Family Information
                                     </h5>
                                     <div class="d-flex flex-column gap-3">
@@ -163,7 +206,7 @@
                         <div class="col-md-6">
                             <div class="card border-0 bg-light">
                                 <div class="card-body">
-                                    <h5 class="mb-3">
+                                    <h5 class="mb-3 info-title">
                                         <i class="fas fa-map-marker-alt me-2"></i>Address Information
                                     </h5>
                                     <div class="d-flex flex-column gap-3">
@@ -190,25 +233,25 @@
                         <div class="col-md-6">
                             <div class="card border-0 bg-light">
                                 <div class="card-body">
-                                    <h5 class="mb-3">
+                                    <h5 class="mb-3 info-title">
                                         <i class="fas fa-exclamation-circle me-2"></i>Emergency Contact
                                     </h5>
                                     <div class="d-flex flex-column gap-3">
-    <div class="d-flex align-items-center">
-        <i class="fas fa-user-circle text-warning me-3"></i>
-        <div>
-            <small class="text-muted d-block">Contact Name</small>
-            <strong>{{ patient.emergency_contact_name }}</strong>
-        </div>
-    </div>
-    <div class="d-flex align-items-center">
-        <i class="fas fa-phone-alt text-danger me-3"></i>
-        <div>
-            <small class="text-muted d-block">Contact Number</small>
-            <strong>{{ patient.emergency_contact_number }}</strong>
-        </div>
-    </div>
-</div>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-circle text-warning me-3"></i>
+                                            <div>
+                                                <small class="text-muted d-block">Contact Name</small>
+                                                <strong>{{ patient.emergency_contact_name }}</strong>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-phone-alt text-danger me-3"></i>
+                                            <div>
+                                                <small class="text-muted d-block">Contact Number</small>
+                                                <strong>{{ patient.emergency_contact_number }}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

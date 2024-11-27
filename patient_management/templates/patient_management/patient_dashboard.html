@@ -1,0 +1,584 @@
+<!-- patient_dashboard.html -->
+{% extends 'patient_base.html' %}
+
+{% block extra_css %}
+<style>
+
+    /* Pregnancy Progress Card */
+    .pregnancy-progress-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .progress-container {
+        position: relative;
+        padding: 1rem 0;
+    }
+
+    .progress {
+        background-color: var(--light-pink);
+        border-radius: 15px;
+        height: 25px !important;
+    }
+
+    .progress-bar {
+        background: var(--primary-gradient);
+    }
+
+    .progress-markers {
+        position: relative;
+        margin-top: 0.5rem;
+    }
+
+    .marker {
+        position: absolute;
+        transform: translateX(-50%);
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-label {
+        margin-bottom: 0;
+        opacity: 0.9;
+    }
+
+    /* Content Cards */
+    .content-card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1.5rem;
+        transition: transform 0.3s ease;
+    }
+
+    .content-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .card-header {
+        background: transparent;
+        border-bottom: 2px solid var(--light-pink) !important;
+        padding: 1.25rem;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    /* Activity Timeline */
+    .activity-timeline {
+        position: relative;
+    }
+
+    .activity-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        background: var(--primary-gradient);
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    /* Detail Items */
+    .detail-item {
+        background: var(--light-pink);
+        padding: 1rem;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .detail-item:hover {
+        background: white;
+        box-shadow: 0 4px 15px rgba(255, 105, 180, 0.1);
+    }
+
+    .detail-item label {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-item p {
+        margin-bottom: 0;
+        font-weight: 500;
+    }
+
+    /* Next Checkup Alert */
+    .next-checkup-alert {
+        background: var(--light-pink);
+        padding: 1.25rem;
+        border-radius: 15px;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .countdown {
+        color: var(--secondary-color);
+        font-weight: 500;
+    }
+
+    /* Badges */
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 30px;
+    }
+
+    .bg-pink {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding: 1rem;
+        }
+
+        .welcome-banner {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .welcome-title {
+            font-size: 1.5rem;
+        }
+
+        .stat-card {
+            margin-bottom: 1rem;
+            padding: 1.25rem;
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+        }
+
+        .content-card {
+            margin-bottom: 1rem;
+        }
+
+        .card-header {
+            padding: 1rem;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .detail-item {
+            margin-bottom: 1rem;
+        }
+
+        .activity-item {
+            padding: 0.75rem 0;
+        }
+
+        .activity-icon {
+            width: 35px;
+            height: 35px;
+            font-size: 0.9rem;
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .pregnancy-info .row {
+            gap: 1rem;
+        }
+
+        .pregnancy-info .col-md-4 {
+            padding: 0.5rem;
+            background: var(--light-pink);
+            border-radius: 10px;
+        }
+    }
+
+    /* Tablet Responsive Adjustments */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .container-fluid {
+            padding: 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.25rem;
+        }
+
+        .content-card {
+            margin-bottom: 1.5rem;
+        }
+    }
+
+    /* Animation Effects */
+    .stat-card, .content-card {
+        animation: fadeInUp 0.5s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Hover Effects */
+    .detail-item, .next-checkup-alert, .activity-item {
+        transition: all 0.3s ease;
+    }
+
+    .detail-item:hover, .next-checkup-alert:hover {
+        box-shadow: 0 4px 15px rgba(255, 105, 180, 0.1);
+    }
+
+    .activity-item:hover {
+        background-color: var(--light-pink);
+        border-radius: 10px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Pregnancy Progress -->
+    {% if weeks_pregnant %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="pregnancy-progress-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-baby me-2"></i>Pregnancy Progress
+                        </h5>
+                        <span class="badge bg-pink">Week {{ weeks_pregnant }}</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                 role="progressbar"
+                                 style="width: {{ progress_percentage }}%"
+                                 aria-valuenow="{{ weeks_pregnant }}"
+                                 aria-valuemin="0" aria-valuemax="42">
+                                {{ weeks_pregnant }} weeks
+                            </div>
+                        </div>
+                        <div class="progress-markers">
+                            <span class="marker" style="left: 33%">Trimester 1</span>
+                            <span class="marker" style="left: 66%">Trimester 2</span>
+                            <span class="marker" style="right: 0">Trimester 3</span>
+                        </div>
+                    </div>
+                    <div class="pregnancy-info mt-3">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <p class="mb-1">Last Period</p>
+                                <h6>{{ latest_checkup.last_menstrual_period|date:"M d, Y" }}</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1">Current Trimester</p>
+                                <h6>
+                                    {% if weeks_pregnant <= 13 %}First
+                                    {% elif weeks_pregnant <= 26 %}Second
+                                    {% else %}Third{% endif %}
+                                </h6>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-1">Expected Delivery</p>
+                                <h6>{{ latest_checkup.estimated_delivery_date|date:"M d, Y" }}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary bg-gradient text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-stethoscope"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 class="stat-value">{{ stats.total_checkups }}</h3>
+                    <p class="stat-label">Total Checkups</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-success bg-gradient text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 class="stat-value">{{ stats.completed_checkups }}</h3>
+                    <p class="stat-label">Completed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-warning bg-gradient text-dark">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 class="stat-value">{{ stats.upcoming_checkups }}</h3>
+                    <p class="stat-label">Upcoming</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info bg-gradient text-white">
+                <div class="stat-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <div class="stat-details">
+                    <h3 class="stat-value">{{ stats.emergency_alerts }}</h3>
+                    <p class="stat-label">Alerts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Latest Checkup -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-notes-medical me-2"></i>Latest Checkup Details
+                        </h5>
+                        <a href="{% url 'patient_management:checkup_list' %}" class="btn btn-sm btn-outline-primary">
+                            View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if latest_checkup %}
+                    <div class="latest-checkup-details">
+                        <div class="row g-3">
+                            <!-- Date and Status -->
+                            <div class="col-12">
+                                <div class="d-flex align-items-center justify-content-between detail-item">
+                                    <div>
+                                        <label>Date & Time</label>
+                                        <p>{{ latest_checkup.checkup_date|date:"M. d, Y - g:i A" }}</p>
+                                    </div>
+                                    <div>
+                                        <label>Status</label>
+                                        <span class="badge {% if latest_checkup.status == 'SCHEDULED' %}bg-primary
+                                                          {% elif latest_checkup.status == 'COMPLETED' %}bg-success
+                                                          {% elif latest_checkup.status == 'REQUESTED' %}bg-warning
+                                                          {% else %}bg-danger{% endif %}">
+                                            {{ latest_checkup.status }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Vital Signs -->
+                            <div class="col-md-6">
+                                <div class="detail-item h-100">
+                                    <label>Blood Pressure</label>
+                                    <p>{{ latest_checkup.blood_pressure|default:"Not recorded" }}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="detail-item h-100">
+                                    <label>Weight</label>
+                                    <p>{{ latest_checkup.weight|default:"Not recorded" }} kg</p>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="col-12">
+                                <div class="detail-item">
+                                    <label>RHU's Notes</label>
+                                    <p class="mb-0">{{ latest_checkup.notes|default:"No notes available"|linebreaks }}</p>
+                                </div>
+                            </div>
+
+                            <!-- Recommendations -->
+                            {% if latest_checkup.recommendations %}
+                            <div class="col-12">
+                                <div class="detail-item">
+                                    <label>Recommendations</label>
+                                    <ul class="mb-0 ps-3">
+                                        {% for recommendation in latest_checkup.recommendations %}
+                                        <li>{{ recommendation }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No checkup records found</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activity %}
+                    <div class="activity-timeline">
+                        {% for activity in recent_activity %}
+                        <div class="activity-item">
+                            <div class="activity-content">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <div class="activity-icon {{ activity.status_class }}">
+                                            <i class="fas fa-stethoscope"></i>
+                                        </div>
+                                        <h6 class="ms-2">{{ activity.description }}</h6>
+                                        {% if activity.details %}
+                                        <p class="text-muted small mb-0">{{ activity.details }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted d-block mb-1">
+                                            {{ activity.date }}
+                                        </small>
+                                        <span class="badge {{ activity.status_class }}">
+                                            {{ activity.status }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No recent activity to display</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Next Checkup -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar me-2"></i>Next Checkup
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if next_checkup %}
+                    <div class="next-checkup-alert">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fas fa-clock fa-2x me-3 text-primary"></i>
+                            <div>
+                                <h6 class="mb-1">Time Until Next Checkup</h6>
+                                <p class="mb-0 countdown">
+                                    {% if days_until_next > 0 %}{{ days_until_next }} days and {% endif %}
+                                    {{ hours_until_next }} hours remaining
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <hr>
+                            <h6 class="mb-2">Scheduled For:</h6>
+                            <p class="mb-0 fw-bold">
+                                {{ next_checkup.checkup_date|date:"F d, Y - g:i A" }}
+                            </p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No upcoming checkups scheduled</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'patient_management:request_checkup' %}" class="btn btn-outline-success">
+                            <i class="fas fa-calendar-plus me-2"></i>Request Checkup
+                        </a>
+                        <a href="{% url 'patient_management:profile_view' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user me-2"></i>View Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
