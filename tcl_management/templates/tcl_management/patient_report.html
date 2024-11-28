@@ -2,106 +2,233 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">
-            <i class="fas fa-users me-2"></i>Patient Reports - {{ barangay.name }}
-        </h4>
-        <span class="badge bg-secondary">View Only</span>
+        <div>
+            <h4 class="mb-1">Patient Analytics</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-chart-line me-2"></i>Patient statistics for {{ barangay.name }}
+            </p>
+        </div>
+        <div id="reportDate" class="text-end">
+            <i class="fas fa-calendar-alt me-2"></i>
+            <span>{{ today|date:"F d, Y" }}</span>
+        </div>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Total<br>Patients</h6>
-                            <h2 class="mb-0">{{ stats.total_patients }}</h2>
+                            <h6 class="mb-2">Total Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.total_patients }}</h2>
+                            <small class="text-white-50">registered patients</small>
                         </div>
-                        <i class="fas fa-users fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card bg-info text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">New<br>Patients</h6>
-                            <h2 class="mb-0">{{ stats.new_patients }}</h2>
+                            <h6 class="mb-2">New Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.new_patients }}</h2>
+                            <small class="text-white-50">last 30 days</small>
                         </div>
-                        <i class="fas fa-user-plus fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-user-plus fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Active<br>Patients</h6>
-                            <h2 class="mb-0">{{ stats.active_patients }}</h2>
+                            <h6 class="mb-2">Active Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.active_patients }}</h2>
+                            <small class="text-white-50">currently monitored</small>
                         </div>
-                        <i class="fas fa-user-check fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-user-check fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-danger text-white">
+            <div class="card bg-danger text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">High Risk<br>Cases</h6>
-                            <h2 class="mb-0">{{ stats.high_risk_patients }}</h2>
+                            <h6 class="mb-2">High Risk</h6>
+                            <h2 class="mb-0 display-6">{{ stats.high_risk_patients }}</h2>
+                            <small class="text-white-50">requiring attention</small>
                         </div>
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Monthly Registration Chart -->
-    <div class="card shadow mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-chart-line me-2"></i>Monthly Patient Registration Trend
-            </h5>
+    <!-- Charts Row -->
+    <div class="row g-4">
+        <!-- Monthly Registration Trend -->
+        <div class="col-lg-8">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Patient Registration Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendChart" height="300"></canvas>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <canvas id="monthlyTrendChart"></canvas>
+
+        <!-- Patient Demographics -->
+        <div class="col-lg-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Patient Demographics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="demographicsChart" height="300"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    #reportDate {
+        background: rgba(52, 152, 219, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    .card {
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
-    new Chart(ctx, {
+    // Monthly Trend Chart
+    const monthlyCtx = document.getElementById('monthlyTrendChart').getContext('2d');
+    new Chart(monthlyCtx, {
         type: 'bar',
         data: {
             labels: [{% for item in monthly_trend %}'{{ item.month }}',{% endfor %}],
             datasets: [{
                 label: 'New Registrations',
                 data: [{% for item in monthly_trend %}{{ item.count }},{% endfor %}],
-                backgroundColor: '#0d6efd'
+                backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 1,
+                borderRadius: 5,
+                barThickness: 20
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1
+                    },
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
+        }
+    });
+
+    // Demographics Chart
+    const demoCtx = document.getElementById('demographicsChart').getContext('2d');
+    new Chart(demoCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Inactive', 'High Risk'],
+            datasets: [{
+                data: [
+                    {{ stats.active_patients }},
+                    {{ stats.total_patients|sub:stats.active_patients }},
+                    {{ stats.high_risk_patients }}
+                ],
+                backgroundColor: [
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(149, 165, 166, 0.8)',
+                    'rgba(231, 76, 60, 0.8)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            cutout: '70%'
         }
     });
 </script>

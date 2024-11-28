@@ -2,107 +2,235 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">
-            <i class="fas fa-stethoscope me-2"></i>Checkup Reports - {{ barangay.name }}
-        </h4>
-        <span class="badge bg-secondary">View Only</span>
+        <div>
+            <h4 class="mb-1">Checkup Analytics</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-chart-line me-2"></i>Checkup statistics for {{ barangay.name }}
+            </p>
+        </div>
+        <div id="reportDate" class="text-end">
+            <i class="fas fa-calendar-alt me-2"></i>
+            <span>{{ today|date:"F d, Y" }}</span>
+        </div>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Total<br>Checkups</h6>
-                            <h2 class="mb-0">{{ stats.total_checkups }}</h2>
+                            <h6 class="mb-2">Total Checkups</h6>
+                            <h2 class="mb-0 display-6">{{ stats.total_checkups }}</h2>
+                            <small class="text-white-50">all time</small>
                         </div>
-                        <i class="fas fa-stethoscope fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-stethoscope fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card bg-info text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">This Month's<br>Checkups</h6>
-                            <h2 class="mb-0">{{ stats.this_month }}</h2>
+                            <h6 class="mb-2">This Month</h6>
+                            <h2 class="mb-0 display-6">{{ stats.this_month }}</h2>
+                            <small class="text-white-50">monthly checkups</small>
                         </div>
-                        <i class="fas fa-calendar-check fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card bg-warning text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">High BP<br>Cases</h6>
-                            <h2 class="mb-0">{{ stats.high_bp_cases }}</h2>
+                            <h6 class="mb-2">High BP Cases</h6>
+                            <h2 class="mb-0 display-6">{{ stats.high_bp_cases }}</h2>
+                            <small class="text-white-50">requiring attention</small>
                         </div>
-                        <i class="fas fa-heart fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-heart fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Completed<br>Checkups</h6>
-                            <h2 class="mb-0">{{ stats.completed }}</h2>
+                            <h6 class="mb-2">Completed</h6>
+                            <h2 class="mb-0 display-6">{{ stats.completed }}</h2>
+                            <small class="text-white-50">successful checkups</small>
                         </div>
-                        <i class="fas fa-check-circle fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Weekly Trend Chart -->
-    <div class="card shadow mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-chart-line me-2"></i>Weekly Checkup Trend
-            </h5>
+    <!-- Charts Row -->
+    <div class="row g-4">
+        <!-- Weekly Trend Chart -->
+        <div class="col-lg-8">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Weekly Checkup Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="weeklyTrendChart" height="300"></canvas>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <canvas id="weeklyTrendChart"></canvas>
+
+        <!-- Checkup Status Distribution -->
+        <div class="col-lg-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Checkup Status Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="300"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    #reportDate {
+        background: rgba(52, 152, 219, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    .card {
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('weeklyTrendChart').getContext('2d');
-    new Chart(ctx, {
+    // Weekly Trend Chart
+    const weeklyCtx = document.getElementById('weeklyTrendChart').getContext('2d');
+    new Chart(weeklyCtx, {
         type: 'line',
         data: {
             labels: [{% for item in weekly_trend %}'{{ item.week }}',{% endfor %}],
             datasets: [{
                 label: 'Number of Checkups',
                 data: [{% for item in weekly_trend %}{{ item.count }},{% endfor %}],
-                borderColor: '#0dcaf0',
-                tension: 0.1
+                borderColor: 'rgba(52, 152, 219, 1)',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1
+                    },
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
+        }
+    });
+
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Scheduled', 'Missed', 'Cancelled'],
+            datasets: [{
+                data: [
+                    {{ stats.completed }},
+                    {{ stats.scheduled|default:0 }},
+                    {{ stats.missed|default:0 }},
+                    {{ stats.cancelled|default:0 }}
+                ],
+                backgroundColor: [
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(243, 156, 18, 0.8)',
+                    'rgba(231, 76, 60, 0.8)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            cutout: '70%'
         }
     });
 </script>

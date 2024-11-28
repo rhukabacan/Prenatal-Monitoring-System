@@ -2,108 +2,235 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">
-            <i class="fas fa-chart-bar me-2"></i>Emergency Reports - {{ barangay.name }}
-        </h4>
-        <span class="badge bg-secondary">View Only</span>
+        <div>
+            <h4 class="mb-1">Emergency Analytics</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-chart-line me-2"></i>Emergency statistics for {{ barangay.name }}
+            </p>
+        </div>
+        <div id="reportDate" class="text-end">
+            <i class="fas fa-calendar-alt me-2"></i>
+            <span>{{ today|date:"F d, Y" }}</span>
+        </div>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Total<br>Alerts</h6>
-                            <h2 class="mb-0">{{ stats.total_alerts }}</h2>
+                            <h6 class="mb-2">Total Alerts</h6>
+                            <h2 class="mb-0 display-6">{{ stats.total_alerts }}</h2>
+                            <small class="text-white-50">all time</small>
                         </div>
-                        <i class="fas fa-bell fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-bell fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-danger text-white">
+            <div class="card bg-danger text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Active<br>Cases</h6>
-                            <h2 class="mb-0">{{ stats.active_alerts }}</h2>
+                            <h6 class="mb-2">Active Cases</h6>
+                            <h2 class="mb-0 display-6">{{ stats.active_alerts }}</h2>
+                            <small class="text-white-50">requiring attention</small>
                         </div>
-                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-circle fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Resolved<br>Cases</h6>
-                            <h2 class="mb-0">{{ stats.resolved_cases }}</h2>
+                            <h6 class="mb-2">Resolved Cases</h6>
+                            <h2 class="mb-0 display-6">{{ stats.resolved_cases }}</h2>
+                            <small class="text-white-50">successfully handled</small>
                         </div>
-                        <i class="fas fa-check-circle fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card bg-info text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Avg Response<br>Time</h6>
-                            <h2 class="mb-0">{{ stats.response_time_avg|default:"N/A" }}</h2>
+                            <h6 class="mb-2">Avg Response</h6>
+                            <h2 class="mb-0 display-6">{{ stats.response_time_avg|default:"N/A" }}</h2>
+                            <small class="text-white-50">minutes</small>
                         </div>
-                        <i class="fas fa-clock fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Daily Trend Chart -->
-    <div class="card shadow mb-4">
-        <div class="card-header bg-white">
-            <h5 class="mb-0">
-                <i class="fas fa-chart-line me-2"></i>Daily Emergency Trend
-            </h5>
+    <!-- Charts Row -->
+    <div class="row g-4">
+        <!-- Daily Trend Chart -->
+        <div class="col-lg-8">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Daily Emergency Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyTrendChart" height="300"></canvas>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <canvas id="dailyTrendChart"></canvas>
+
+        <!-- Response Time Distribution -->
+        <div class="col-lg-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Emergency Status Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="300"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    #reportDate {
+        background: rgba(52, 152, 219, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    .card {
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Daily trend chart
-    const ctx = document.getElementById('dailyTrendChart').getContext('2d');
-    new Chart(ctx, {
+    // Daily Trend Chart
+    const dailyCtx = document.getElementById('dailyTrendChart').getContext('2d');
+    new Chart(dailyCtx, {
         type: 'line',
         data: {
             labels: [{% for item in daily_trend %}'{{ item.day }}',{% endfor %}],
             datasets: [{
                 label: 'Emergency Alerts',
                 data: [{% for item in daily_trend %}{{ item.count }},{% endfor %}],
-                borderColor: '#dc3545',
-                tension: 0.1
+                borderColor: 'rgba(231, 76, 60, 1)',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1
+                    },
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }
+        }
+    });
+
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Active', 'Responded', 'Resolved', 'Cancelled'],
+            datasets: [{
+                data: [
+                    {{ stats.active_alerts }},
+                    {{ stats.responded_cases|default:0 }},
+                    {{ stats.resolved_cases }},
+                    {{ stats.cancelled_cases|default:0 }}
+                ],
+                backgroundColor: [
+                    'rgba(231, 76, 60, 0.8)',
+                    'rgba(243, 156, 18, 0.8)',
+                    'rgba(46, 204, 113, 0.8)',
+                    'rgba(149, 165, 166, 0.8)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            cutout: '70%'
         }
     });
 </script>

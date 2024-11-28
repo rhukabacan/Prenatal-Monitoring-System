@@ -2,53 +2,104 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Checkup Records</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-stethoscope me-2"></i>Monitoring prenatal checkups in {{ tcl.barangay.name }}
+            </p>
+        </div>
+    </div>
+
     <!-- Statistics Cards -->
-    <div class="row mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Total Checkups<br>in {{ tcl.barangay.name }}</h6>
-                            <h2 class="mb-0">{{ stats.total_checkups }}</h2>
+                            <h6 class="mb-2">Total Checkups</h6>
+                            <h2 class="mb-0 display-6">{{ stats.total_checkups }}</h2>
+                            <small class="text-white-50">in {{ tcl.barangay.name }}</small>
                         </div>
-                        <i class="fas fa-stethoscope fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-stethoscope fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Today's<br>Checkups</h6>
-                            <h2 class="mb-0">{{ stats.today_checkups }}</h2>
+                            <h6 class="mb-2">Today's Checkups</h6>
+                            <h2 class="mb-0 display-6">{{ stats.today_checkups }}</h2>
+                            <small class="text-white-50">scheduled today</small>
                         </div>
-                        <i class="fas fa-calendar-check fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-2">Completed</h6>
+                            <h2 class="mb-0 display-6">{{ stats.completed_checkups }}</h2>
+                            <small class="text-white-50">this month</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-2">Upcoming</h6>
+                            <h2 class="mb-0 display-6">{{ stats.upcoming_checkups }}</h2>
+                            <small class="text-white-50">scheduled ahead</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Checkup List -->
+    <!-- Checkup List Card -->
     <div class="card shadow">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white py-3">
             <div class="row align-items-center">
                 <div class="col">
-                    <h4 class="mb-0">
-                        <i class="fas fa-notes-medical me-2"></i>Checkup Records
-                    </h4>
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Checkup Records
+                    </h5>
                 </div>
             </div>
         </div>
         <div class="card-body">
             <!-- Filters -->
             <form method="GET" class="mb-4">
-                <div class="row">
+                <div class="row g-3">
                     <div class="col-md-4">
-                        <select class="form-select" name="patient">
+                        <select class="form-select border-0 bg-light" name="patient">
                             <option value="">All Patients</option>
                             {% for patient in barangay_patients %}
                                 <option value="{{ patient.id }}"
@@ -59,12 +110,18 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <input type="date" class="form-control" name="date_from"
-                               value="{{ date_from }}" placeholder="From Date">
+                        <input type="date" 
+                               class="form-control border-0 bg-light" 
+                               name="date_from"
+                               value="{{ date_from }}" 
+                               placeholder="From Date">
                     </div>
                     <div class="col-md-3">
-                        <input type="date" class="form-control" name="date_to"
-                               value="{{ date_to }}" placeholder="To Date">
+                        <input type="date" 
+                               class="form-control border-0 bg-light" 
+                               name="date_to"
+                               value="{{ date_to }}" 
+                               placeholder="To Date">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100">
@@ -77,34 +134,54 @@
             <!-- Checkup Table -->
             {% if checkups %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+                    <table class="table table-hover align-middle">
+                        <thead class="bg-light">
                             <tr>
                                 <th>Date</th>
                                 <th>Patient</th>
                                 <th>Purpose</th>
-                                <th>Weight</th>
-                                <th>Blood Pressure</th>
+                                <th>Vital Signs</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for checkup in checkups %}
                                 <tr>
-                                    <td>{{ checkup.checkup_date|date:"F d, Y" }}</td>
+                                    <td>
+                                        <div>
+                                            <span class="text-primary">
+                                                {{ checkup.checkup_date|date:"M d, Y" }}
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ checkup.checkup_date|date:"g:i A" }}
+                                            </small>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary text-white me-3">
+                                                {{ checkup.patient.user.get_full_name|make_list|first }}
+                                            </div>
                                             <div>
                                                 <h6 class="mb-0">{{ checkup.patient.user.get_full_name }}</h6>
-                                                <small class="text-muted">
-                                                    {{ checkup.patient.contact_number }}
-                                                </small>
+                                                <small class="text-muted">{{ checkup.patient.contact_number }}</small>
                                             </div>
                                         </div>
                                     </td>
                                     <td>{{ checkup.purpose }}</td>
-                                    <td>{{ checkup.weight }} kg</td>
-                                    <td>{{ checkup.blood_pressure }}</td>
+                                    <td>
+                                        <div>
+                                            <small class="text-muted">BP:</small> {{ checkup.blood_pressure }}<br>
+                                            <small class="text-muted">Weight:</small> {{ checkup.weight }} kg
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ checkup.status|lower }}">
+                                            {{ checkup.get_status_display }}
+                                        </span>
+                                    </td>
                                     <td>
                                         <a href="{% url 'tcl_management:checkup_detail' checkup.id %}"
                                            class="btn btn-sm btn-primary">
@@ -119,30 +196,36 @@
 
                 <!-- Pagination -->
                 {% if checkups.has_other_pages %}
-                    <nav class="mt-4">
+                    <nav class="mt-4" aria-label="Checkup navigation">
                         <ul class="pagination justify-content-center">
                             {% if checkups.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ checkups.previous_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">Previous</a>
+                                    <a class="page-link" href="?page={{ checkups.previous_page_number }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
                                 </li>
                             {% endif %}
 
                             {% for num in checkups.paginator.page_range %}
                                 <li class="page-item {% if checkups.number == num %}active{% endif %}">
-                                    <a class="page-link" href="?page={{ num }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">{{ num }}</a>
+                                    <a class="page-link" href="?page={{ num }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                        {{ num }}
+                                    </a>
                                 </li>
                             {% endfor %}
 
                             {% if checkups.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ checkups.next_page_number }}{% if request.GET.patient %}&patient={{ request.GET.patient }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">Next</a>
+                                    <a class="page-link" href="?page={{ checkups.next_page_number }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
                                 </li>
                             {% endif %}
                         </ul>
                     </nav>
                 {% endif %}
             {% else %}
-                <div class="text-center py-4">
+                <div class="text-center py-5">
                     <i class="fas fa-notes-medical fa-3x text-muted mb-3"></i>
                     <h5>No checkup records found</h5>
                     <p class="text-muted">Try adjusting your filters</p>
@@ -151,4 +234,64 @@
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+    }
+
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+
+    .table > :not(caption) > * > * {
+        padding: 1rem 1rem;
+    }
+
+    .badge {
+        padding: 0.5rem 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge.bg-scheduled { background-color: var(--primary-color); }
+    .badge.bg-completed { background-color: var(--success); }
+    .badge.bg-cancelled { background-color: var(--danger); }
+    .badge.bg-missed { background-color: var(--warning); }
+
+    .page-link {
+        border: none;
+        padding: 0.5rem 1rem;
+        color: var(--primary-color);
+        margin: 0 0.2rem;
+        border-radius: 6px;
+    }
+
+    .page-link:hover {
+        background: rgba(52, 152, 219, 0.1);
+        color: var(--primary-color);
+    }
+
+    .page-item.active .page-link {
+        background: var(--primary-color);
+    }
+
+    .form-control, .form-select {
+        padding: 0.6rem 1rem;
+    }
+</style>
+{% endblock %}
 {% endblock %}

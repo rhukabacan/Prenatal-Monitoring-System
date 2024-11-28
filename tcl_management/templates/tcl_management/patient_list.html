@@ -2,44 +2,78 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Patient Management</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-users me-2"></i>Monitoring patients in {{ user.tclprofile.barangay.name }}
+            </p>
+        </div>
+    </div>
+
     <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Total<br>Patients</h6>
-                            <h2 class="mb-0">{{ stats.total_patients }}</h2>
+                            <h6 class="mb-2">Total Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.total_patients }}</h2>
+                            <small class="text-white-50">registered patients</small>
                         </div>
-                        <i class="fas fa-users fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
+
+        <div class="col-md-4">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Active<br>Patients</h6>
-                            <h2 class="mb-0">{{ stats.active_patients }}</h2>
+                            <h6 class="mb-2">Active Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.active_patients }}</h2>
+                            <small class="text-white-50">currently monitored</small>
                         </div>
-                        <i class="fas fa-user-check fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-user-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-2">Average Checkups</h6>
+                            <h2 class="mb-0 display-6">{{ stats.avg_checkups|default:"0" }}</h2>
+                            <small class="text-white-50">per patient</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Patient List -->
+    <!-- Patient List Card -->
     <div class="card shadow">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white py-3">
             <div class="row align-items-center">
                 <div class="col">
-                    <h4 class="mb-0">
-                        <i class="fas fa-users me-2"></i>Patients in {{ barangay.barangay_name }}
-                    </h4>
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Patient Records
+                    </h5>
                 </div>
             </div>
         </div>
@@ -47,20 +81,20 @@
             <!-- Search and Filters -->
             <form method="GET" class="mb-4">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-5">
                         <div class="input-group">
-                            <span class="input-group-text">
+                            <span class="input-group-text bg-light border-0">
                                 <i class="fas fa-search"></i>
                             </span>
-                            <input type="text"
-                                   class="form-control"
-                                   name="search"
+                            <input type="text" 
+                                   class="form-control border-0 bg-light" 
+                                   name="search" 
                                    placeholder="Search patients..."
                                    value="{{ search_query }}">
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select" name="status">
+                        <select class="form-select border-0 bg-light" name="status">
                             <option value="">All Status</option>
                             <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
                             <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
@@ -68,94 +102,174 @@
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100">
-                            Filter
+                            <i class="fas fa-filter me-2"></i>Filter
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="reset" class="btn btn-light w-100" onclick="window.location.href='{% url 'tcl_management:patient_list' %}'">
+                            <i class="fas fa-redo me-2"></i>Reset
                         </button>
                     </div>
                 </div>
             </form>
 
             <!-- Patient Table -->
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Contact</th>
-                            <th>Last Checkup</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for patient in patients %}
+            {% if patients %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="bg-light">
                             <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div>
-                                            <div class="fw-bold">{{ patient.user.get_full_name }}</div>
-                                            <small class="text-muted">{{ patient.contact_number }}</small>
+                                <th>Patient Name</th>
+                                <th>Contact</th>
+                                <th>Last Checkup</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for patient in patients %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary text-white me-3">
+                                                {{ patient.user.get_full_name|make_list|first }}
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">{{ patient.user.get_full_name }}</h6>
+                                                <small class="text-muted">{{ patient.sitio }}</small>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td>{{ patient.contact_number }}</td>
-                                <td>
-                                    {% if patient.last_checkup %}
-                                        {{ patient.last_checkup.checkup_date|date:"M d, Y" }}
-                                    {% else %}
-                                        <span class="text-muted">No checkups</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if patient.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">Inactive</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <a href="{% url 'tcl_management:patient_detail' patient.id %}"
-                                       class="btn btn-sm btn-primary">
-                                        <i class="fas fa-eye"></i>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <i class="fas fa-phone me-1 text-muted"></i>
+                                            {{ patient.contact_number }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if patient.last_checkup %}
+                                            <div>
+                                                <span class="text-primary">
+                                                    {{ patient.last_checkup.checkup_date|date:"M d, Y" }}
+                                                </span>
+                                                <br>
+                                                <small class="text-muted">
+                                                    {{ patient.last_checkup.checkup_date|timesince }} ago
+                                                </small>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No checkups</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if patient.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {% if patient.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'tcl_management:patient_detail' patient.id %}" 
+                                           class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if patients.has_other_pages %}
+                    <nav class="mt-4" aria-label="Patient navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if patients.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ patients.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                        <i class="fas fa-chevron-left"></i>
                                     </a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center py-4">
-                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">No patients found</p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                </li>
+                            {% endif %}
 
-            <!-- Pagination -->
-            {% if patients.has_other_pages %}
-                <nav class="mt-4">
-                    <ul class="pagination justify-content-center">
-                        {% if patients.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ patients.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
-                            </li>
-                        {% endif %}
+                            {% for num in patients.paginator.page_range %}
+                                <li class="page-item {% if patients.number == num %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                        {{ num }}
+                                    </a>
+                                </li>
+                            {% endfor %}
 
-                        {% for num in patients.paginator.page_range %}
-                            <li class="page-item {% if patients.number == num %}active{% endif %}">
-                                <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
-                            </li>
-                        {% endfor %}
-
-                        {% if patients.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ patients.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                            {% if patients.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ patients.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5>No patients found</h5>
+                    <p class="text-muted">Try adjusting your search criteria</p>
+                </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+    }
+
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+
+    .table > :not(caption) > * > * {
+        padding: 1rem 1rem;
+    }
+
+    .page-link {
+        border: none;
+        padding: 0.5rem 1rem;
+        color: var(--primary-color);
+        margin: 0 0.2rem;
+        border-radius: 6px;
+    }
+
+    .page-link:hover {
+        background: rgba(52, 152, 219, 0.1);
+        color: var(--primary-color);
+    }
+
+    .page-item.active .page-link {
+        background: var(--primary-color);
+    }
+
+    .form-control, .form-select {
+        padding: 0.6rem 1rem;
+    }
+
+    .input-group-text {
+        padding: 0.6rem 1rem;
+    }
+</style>
+{% endblock %}
 {% endblock %}

@@ -52,7 +52,7 @@ def tcl_login(request):
         else:
             messages.error(request, 'Invalid username or password.')
 
-    return render(request, 'tcl_management/patient_login.html', {
+    return render(request, 'tcl_management/login.html', {
         'title': 'TCL Login'
     })
 
@@ -151,7 +151,7 @@ def dashboard(request):
         'title': f'TCL Dashboard - {tcl.barangay_name}'
     }
 
-    return render(request, 'tcl_management/patient_dashboard.html', context)
+    return render(request, 'tcl_management/dashboard.html', context)
 
 
 # Patient Management Views

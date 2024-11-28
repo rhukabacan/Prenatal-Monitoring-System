@@ -2,106 +2,166 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Emergency Alerts Overview -->
-    <div class="row mb-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Emergency Monitor</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-ambulance me-2"></i>Monitoring emergency alerts in {{ tcl.barangay.name }}
+            </p>
+        </div>
+        <div id="currentDateTime" class="text-end">
+            <i class="fas fa-clock me-2"></i>
+            <span id="currentTime"></span>
+        </div>
+    </div>
+
+    <!-- Emergency Overview -->
+    <div class="row g-4 mb-4">
         <div class="col-md-4">
-            <div class="card bg-danger text-white">
+            <div class="card bg-danger text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Active Emergencies<br>in {{ tcl.barangay.name }}</h6>
-                            <h2 class="mb-0">{{ stats.active }}</h2>
+                            <h6 class="mb-2">Active Emergencies</h6>
+                            <h2 class="mb-0 display-6">{{ stats.active }}</h2>
+                            <small class="text-white-50">requiring immediate attention</small>
                         </div>
-                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-circle fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-4">
-            <div class="card bg-warning text-white">
+            <div class="card bg-warning text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Responded Cases<br>by RHU</h6>
-                            <h2 class="mb-0">{{ stats.responded }}</h2>
+                            <h6 class="mb-2">RHU Response</h6>
+                            <h2 class="mb-0 display-6">{{ stats.responded }}</h2>
+                            <small class="text-white-50">cases being handled</small>
                         </div>
-                        <i class="fas fa-ambulance fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-ambulance fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-4">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Resolved Cases<br>Today</h6>
-                            <h2 class="mb-0">{{ stats.resolved }}</h2>
+                            <h6 class="mb-2">Resolved Cases</h6>
+                            <h2 class="mb-0 display-6">{{ stats.resolved }}</h2>
+                            <small class="text-white-50">successfully handled</small>
                         </div>
-                        <i class="fas fa-check-circle fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Active Emergencies -->
-    <div class="card shadow mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">
-                <i class="fas fa-exclamation-circle me-2"></i>Emergency Alerts in {{ tcl.barangay.name }}
-            </h4>
-            <span class="text-muted">View-only mode</span>
+    <!-- Emergency Alerts List -->
+    <div class="card shadow">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-bell me-2"></i>Emergency Alerts
+            </h5>
+            {% if stats.active > 0 %}
+                <span class="badge bg-danger">{{ stats.active }} Active Cases</span>
+            {% endif %}
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             {% if emergencies %}
                 <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
+                    <table class="table table-hover align-middle">
+                        <thead class="bg-light">
                             <tr>
-                                <th>Time</th>
+                                <th>Alert Time</th>
                                 <th>Patient</th>
                                 <th>Location</th>
                                 <th>Status</th>
                                 <th>RHU Response</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for alert in emergencies %}
-                                <tr>
-                                    <td>{{ alert.alert_time|timesince }} ago</td>
+                                <tr class="{% if alert.status == 'ACTIVE' %}table-danger{% endif %}">
                                     <td>
                                         <div>
-                                            <h6 class="mb-0">{{ alert.patient.user.get_full_name }}</h6>
-                                            <small class="text-muted">{{ alert.patient.contact_number }}</small>
+                                            <span class="{% if alert.status == 'ACTIVE' %}text-danger{% else %}text-primary{% endif %}">
+                                                {{ alert.alert_time|date:"M d, Y" }}
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ alert.alert_time|timesince }} ago
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle {% if alert.status == 'ACTIVE' %}bg-danger{% else %}bg-primary{% endif %} text-white me-3">
+                                                {{ alert.patient.user.get_full_name|make_list|first }}
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">{{ alert.patient.user.get_full_name }}</h6>
+                                                <small class="text-muted">{{ alert.patient.contact_number }}</small>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         {% if alert.location %}
-                                            {{ alert.location }}
-                                            <a href="https://www.google.com/maps?q={{ alert.location }}"
-                                               target="_blank" class="btn btn-sm btn-outline-primary ms-2">
-                                                <i class="fas fa-map-marker-alt"></i>
-                                            </a>
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-2 text-truncate" style="max-width: 150px;">
+                                                    {{ alert.location }}
+                                                </span>
+                                                <a href="https://www.google.com/maps?q={{ alert.location }}"
+                                                   target="_blank" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-map-marker-alt"></i>
+                                                </a>
+                                            </div>
                                         {% else %}
                                             <span class="text-muted">No location data</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
-                                                         {% elif alert.status == 'RESOLVED' %}bg-success
-                                                         {% else %}bg-warning{% endif %}">
+                                        <span class="badge bg-{{ alert.status|lower }}">
                                             {{ alert.get_status_display }}
                                         </span>
                                     </td>
                                     <td>
                                         {% if alert.response_time %}
-                                            <small class="text-muted">
-                                                Responded {{ alert.response_time|timesince }} ago
-                                            </small>
+                                            <div>
+                                                <span class="text-success">
+                                                    <i class="fas fa-check-circle me-1"></i>
+                                                    Responded
+                                                </span>
+                                                <br>
+                                                <small class="text-muted">
+                                                    {{ alert.response_time|timesince }} ago
+                                                </small>
+                                            </div>
                                         {% else %}
-                                            <span class="badge bg-secondary">Pending RHU Response</span>
+                                            <span class="badge bg-warning">Awaiting Response</span>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'tcl_management:emergency_detail' alert.id %}"
+                                           class="btn btn-sm {% if alert.status == 'ACTIVE' %}btn-danger{% else %}btn-primary{% endif %}">
+                                            <i class="fas fa-eye me-1"></i>
+                                            View
+                                        </a>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -109,13 +169,100 @@
                     </table>
                 </div>
             {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
-                    <h5>No Emergency Alerts</h5>
-                    <p class="text-muted">No active emergency alerts in {{ tcl.barangay.name }}</p>
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5>No Active Emergencies</h5>
+                    <p class="text-muted">All emergency cases have been resolved</p>
                 </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover .stat-icon {
+        transform: scale(1.1);
+    }
+
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+
+    .table > :not(caption) > * > * {
+        padding: 1rem 1rem;
+    }
+
+    .badge {
+        padding: 0.5rem 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge.bg-active { background-color: var(--danger); }
+    .badge.bg-responded { background-color: var(--warning); }
+    .badge.bg-resolved { background-color: var(--success); }
+    .badge.bg-cancelled { background-color: var(--secondary); }
+
+    #currentDateTime {
+        background: rgba(220, 53, 69, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: var(--danger);
+        font-weight: 500;
+    }
+
+    .table-danger {
+        background-color: rgba(220, 53, 69, 0.05) !important;
+    }
+
+    .btn-outline-primary {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .btn-outline-primary:hover {
+        background-color: var(--primary-color);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateTime() {
+        const now = new Date();
+        const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
+    }
+
+    // Update time every second
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Auto-refresh the page every 30 seconds for active emergencies
+    {% if stats.active > 0 %}
+        setTimeout(function() {
+            window.location.reload();
+        }, 30000);
+    {% endif %}
+</script>
+{% endblock %}
 {% endblock %}

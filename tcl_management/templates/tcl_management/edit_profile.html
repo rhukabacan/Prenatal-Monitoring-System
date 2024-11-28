@@ -1,84 +1,260 @@
 {% extends 'tcl_base.html' %}
 
 {% block content %}
-<div class="container">
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Edit Profile</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-user-edit me-2"></i>Update your account information
+            </p>
+        </div>
+        <a href="{% url 'tcl_management:profile' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Profile
+        </a>
+    </div>
+
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-white">
-                    <h4 class="mb-0">
-                        <i class="fas fa-user-edit me-2"></i>Edit Profile
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST">
-                        {% csrf_token %}
-
-                        <div class="row">
-                            <!-- Personal Information -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">First Name</label>
-                                <input type="text" name="first_name" class="form-control"
-                                       value="{{ user.first_name }}" required>
+        <div class="col-lg-8">
+            <form method="POST">
+                {% csrf_token %}
+                
+                <!-- Personal Information Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user me-2"></i>Personal Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">First Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-user"></i>
+                                        </span>
+                                        <input type="text" 
+                                               name="first_name" 
+                                               class="form-control border-0 bg-light" 
+                                               value="{{ user.first_name }}" 
+                                               required>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Last Name</label>
-                                <input type="text" name="last_name" class="form-control"
-                                       value="{{ user.last_name }}" required>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Last Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-user"></i>
+                                        </span>
+                                        <input type="text" 
+                                               name="last_name" 
+                                               class="form-control border-0 bg-light" 
+                                               value="{{ user.last_name }}" 
+                                               required>
+                                    </div>
+                                </div>
                             </div>
-
-                            <!-- Contact Information -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Contact Number</label>
-                                <input type="tel" name="contact_number" class="form-control"
-                                       value="{{ tcl.contact_number }}" required>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Email Address</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-envelope"></i>
+                                        </span>
+                                        <input type="email" 
+                                               name="email" 
+                                               class="form-control border-0 bg-light" 
+                                               value="{{ user.email }}">
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Email</label>
-                                <input type="email" name="email" class="form-control"
-                                       value="{{ user.email }}">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Contact Number</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-phone"></i>
+                                        </span>
+                                        <input type="tel" 
+                                               name="contact_number" 
+                                               class="form-control border-0 bg-light" 
+                                               value="{{ tcl.contact_number }}" 
+                                               required>
+                                    </div>
+                                </div>
                             </div>
-
-                            <!-- Address -->
-                            <div class="col-12 mb-3">
-                                <label class="form-label">Address</label>
-                                <textarea name="address" class="form-control" rows="3"
-                                          required>{{ tcl.address }}</textarea>
-                            </div>
-
-                            <!-- Change Password Section -->
-                            <div class="col-12 mb-4">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6 class="mb-3">Change Password</h6>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label">New Password</label>
-                                                <input type="password" name="new_password" class="form-control">
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label class="form-label">Confirm Password</label>
-                                                <input type="password" name="confirm_password" class="form-control">
-                                            </div>
-                                        </div>
-                                        <small class="text-muted">Leave blank to keep current password</small>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label class="form-label">Address</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </span>
+                                        <textarea name="address" 
+                                                  class="form-control border-0 bg-light" 
+                                                  rows="3" 
+                                                  required>{{ tcl.address }}</textarea>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="text-end">
-                            <a href="{% url 'tcl_management:profile' %}" class="btn btn-secondary me-2">
-                                Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Save Changes
-                            </button>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+
+                <!-- Change Password Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lock me-2"></i>Change Password
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">New Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-key"></i>
+                                        </span>
+                                        <input type="password" 
+                                               name="new_password" 
+                                               class="form-control border-0 bg-light">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Confirm Password</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-0">
+                                            <i class="fas fa-key"></i>
+                                        </span>
+                                        <input type="password" 
+                                               name="confirm_password" 
+                                               class="form-control border-0 bg-light">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Leave password fields empty if you don't want to change it
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-flex justify-content-end gap-3">
+                    <a href="{% url 'tcl_management:profile' %}" class="btn btn-light">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .form-label {
+        color: var(--primary-color);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .input-group {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .input-group:focus-within {
+        box-shadow: 0 2px 10px rgba(52, 152, 219, 0.2);
+    }
+
+    .input-group-text {
+        color: var(--primary-color);
+        min-width: 40px;
+        justify-content: center;
+    }
+
+    .form-control {
+        padding: 0.6rem 1rem;
+    }
+
+    .form-control:focus {
+        background-color: white !important;
+    }
+
+    .btn {
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-light {
+        background-color: #f8f9fa;
+        border-color: #f8f9fa;
+    }
+
+    .btn-light:hover {
+        background-color: #e9ecef;
+        border-color: #e9ecef;
+    }
+
+    .card {
+        transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    .gap-3 {
+        gap: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Show password toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordInputs = document.querySelectorAll('input[type="password"]');
+        
+        passwordInputs.forEach(input => {
+            const toggleIcon = document.createElement('span');
+            toggleIcon.innerHTML = '<i class="fas fa-eye"></i>';
+            toggleIcon.className = 'btn btn-link text-muted position-absolute end-0 top-50 translate-middle-y';
+            toggleIcon.style.zIndex = '10';
+            toggleIcon.style.cursor = 'pointer';
+            
+            input.parentElement.style.position = 'relative';
+            input.parentElement.appendChild(toggleIcon);
+            
+            toggleIcon.addEventListener('click', function() {
+                const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                input.setAttribute('type', type);
+                toggleIcon.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+            });
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

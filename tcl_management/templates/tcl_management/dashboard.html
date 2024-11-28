@@ -2,56 +2,89 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Welcome back, {{ user.get_full_name }}</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-map-marker-alt me-2"></i>{{ user.tclprofile.barangay.name }} Barangay Dashboard
+            </p>
+        </div>
+        <div class="text-end">
+            <p class="mb-0" id="currentDateTime">
+                <i class="fas fa-calendar-alt me-2"></i>
+                <span id="currentDate"></span>
+                <i class="fas fa-clock ms-3 me-2"></i>
+                <span id="currentTime"></span>
+            </p>
+        </div>
+    </div>
+
     <!-- Statistics Cards -->
-    <div class="row mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-primary text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Total<br>Patiendsdsdts</h6>
-                            <h2 class="mb-0">{{ stats.total_patients }}</h2>
+                            <h6 class="mb-2">Total Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.total_patients }}</h2>
+                            <small class="text-white-50">in {{ user.tclprofile.barangay.name }}</small>
                         </div>
-                        <i class="fas fa-users fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-success text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Today's<br>Checkups</h6>
-                            <h2 class="mb-0">{{ stats.today_checkups }}</h2>
+                            <h6 class="mb-2">Today's Checkups</h6>
+                            <h2 class="mb-0 display-6">{{ stats.today_checkups }}</h2>
+                            <small class="text-white-50">scheduled appointments</small>
                         </div>
-                        <i class="fas fa-stethoscope fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-stethoscope fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card bg-warning text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">Active<br>Emergencies</h6>
-                            <h2 class="mb-0">{{ stats.active_emergencies }}</h2>
+                            <h6 class="mb-2">Active Emergencies</h6>
+                            <h2 class="mb-0 display-6">{{ stats.active_emergencies }}</h2>
+                            <small class="text-white-50">requiring attention</small>
                         </div>
-                        <i class="fas fa-ambulance fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-ambulance fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card bg-info text-white h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h6 class="mb-0">New<br>Patients</h6>
-                            <h2 class="mb-0">{{ stats.new_patients }}</h2>
+                            <h6 class="mb-2">New Patients</h6>
+                            <h2 class="mb-0 display-6">{{ stats.new_patients }}</h2>
+                            <small class="text-white-50">in last 30 days</small>
                         </div>
-                        <i class="fas fa-user-plus fa-2x"></i>
+                        <div class="stat-icon">
+                            <i class="fas fa-user-plus fa-2x"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -59,42 +92,41 @@
     </div>
 
     <!-- Content Rows -->
-    <div class="row">
+    <div class="row g-4">
         <!-- Recent Activity -->
         <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-history me-2"></i>Recent Activity
-                    </h6>
+            <div class="card shadow h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Activities
+                    </h5>
+                    <span class="badge bg-primary">Today</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     {% if recent_activities %}
+                        <div class="list-group list-group-flush">
                         {% for activity in recent_activities %}
-                            <div class="activity-item mb-3 pb-3 border-bottom">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="d-flex align-items-center">
-                                        {% if activity.type == 'checkup' %}
-                                            <i class="fas fa-stethoscope text-primary fa-lg me-3"></i>
-                                        {% else %}
-                                            <i class="fas fa-ambulance text-danger fa-lg me-3"></i>
-                                        {% endif %}
-                                        <small class="text-muted">
-                                            {{ activity.time|timesince }} ago
-                                        </small>
+                            <div class="list-group-item border-0">
+                                <div class="d-flex align-items-center">
+                                    <div class="activity-icon rounded-circle me-3 d-flex align-items-center justify-content-center 
+                                        {% if activity.type == 'checkup' %}bg-primary-gradient
+                                        {% else %}bg-danger-gradient{% endif %} text-white"
+                                        style="width: 45px; height: 45px;">
+                                        <i class="fas {% if activity.type == 'checkup' %}fa-stethoscope{% else %}fa-ambulance{% endif %}"></i>
                                     </div>
-                                </div>
-                                <div class="mt-2">
-                                    <a href="{% url 'tcl_management:patient_detail' activity.patient.id %}"
-                                       class="text-decoration-none">
-                                        {{ activity.patient.user.get_full_name }}
-                                    </a>
-                                    {{ activity.description }}
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">{{ activity.patient.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ activity.time|timesince }} ago</small>
+                                        </div>
+                                        <p class="mb-0 text-muted">{{ activity.description }}</p>
+                                    </div>
                                 </div>
                             </div>
                         {% endfor %}
+                        </div>
                     {% else %}
-                        <div class="text-center py-4">
+                        <div class="text-center py-5">
                             <i class="fas fa-history fa-3x text-muted mb-3"></i>
                             <p class="text-muted">No recent activities</p>
                         </div>
@@ -103,38 +135,32 @@
             </div>
         </div>
 
-        <!-- Upcoming Checkups -->
+        <!-- Right Column -->
         <div class="col-lg-4">
+            <!-- Today's Checkups -->
             <div class="card shadow mb-4">
                 <div class="card-header bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-calendar me-2"></i>Today's Checkups
-                    </h6>
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-check me-2"></i>Today's Schedule
+                    </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     {% if upcoming_checkups %}
-                        <div class="timeline">
-                            {% for checkup in upcoming_checkups %}
-                                <div class="timeline-item mb-3">
-                                    <div class="timeline-marker bg-primary"></div>
-                                    <div class="timeline-content">
-                                        <div class="d-flex justify-content-between">
-                                            <strong>
-                                                {{ checkup.checkup_date|date:"g:i A" }}
-                                            </strong>
-                                            <span class="badge bg-primary">
-                                                {{ checkup.get_status_display }}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <a href="{% url 'tcl_management:patient_detail' checkup.patient.id %}"
-                                               class="text-decoration-none">
-                                                {{ checkup.patient.user.get_full_name }}
-                                            </a>
-                                        </div>
+                        <div class="list-group list-group-flush">
+                        {% for checkup in upcoming_checkups %}
+                            <div class="list-group-item border-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ checkup.patient.user.get_full_name }}</h6>
+                                        <p class="mb-0 text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            {{ checkup.checkup_date|date:"g:i A" }}
+                                        </p>
                                     </div>
+                                    <span class="badge bg-primary">{{ checkup.get_status_display }}</span>
                                 </div>
-                            {% endfor %}
+                            </div>
+                        {% endfor %}
                         </div>
                     {% else %}
                         <div class="text-center py-4">
@@ -147,30 +173,35 @@
 
             <!-- Active Emergencies -->
             <div class="card shadow">
-                <div class="card-header bg-white">
-                    <h6 class="m-0 font-weight-bold text-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Active Emergencies
-                    </h6>
-                </div>
-                <div class="card-body">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>Active Emergencies
+                    </h5>
                     {% if active_emergencies %}
+                        <span class="badge bg-danger">{{ active_emergencies|length }} Active</span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if active_emergencies %}
+                        <div class="list-group list-group-flush">
                         {% for emergency in active_emergencies %}
-                            <div class="alert alert-danger mb-3">
-                                <h6 class="alert-heading">
-                                    {{ emergency.patient.user.get_full_name }}
-                                </h6>
-                                <p class="mb-0">
-                                    <small>
-                                        <i class="fas fa-clock me-1"></i>
-                                        {{ emergency.alert_time|timesince }} ago
-                                    </small>
-                                </p>
-                                <a href="{% url 'tcl_management:emergency_detail' emergency.id %}"
-                                   class="btn btn-sm btn-danger mt-2">
-                                    View Details
-                                </a>
+                            <div class="list-group-item border-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ emergency.patient.user.get_full_name }}</h6>
+                                        <p class="mb-0 text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            {{ emergency.alert_time|timesince }} ago
+                                        </p>
+                                    </div>
+                                    <a href="{% url 'tcl_management:emergency_detail' emergency.id %}" 
+                                       class="btn btn-sm btn-danger">
+                                        View Details
+                                    </a>
+                                </div>
                             </div>
                         {% endfor %}
+                        </div>
                     {% else %}
                         <div class="text-center py-4">
                             <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
@@ -182,4 +213,58 @@
         </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+    }
+
+    .activity-icon {
+        transition: all 0.3s ease;
+    }
+
+    .list-group-item:hover .activity-icon {
+        transform: scale(1.1);
+    }
+
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    #currentDateTime {
+        background: rgba(52, 152, 219, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateDateTime() {
+        const now = new Date();
+        const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit' };
+        
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
+        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
+    }
+
+    // Update time every second
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+</script>
+{% endblock %}
 {% endblock %}

@@ -1,107 +1,296 @@
 {% extends 'tcl_base.html' %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            Emergency Alert Details
-                        </h4>
-                        <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
-                                          {% elif alert.status == 'RESOLVED' %}bg-success
-                                          {% else %}bg-warning{% endif %}">
-                            {{ alert.get_status_display }}
-                        </span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- Patient Information -->
-                    <h5 class="mb-3">
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">Emergency Alert Details</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-exclamation-circle me-2"></i>{{ alert.patient.user.get_full_name }}
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'tcl_management:emergency_monitor' %}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Monitor
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Patient Information -->
+        <div class="col-lg-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
                         <i class="fas fa-user me-2"></i>Patient Information
                     </h5>
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <p class="mb-2">
-                                <strong>Name:</strong><br>
-                                {{ alert.patient.user.get_full_name }}
-                            </p>
-                            <p class="mb-2">
-                                <strong>Contact:</strong><br>
-                                {{ alert.patient.contact_number }}
-                            </p>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="avatar-circle-lg {% if alert.status == 'ACTIVE' %}bg-danger{% else %}bg-primary{% endif %} text-white mx-auto mb-3">
+                            {{ alert.patient.user.get_full_name|make_list|first }}
                         </div>
-                        <div class="col-md-6">
-                            <p class="mb-2">
-                                <strong>Address:</strong><br>
-                                {{ alert.patient.address }}
-                            </p>
-                            {% if alert.location %}
-                                <p class="mb-2">
-                                    <strong>Emergency Location:</strong><br>
-                                    {{ alert.location }}
-                                    <a href="https://www.google.com/maps?q={{ alert.location }}"
-                                       target="_blank" class="btn btn-sm btn-outline-primary ms-2">
-                                        <i class="fas fa-map-marker-alt"></i> View Map
-                                    </a>
-                                </p>
-                            {% endif %}
-                        </div>
+                        <h5 class="mb-1">{{ alert.patient.user.get_full_name }}</h5>
+                        <p class="text-muted mb-0">{{ alert.patient.contact_number }}</p>
                     </div>
 
-                    <!-- Medical History -->
-                    {% if latest_checkup %}
-                        <h5 class="mb-3">
-                            <i class="fas fa-notes-medical me-2"></i>Latest Checkup Information
-                        </h5>
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <p class="mb-2">
-                                    <strong>Date:</strong><br>
-                                    {{ latest_checkup.checkup_date|date:"F d, Y" }}
-                                </p>
-                            </div>
-                            <div class="col-md-4">
-                                <p class="mb-2">
-                                    <strong>Blood Pressure:</strong><br>
-                                    {{ latest_checkup.blood_pressure }}
-                                </p>
-                            </div>
-                            <div class="col-md-4">
-                                <p class="mb-2">
-                                    <strong>Weight:</strong><br>
-                                    {{ latest_checkup.weight }} kg
-                                </p>
-                            </div>
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="info-label">Address</span>
+                            <span class="info-value">{{ alert.patient.address }}</span>
                         </div>
-                    {% endif %}
-
-                    <!-- RHU Response -->
-                    <h5 class="mb-3">
-                        <i class="fas fa-ambulance me-2"></i>RHU Response Status
-                    </h5>
-                    <div class="alert {% if alert.status == 'ACTIVE' %}alert-danger
-                                     {% elif alert.status == 'RESOLVED' %}alert-success
-                                     {% else %}alert-warning{% endif %}">
-                        <h6 class="alert-heading">{{ alert.get_status_display }}</h6>
-                        {% if alert.response_time %}
-                            <p class="mb-0">
-                                Responded {{ alert.response_time|timesince }} ago
-                                {% if alert.response_notes %}
-                                    <br>
-                                    <small>{{ alert.response_notes }}</small>
-                                {% endif %}
-                            </p>
-                        {% else %}
-                            <p class="mb-0">Awaiting RHU response</p>
-                        {% endif %}
+                        <div class="info-item">
+                            <span class="info-label">Blood Type</span>
+                            <span class="info-value">{{ alert.patient.blood_type }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Emergency Contact</span>
+                            <span class="info-value">{{ alert.patient.emergency_contact_name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Emergency Number</span>
+                            <span class="info-value">{{ alert.patient.emergency_contact_number }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Emergency Details -->
+        <div class="col-lg-8">
+            <!-- Alert Information -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>Alert Information
+                    </h5>
+                    <span class="badge bg-{{ alert.status|lower }}">
+                        {{ alert.get_status_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="alert-info-card">
+                                <div class="alert-icon bg-danger text-white">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="alert-info">
+                                    <h6>Alert Time</h6>
+                                    <h4>{{ alert.alert_time|date:"g:i A" }}</h4>
+                                    <small class="text-muted">
+                                        {{ alert.alert_time|date:"F d, Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="alert-info-card">
+                                <div class="alert-icon {% if alert.response_time %}bg-success{% else %}bg-warning{% endif %} text-white">
+                                    <i class="fas {% if alert.response_time %}fa-check-circle{% else %}fa-hourglass-half{% endif %}"></i>
+                                </div>
+                                <div class="alert-info">
+                                    <h6>RHU Response</h6>
+                                    {% if alert.response_time %}
+                                        <h4>{{ alert.get_response_time_minutes }} min</h4>
+                                        <small class="text-muted">Response Time</small>
+                                    {% else %}
+                                        <h4>Pending</h4>
+                                        <small class="text-muted">Awaiting Response</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if alert.location %}
+                            <div class="col-12">
+                                <div class="location-card">
+                                    <h6 class="mb-3">Emergency Location</h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <p class="mb-0">{{ alert.location }}</p>
+                                        <a href="https://www.google.com/maps?q={{ alert.location }}"
+                                           target="_blank"
+                                           class="btn btn-primary">
+                                            <i class="fas fa-map-marker-alt me-2"></i>View on Map
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if alert.notes %}
+                            <div class="col-12">
+                                <div class="notes-card">
+                                    <h6 class="mb-3">Emergency Notes</h6>
+                                    <div class="notes-content">
+                                        {{ alert.notes|linebreaks }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latest Checkup Information -->
+            {% if latest_checkup %}
+                <div class="card shadow">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-notes-medical me-2"></i>Latest Checkup Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-4">
+                                <div class="vital-sign-card">
+                                    <div class="vital-icon bg-primary text-white">
+                                        <i class="fas fa-calendar-check"></i>
+                                    </div>
+                                    <div class="vital-info">
+                                        <h6>Last Checkup</h6>
+                                        <h4>{{ latest_checkup.checkup_date|date:"M d, Y" }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="vital-sign-card">
+                                    <div class="vital-icon bg-info text-white">
+                                        <i class="fas fa-weight"></i>
+                                    </div>
+                                    <div class="vital-info">
+                                        <h6>Weight</h6>
+                                        <h4>{{ latest_checkup.weight }} kg</h4>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="vital-sign-card">
+                                    <div class="vital-icon bg-success text-white">
+                                        <i class="fas fa-heart"></i>
+                                    </div>
+                                    <div class="vital-info">
+                                        <h6>Blood Pressure</h6>
+                                        <h4>{{ latest_checkup.blood_pressure }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
+
+{% block extra_css %}
+<style>
+    .avatar-circle-lg {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 600;
+    }
+
+    .info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .info-label {
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .alert-info-card, .vital-sign-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: rgba(52, 152, 219, 0.05);
+        border-radius: 12px;
+        transition: transform 0.3s ease;
+    }
+
+    .alert-info-card:hover, .vital-sign-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .alert-icon, .vital-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .alert-info h6, .vital-info h6 {
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+
+    .alert-info h4, .vital-info h4 {
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .location-card, .notes-card {
+        padding: 1.5rem;
+        background: rgba(52, 152, 219, 0.05);
+        border-radius: 12px;
+    }
+
+    .notes-content {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .badge {
+        padding: 0.5rem 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge.bg-active { background-color: var(--danger); }
+    .badge.bg-responded { background-color: var(--warning); }
+    .badge.bg-resolved { background-color: var(--success); }
+    .badge.bg-cancelled { background-color: var(--secondary); }
+
+    .btn-outline-primary {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+
+    .btn-outline-primary:hover {
+        background-color: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
 {% endblock %}
