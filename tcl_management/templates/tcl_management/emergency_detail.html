@@ -38,7 +38,7 @@
                     <div class="info-list">
                         <div class="info-item">
                             <span class="info-label">Address</span>
-                            <span class="info-value">{{ alert.patient.address }}</span>
+                            <span class="info-value">{{ alert.patient.sitio }} {{ alert.patient.barangay }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Blood Type</span>
@@ -109,7 +109,7 @@
                                 <div class="location-card">
                                     <h6 class="mb-3">Emergency Location</h6>
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <p class="mb-0">{{ alert.location }}</p>
+                                        <p class="mb-0">{{ alert.patient.sitio }} {{ alert.patient.barangay }}</p>
                                         <a href="https://www.google.com/maps?q={{ alert.location }}"
                                            target="_blank"
                                            class="btn btn-primary">

@@ -1,0 +1,134 @@
+{% extends 'tcl_base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">My Profile</h4>
+            <p class="text-muted mb-0">
+                <i class="fas fa-user me-2"></i>TCL Profile Information
+            </p>
+        </div>
+        <a href="{% url 'tcl_management:profile_edit' %}" class="btn btn-primary">
+            <i class="fas fa-edit me-2"></i>Edit Profile
+        </a>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-id-card me-2"></i>Profile Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <!-- Personal Information -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Personal Information</h6>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Full Name</label>
+                                <p class="mb-0">{{ user.get_full_name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Email Address</label>
+                                <p class="mb-0">{{ user.email|default:"Not provided" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Username</label>
+                                <p class="mb-0">{{ user.username }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Contact Information</h6>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Contact Number</label>
+                                <p class="mb-0">{{ tcl.contact_number|default:"Not provided" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Address</label>
+                                <p class="mb-0">{{ tcl.barangay_name|default:"Not provided" }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Barangay Information -->
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3">Barangay Information</h6>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Assigned Barangay</label>
+                                <p class="mb-0">{{ tcl.barangay_name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="text-muted small mb-1">Account Created</label>
+                                <p class="mb-0">{{ user.date_joined|date:"F d, Y" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Quick Stats
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">Total Patients</span>
+                            <span class="badge bg-primary">{{ tcl.patient_set.count }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar" role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">Active Checkups</span>
+                            <span class="badge bg-info">{{ tcl.active_checkups_count }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">Active Emergencies</span>
+                            <span class="badge bg-danger">{{ tcl.active_emergencies_count }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<style>
+    .progress {
+        background-color: rgba(0,0,0,0.05);
+        border-radius: 10px;
+    }
+
+    .progress-bar {
+        border-radius: 10px;
+    }
+
+    label.text-muted {
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+{% endblock %}

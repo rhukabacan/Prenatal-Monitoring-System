@@ -69,7 +69,7 @@ class Patient(models.Model):
     def last_checkup(self):
         """Get the most recent completed checkup"""
         return self.prenatalcheckup_set.filter(
-            status='COMPLETED'
+            checkup_date__lte=timezone.now()
         ).order_by('-checkup_date').first()
 
     @property
@@ -79,6 +79,19 @@ class Patient(models.Model):
             status='SCHEDULED',
             checkup_date__gt=timezone.now()
         ).order_by('checkup_date').first()
+
+    @property
+    def age(self):
+        """Calculate age based on birth_date"""
+        today = timezone.now().date()
+        age = today.year - self.birth_date.year
+        # Subtract 1 if birthday hasn't occurred this year
+        if today.month < self.birth_date.month or (
+            today.month == self.birth_date.month and
+            today.day < self.birth_date.day
+        ):
+            age -= 1
+        return age
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"

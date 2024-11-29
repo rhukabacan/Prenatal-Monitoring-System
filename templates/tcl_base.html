@@ -251,7 +251,7 @@
         <aside class="sidebar">
             <div class="sidebar-brand">
                 <h4 class="text-white mb-0">TCL Portal</h4>
-                <small class="text-white-50 d-block">{{ user.tclprofile.barangay.name }}</small>
+                <small class="text-white-50 d-block">{{ user.barangay.barangay_name }}</small>
             </div>
 
             <div class="sidebar-menu mt-4">
@@ -282,6 +282,21 @@
                     {% endif %}
                 </a>
 
+                <!-- Reports Section -->
+                <div class="sidebar-heading">Reports</div>
+                <a href="{% url 'tcl_management:patient_report' %}" class="mb-2">
+                    <i class="fas fa-chart-bar me-3"></i>
+                    <span>Patient Analytics</span>
+                </a>
+                <a href="{% url 'tcl_management:checkup_report' %}" class="mb-2">
+                    <i class="fas fa-chart-line me-3"></i>
+                    <span>Checkup Analytics</span>
+                </a>
+                <a href="{% url 'tcl_management:emergency_report' %}" class="mb-2">
+                    <i class="fas fa-chart-pie me-3"></i>
+                    <span>Emergency Analytics</span>
+                </a>
+
             </div>
         </aside>
 
@@ -306,7 +321,7 @@
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end">
                                     <div class="dropdown-header">
-                                        TCL - {{ user.tclprofile.barangay.name }}
+                                        TCL - {{ user.barangay.barangay_name }}
                                     </div>
                                     <a class="dropdown-item" href="{% url 'tcl_management:profile' %}">
                                         <i class="fas fa-user me-2"></i>Profile

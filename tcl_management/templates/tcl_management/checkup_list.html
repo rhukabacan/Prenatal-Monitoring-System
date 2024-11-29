@@ -21,7 +21,7 @@
                         <div>
                             <h6 class="mb-2">Total Checkups</h6>
                             <h2 class="mb-0 display-6">{{ stats.total_checkups }}</h2>
-                            <small class="text-white-50">in {{ tcl.barangay.name }}</small>
+                            <small class="text-white-50">in Barangay {{ user.barangay.barangay_name }}</small>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-stethoscope fa-2x"></i>
@@ -132,21 +132,20 @@
             </form>
 
             <!-- Checkup Table -->
-            {% if checkups %}
+            {% if page_obj %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="bg-light">
                             <tr>
                                 <th>Date</th>
                                 <th>Patient</th>
-                                <th>Purpose</th>
                                 <th>Vital Signs</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for checkup in checkups %}
+                            {% for checkup in page_obj %}
                                 <tr>
                                     <td>
                                         <div>
@@ -170,7 +169,6 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td>{{ checkup.purpose }}</td>
                                     <td>
                                         <div>
                                             <small class="text-muted">BP:</small> {{ checkup.blood_pressure }}<br>
@@ -195,28 +193,28 @@
                 </div>
 
                 <!-- Pagination -->
-                {% if checkups.has_other_pages %}
+                {% if page_obj.has_other_pages %}
                     <nav class="mt-4" aria-label="Checkup navigation">
                         <ul class="pagination justify-content-center">
-                            {% if checkups.has_previous %}
+                            {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ checkups.previous_page_number }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
                                         <i class="fas fa-chevron-left"></i>
                                     </a>
                                 </li>
                             {% endif %}
 
-                            {% for num in checkups.paginator.page_range %}
-                                <li class="page-item {% if checkups.number == num %}active{% endif %}">
+                            {% for num in page_obj.paginator.page_range %}
+                                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
                                     <a class="page-link" href="?page={{ num }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
                                         {{ num }}
                                     </a>
                                 </li>
                             {% endfor %}
 
-                            {% if checkups.has_next %}
+                            {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ checkups.next_page_number }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if patient_filter %}&patient={{ patient_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
                                         <i class="fas fa-chevron-right"></i>
                                     </a>
                                 </li>

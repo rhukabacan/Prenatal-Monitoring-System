@@ -62,7 +62,7 @@ def rhu_login(request):
         except Exception as e:
             messages.error(request, 'An error occurred during login.')
 
-    return render(request, 'rhu_management/patient_login.html', {
+    return render(request, 'rhu_management/login.html', {
         'title': 'RHU Staff Login'
     })
 
@@ -86,7 +86,7 @@ def profile_view(request):
         'user': request.user,
         'title': 'My Profile'
     }
-    return render(request, 'rhu_management/profile_view.html', context)
+    return render(request, 'rhu_management/view_profile.html', context)
 
 
 @login_required(login_url='rhu_management:rhu_login')
@@ -2226,7 +2226,7 @@ def rhu_dashboard(request):
         'title': 'RHU Dashboard'
     }
 
-    return render(request, 'rhu_management/patient_dashboard.html', context)
+    return render(request, 'rhu_management/dashboard.html', context)
 
 
 def get_recent_activities():

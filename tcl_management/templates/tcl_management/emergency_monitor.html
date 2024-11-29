@@ -81,7 +81,7 @@
             {% endif %}
         </div>
         <div class="card-body p-0">
-            {% if emergencies %}
+            {% if page_obj %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="bg-light">
@@ -95,7 +95,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for alert in emergencies %}
+                            {% for alert in page_obj %}
                                 <tr class="{% if alert.status == 'ACTIVE' %}table-danger{% endif %}">
                                     <td>
                                         <div>
@@ -123,7 +123,7 @@
                                         {% if alert.location %}
                                             <div class="d-flex align-items-center">
                                                 <span class="me-2 text-truncate" style="max-width: 150px;">
-                                                    {{ alert.location }}
+                                                    {{ alert.patient.sitio }} {{ alert.patient.barangay }}
                                                 </span>
                                                 <a href="https://www.google.com/maps?q={{ alert.location }}"
                                                    target="_blank" 
@@ -136,9 +136,17 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ alert.status|lower }}">
-                                            {{ alert.get_status_display }}
-                                        </span>
+                                        {% if alert.status == 'ACTIVE' %}
+                                            <span class="badge bg-danger">{{ alert.get_status_display }}</span>
+                                        {% elif alert.status == 'RESPONDED' %}
+                                            <span class="badge bg-warning">{{ alert.get_status_display }}</span>
+                                        {% elif alert.status == 'EN_ROUTE' %}
+                                            <span class="badge bg-info">{{ alert.get_status_display }}</span>
+                                        {% elif alert.status == 'RESOLVED' %}
+                                            <span class="badge bg-success">{{ alert.get_status_display }}</span>
+                                        {% elif alert.status == 'CANCELLED' %}
+                                            <span class="badge bg-secondary">{{ alert.get_status_display }}</span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if alert.response_time %}
@@ -168,6 +176,41 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination - Moved outside the table -->
+                {% if page_obj.has_other_pages %}
+                    <nav aria-label="Page navigation" class="mt-4 mb-3">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
             {% else %}
                 <div class="text-center py-5">
                     <i class="fas fa-check-circle fa-3x text-success mb-3"></i>

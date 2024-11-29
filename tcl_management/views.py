@@ -10,7 +10,7 @@ from django.db.models import Q, Avg
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
-from rhu_management.models import Patient, PrenatalCheckup, EmergencyAlert
+from rhu_management.models import Patient, PrenatalCheckup, EmergencyAlert, Barangay
 
 
 def tcl_required(view_func):
@@ -71,10 +71,28 @@ def tcl_logout(request):
 def profile_view(request):
     """Display TCL profile"""
     tcl = request.user.barangay
-    return render(request, 'tcl_management/profile_view.html', {
+
+    # Get counts for quick stats
+    active_checkups_count = PrenatalCheckup.objects.filter(
+        patient__barangay=tcl,
+        status='SCHEDULED'
+    ).count()
+
+    active_emergencies_count = EmergencyAlert.objects.filter(
+        patient__barangay=tcl,
+        status='ACTIVE'
+    ).count()
+
+    # Add counts to tcl object for template access
+    tcl.active_checkups_count = active_checkups_count
+    tcl.active_emergencies_count = active_emergencies_count
+
+    context = {
         'tcl': tcl,
         'title': 'My Profile'
-    })
+    }
+
+    return render(request, 'tcl_management/profile_view.html', context)
 
 
 @login_required(login_url='tcl_management:login')
@@ -94,7 +112,6 @@ def profile_update(request):
 
             # Update TCL profile
             tcl.contact_number = request.POST.get('contact_number')
-            tcl.address = request.POST.get('address')
             tcl.save()
 
             messages.success(request, 'Profile updated successfully!')
@@ -161,10 +178,11 @@ def patient_list(request):
     """Display list of patients from TCL's barangay"""
     tcl = request.user.barangay
 
+    # Get all barangays for the filter dropdown
+    barangays = Barangay.objects.all().order_by('barangay_name')
+
     # Base queryset filtered by barangay
-    patients = Patient.objects.filter(
-        barangay=tcl
-    ).order_by('-created_at')
+    patients = Patient.objects.all().order_by('-created_at')
 
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -175,15 +193,15 @@ def patient_list(request):
             Q(contact_number__icontains=search_query)
         )
 
-    # Status filter
-    status_filter = request.GET.get('status', '')
-    if status_filter:
-        patients = patients.filter(is_active=(status_filter == 'active'))
+    # Barangay filter
+    barangay_filter = request.GET.get('barangay', '')
+    if barangay_filter:
+        patients = patients.filter(barangay_id=barangay_filter)
 
     # Calculate statistics
     stats = {
-        'total_patients': Patient.objects.filter(barangay=tcl).count(),
-        'active_patients': Patient.objects.filter(barangay=tcl).count(),
+        'total_patients': Patient.objects.count(),
+        'active_patients': Patient.objects.count(),
     }
 
     # Pagination
@@ -195,7 +213,8 @@ def patient_list(request):
         'patients': page_obj,
         'stats': stats,
         'search_query': search_query,
-        'status_filter': status_filter,
+        'barangay_filter': barangay_filter,
+        'barangays': barangays,
         'barangay': tcl,
         'title': f'Patients - {tcl.barangay_name}'
     }
@@ -207,28 +226,32 @@ def patient_list(request):
 @tcl_required
 def patient_detail(request, patient_id):
     """Display patient details (read-only)"""
-    tcl = request.user.barangay
     patient = get_object_or_404(
         Patient,
         id=patient_id,
-        address__icontains=tcl.barangay.name
+        barangay=request.user.barangay
     )
 
-    # Get latest checkup
-    latest_checkup = PrenatalCheckup.objects.filter(
-        patient=patient
-    ).order_by('-checkup_date').first()
+    # Get upcoming checkups - we'll get next 5 scheduled checkups
+    upcoming_checkups = PrenatalCheckup.objects.filter(
+        patient=patient,
+        status='SCHEDULED',
+        checkup_date__gt=timezone.now()
+    ).order_by('checkup_date')[:5]  # Limit to next 5 checkups
 
     # Calculate pregnancy week if applicable
-    current_week = None
-    if latest_checkup and latest_checkup.last_menstrual_period:
-        days_pregnant = (timezone.localtime(timezone.now()).date() - latest_checkup.last_menstrual_period).days
-        current_week = days_pregnant // 7
+    weeks_pregnant = None
+    progress_percentage = None
+    if patient.last_checkup and patient.last_checkup.last_menstrual_period:  # Add check for latest_checkup
+        days_pregnant = (timezone.now().date() - patient.last_checkup.last_menstrual_period).days
+        weeks_pregnant = min(days_pregnant // 7, 42)  # Cap at 42 weeks
+        progress_percentage = min((weeks_pregnant / 42) * 100, 100)  # Cap at 100%
 
     context = {
         'patient': patient,
-        'latest_checkup': latest_checkup,
-        'current_week': current_week,
+        'upcoming_checkups': upcoming_checkups,
+        'weeks_pregnant': weeks_pregnant,
+        'progress_percentage': progress_percentage,
         'checkups': PrenatalCheckup.objects.filter(patient=patient).order_by('-checkup_date')[:5],
         'title': f'Patient Details - {patient.user.get_full_name()}'
     }
@@ -242,19 +265,52 @@ def patient_detail(request, patient_id):
 def checkup_list(request):
     """Display checkup records for the barangay"""
     tcl = request.user.barangay
+    today = timezone.now().date()
 
+    # Get base queryset
     checkups = PrenatalCheckup.objects.filter(
         patient__barangay=tcl
     ).order_by('-checkup_date')
 
+    # Get all patients from this barangay for the filter
+    barangay_patients = Patient.objects.filter(barangay=tcl)
+
+    # Calculate statistics
+    stats = {
+        'total_checkups': checkups.count(),
+        'today_checkups': checkups.filter(checkup_date__date=today).count(),
+        'completed_checkups': checkups.filter(status='COMPLETED').count(),
+        'upcoming_checkups': checkups.filter(
+            status='SCHEDULED',
+            checkup_date__gt=timezone.now()
+        ).count()
+    }
+
+    # Patient filter
+    patient_filter = request.GET.get('patient')
+    if patient_filter:
+        checkups = checkups.filter(patient_id=patient_filter)
+
+    # Date range filter
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    if date_from:
+        checkups = checkups.filter(checkup_date__date__gte=date_from)
+    if date_to:
+        checkups = checkups.filter(checkup_date__date__lte=date_to)
+
     # Pagination
     paginator = Paginator(checkups, 10)
     page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator.get_page(page_number)  # Changed variable name
 
     context = {
-        'page_obj': page_obj,
-        'barangay': tcl,
+        'page_obj': page_obj,  # Changed from 'checkups' to 'page_obj'
+        'stats': stats,
+        'barangay_patients': barangay_patients,
+        'patient_filter': patient_filter,
+        'date_from': date_from,
+        'date_to': date_to,
         'title': f'Checkup Records - {tcl.barangay_name}'
     }
 
@@ -263,15 +319,14 @@ def checkup_list(request):
 
 @login_required(login_url='tcl_management:login')
 @tcl_required
-def checkup_detail(request, pk):
+def checkup_detail(request, checkup_id):
     """Display checkup details (read-only)"""
-    tcl = request.user.barangay
 
     # Get checkup and verify barangay access
     checkup = get_object_or_404(
         PrenatalCheckup.objects.select_related('patient__user'),
-        id=pk,
-        patient__address__icontains=tcl.barangay.name
+        id=checkup_id,
+        patient__barangay=request.user.barangay
     )
 
     # Get previous and next checkups
@@ -314,8 +369,13 @@ def emergency_monitor(request):
         'total': emergencies.count()
     }
 
+    # Pagination
+    paginator = Paginator(emergencies, 10)  # 10 items per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'emergencies': emergencies,
+        'page_obj': page_obj,
         'stats': stats,
         'barangay': tcl,
         'title': f'Emergency Monitor - {tcl.barangay_name}'
@@ -326,15 +386,15 @@ def emergency_monitor(request):
 
 @login_required(login_url='tcl_management:login')
 @tcl_required
-def emergency_detail(request, pk):
+def emergency_detail(request, emergency_id):
     """Display emergency alert details (read-only)"""
     tcl = request.user.barangay
 
     # Get emergency alert and verify barangay access
     alert = get_object_or_404(
         EmergencyAlert.objects.select_related('patient__user'),
-        id=pk,
-        patient__address__icontains=tcl.barangay.name
+        id=emergency_id,
+        patient__barangay=tcl
     )
 
     # Get patient's latest checkup
@@ -395,14 +455,12 @@ def patient_report(request):
     today = timezone.localtime(timezone.now()).date()
 
     # Get patients from barangay
-    patients = Patient.objects.filter(address__icontains=tcl.barangay.name)
+    patients = Patient.objects.filter(barangay=tcl)
 
     # Calculate statistics
     stats = {
         'total_patients': patients.count(),
         'new_patients': patients.filter(created_at__gte=today - timedelta(days=30)).count(),
-        'active_patients': patients.filter(is_active=True).count(),
-        'high_risk_patients': patients.filter(risk_level='HIGH').count(),
     }
 
     # Monthly registration trend
@@ -421,11 +479,11 @@ def patient_report(request):
     context = {
         'stats': stats,
         'monthly_trend': monthly_trend,
-        'barangay': tcl.barangay,
-        'title': f'Patient Report - {tcl.barangay.name}'
+        'barangay': tcl,  # Changed this line
+        'title': f'Patient Report - {tcl.barangay_name}'  # Changed this line if 'name' is the field
     }
 
-    return render(request, 'tcl_management/reports/patient_report.html', context)
+    return render(request, 'tcl_management/patient_report.html', context)
 
 
 @login_required(login_url='tcl_management:login')
@@ -437,7 +495,7 @@ def checkup_report(request):
 
     # Get checkups from barangay
     checkups = PrenatalCheckup.objects.filter(
-        patient__address__icontains=tcl.barangay.name
+        patient__barangay=tcl
     )
 
     # Calculate statistics
@@ -462,11 +520,12 @@ def checkup_report(request):
     context = {
         'stats': stats,
         'weekly_trend': weekly_trend,
-        'barangay': tcl.barangay,
-        'title': f'Checkup Report - {tcl.barangay.name}'
+        'barangay': tcl,
+        'today': today,
+        'title': f'Checkup Report - {tcl.barangay_name}'
     }
 
-    return render(request, 'tcl_management/reports/checkup_report.html', context)
+    return render(request, 'tcl_management/checkup_report.html', context)
 
 
 @login_required(login_url='tcl_management:login')
@@ -478,14 +537,26 @@ def emergency_report(request):
 
     # Get emergencies from barangay
     emergencies = EmergencyAlert.objects.filter(
-        patient__address__icontains=tcl.barangay.name
+        patient__barangay=tcl
     )
+
+    # Calculate response time average manually
+    total_minutes = 0
+    count = 0
+    for e in emergencies.exclude(response_time=None):
+        if e.response_time and e.alert_time:
+            # Calculate time difference in minutes
+            time_diff = (e.response_time - e.alert_time).total_seconds() / 60
+            total_minutes += time_diff
+            count += 1
+
+    avg_response_time = (total_minutes / count) if count > 0 else None
 
     # Calculate statistics
     stats = {
         'total_alerts': emergencies.count(),
         'active_alerts': emergencies.filter(status='ACTIVE').count(),
-        'response_time_avg': emergencies.aggregate(Avg('response_time'))['response_time__avg'],
+        'response_time_avg': round(avg_response_time, 1) if avg_response_time else None,
         'resolved_cases': emergencies.filter(status='RESOLVED').count()
     }
 
@@ -502,8 +573,9 @@ def emergency_report(request):
     context = {
         'stats': stats,
         'daily_trend': daily_trend,
-        'barangay': tcl.barangay,
-        'title': f'Emergency Report - {tcl.barangay.name}'
+        'barangay': tcl,
+        'today': today,
+        'title': f'Emergency Report - {tcl.barangay_name}'
     }
 
-    return render(request, 'tcl_management/reports/emergency_report.html', context)
+    return render(request, 'tcl_management/emergency_report.html', context)

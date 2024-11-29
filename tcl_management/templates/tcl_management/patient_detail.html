@@ -88,7 +88,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% if latest_checkup %}
+                    {% if patient.last_checkup %}
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <div class="vital-sign-card">
@@ -97,7 +97,7 @@
                                     </div>
                                     <div class="vital-info">
                                         <h6>Weight</h6>
-                                        <h4>{{ latest_checkup.weight }} kg</h4>
+                                        <h4>{{ patient.last_checkup.weight }} kg</h4>
                                     </div>
                                 </div>
                             </div>
@@ -108,25 +108,24 @@
                                     </div>
                                     <div class="vital-info">
                                         <h6>Blood Pressure</h6>
-                                        <h4>{{ latest_checkup.blood_pressure }}</h4>
+                                        <h4>{{ patient.last_checkup.blood_pressure }}</h4>
                                     </div>
                                 </div>
                             </div>
-                            {% if current_week %}
+                            {% if weeks_pregnant %}
                                 <div class="col-12">
                                     <div class="pregnancy-progress-card">
                                         <h6 class="mb-2">Pregnancy Progress</h6>
                                         <div class="progress" style="height: 20px;">
                                             <div class="progress-bar bg-primary" 
                                                  role="progressbar" 
-                                                 style="width: {{ current_week|multiply:2.38 }}%"
-                                                 aria-valuenow="{{ current_week }}" 
+                                                 style="width: {{ progress_percentage }}%"
+                                                 aria-valuenow="{{ weeks_pregnant }}"
                                                  aria-valuemin="0" 
                                                  aria-valuemax="42">
-                                                Week {{ current_week }}
+                                                Week {{ weeks_pregnant }} / 42
                                             </div>
                                         </div>
-                                        <small class="text-muted">42 weeks total</small>
                                     </div>
                                 </div>
                             {% endif %}
