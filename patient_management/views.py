@@ -389,9 +389,13 @@ def profile_update(request):
 @patient_required
 def checkup_list(request):
     """Display list of patient's checkups"""
+    # Get the sort parameter from request, default to '-checkup_date'
+    current_sort = request.GET.get('sort', '-checkup_date')
+    
+    # Apply sorting to the queryset
     checkups = PrenatalCheckup.objects.filter(
         patient=request.user.patient
-    ).order_by('-checkup_date')
+    ).order_by(current_sort)
 
     # Calculate statistics
     stats = {
@@ -411,6 +415,7 @@ def checkup_list(request):
     return render(request, 'patient_management/checkup_list.html', {
         'page_obj': page_obj,
         'stats': stats,
+        'current_sort': current_sort,  # Pass the current sort to the template
         'title': 'My Checkups'
     })
 

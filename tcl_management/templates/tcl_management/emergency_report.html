@@ -7,7 +7,7 @@
         <div>
             <h4 class="mb-1">Emergency Analytics</h4>
             <p class="text-muted mb-0">
-                <i class="fas fa-chart-line me-2"></i>Emergency statistics for {{ barangay.barangay_name }}
+                <i class="fas fa-chart-line me-2"></i>Emergency statistics for Barangay {{ tcl }}
             </p>
         </div>
         <div id="reportDate" class="text-end">
@@ -205,20 +205,28 @@
     new Chart(statusCtx, {
         type: 'doughnut',
         data: {
-            labels: ['Active', 'Responded', 'Resolved', 'Cancelled'],
+            labels: {% if stats.no_data %} ['No Data'] {% else %} ['Active', 'Responded', 'Resolved', 'Cancelled'] {% endif %},
             datasets: [{
-                data: [
-                    {{ stats.active_alerts }},
-                    {{ stats.responded_cases|default:0 }},
-                    {{ stats.resolved_cases }},
-                    {{ stats.cancelled_cases|default:0 }}
-                ],
-                backgroundColor: [
-                    'rgba(231, 76, 60, 0.8)',
-                    'rgba(243, 156, 18, 0.8)',
-                    'rgba(46, 204, 113, 0.8)',
-                    'rgba(149, 165, 166, 0.8)'
-                ],
+                data: {% if stats.no_data %}
+                    [1]
+                {% else %}
+                    [
+                        {{ stats.active_alerts }},
+                        {{ stats.responded_cases }},
+                        {{ stats.resolved_cases }},
+                        {{ stats.cancelled_cases }}
+                    ]
+                {% endif %},
+                backgroundColor: {% if stats.no_data %}
+                    ['#e0e0e0'] // Gray color for no data
+                {% else %}
+                    [
+                        'rgba(231, 76, 60, 0.8)',
+                        'rgba(243, 156, 18, 0.8)',
+                        'rgba(46, 204, 113, 0.8)',
+                        'rgba(149, 165, 166, 0.8)'
+                    ]
+                {% endif %},
                 borderWidth: 0
             }]
         },
@@ -228,6 +236,21 @@
             plugins: {
                 legend: {
                     position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            {% if stats.no_data %}
+                                return 'No emergency data available';
+                            {% else %}
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            {% endif %}
+                        }
+                    }
                 }
             },
             cutout: '70%'

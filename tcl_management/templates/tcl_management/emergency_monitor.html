@@ -7,7 +7,7 @@
         <div>
             <h4 class="mb-1">Emergency Monitor</h4>
             <p class="text-muted mb-0">
-                <i class="fas fa-ambulance me-2"></i>Monitoring emergency alerts in {{ tcl.barangay.name }}
+                <i class="fas fa-ambulance me-2"></i>Monitoring emergency alerts in Barangay {{ tcl }}
             </p>
         </div>
         <div id="currentDateTime" class="text-end">
@@ -77,98 +77,89 @@
                 <i class="fas fa-bell me-2"></i>Emergency Alerts
             </h5>
             {% if stats.active > 0 %}
-                <span class="badge bg-danger">{{ stats.active }} Active Cases</span>
+                <div class="alert-counter">
+                    <span class="blink"></span>
+                    <span class="count">{{ stats.active }}</span>
+                    Active Cases
+                </div>
             {% endif %}
         </div>
         <div class="card-body p-0">
             {% if page_obj %}
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="bg-light">
+                    <table class="table emergency-table mb-0">
+                        <thead>
                             <tr>
-                                <th>Alert Time</th>
-                                <th>Patient</th>
-                                <th>Location</th>
-                                <th>Status</th>
-                                <th>RHU Response</th>
+                                <th>Priority</th>
+                                <th>Patient Details</th>
+                                <th>Emergency Info</th>
+                                <th>Response Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for alert in page_obj %}
-                                <tr class="{% if alert.status == 'ACTIVE' %}table-danger{% endif %}">
-                                    <td>
-                                        <div>
-                                            <span class="{% if alert.status == 'ACTIVE' %}text-danger{% else %}text-primary{% endif %}">
-                                                {{ alert.alert_time|date:"M d, Y" }}
+                                <tr class="alert-row {% if alert.status == 'ACTIVE' %}alert-active{% endif %}">
+                                    <td class="priority-cell">
+                                        <div class="priority-indicator {% if alert.status == 'ACTIVE' %}priority-high{% endif %}">
+                                            <i class="fas {% if alert.status == 'ACTIVE' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+                                            <span class="priority-text">
+                                                {% if alert.status == 'ACTIVE' %}High Priority{% else %}Standard{% endif %}
                                             </span>
-                                            <br>
-                                            <small class="text-muted">
-                                                {{ alert.alert_time|timesince }} ago
-                                            </small>
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-circle {% if alert.status == 'ACTIVE' %}bg-danger{% else %}bg-primary{% endif %} text-white me-3">
-                                                {{ alert.patient.user.get_full_name|make_list|first }}
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0">{{ alert.patient.user.get_full_name }}</h6>
-                                                <small class="text-muted">{{ alert.patient.contact_number }}</small>
+                                        <div class="patient-details">
+                                            <div class="patient-name">{{ alert.patient.user.get_full_name }}</div>
+                                            <div class="patient-contact">
+                                                <i class="fas fa-phone"></i>
+                                                {{ alert.patient.contact_number }}
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        {% if alert.location %}
-                                            <div class="d-flex align-items-center">
-                                                <span class="me-2 text-truncate" style="max-width: 150px;">
-                                                    {{ alert.patient.sitio }} {{ alert.patient.barangay }}
-                                                </span>
-                                                <a href="https://www.google.com/maps?q={{ alert.location }}"
-                                                   target="_blank" 
-                                                   class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-map-marker-alt"></i>
-                                                </a>
+                                        <div class="emergency-info">
+                                            <div class="time-info">
+                                                <i class="far fa-clock"></i>
+                                                <span>{{ alert.alert_time|date:"g:i A" }}</span>
+                                                <small>({{ alert.alert_time|timesince }} ago)</small>
                                             </div>
-                                        {% else %}
-                                            <span class="text-muted">No location data</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if alert.status == 'ACTIVE' %}
-                                            <span class="badge bg-danger">{{ alert.get_status_display }}</span>
-                                        {% elif alert.status == 'RESPONDED' %}
-                                            <span class="badge bg-warning">{{ alert.get_status_display }}</span>
-                                        {% elif alert.status == 'EN_ROUTE' %}
-                                            <span class="badge bg-info">{{ alert.get_status_display }}</span>
-                                        {% elif alert.status == 'RESOLVED' %}
-                                            <span class="badge bg-success">{{ alert.get_status_display }}</span>
-                                        {% elif alert.status == 'CANCELLED' %}
-                                            <span class="badge bg-secondary">{{ alert.get_status_display }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if alert.response_time %}
-                                            <div>
-                                                <span class="text-success">
-                                                    <i class="fas fa-check-circle me-1"></i>
-                                                    Responded
-                                                </span>
-                                                <br>
-                                                <small class="text-muted">
-                                                    {{ alert.response_time|timesince }} ago
-                                                </small>
+                                            <div class="location-info">
+                                                <i class="fas fa-map-marker-alt"></i>
+                                                <span>{{ alert.patient.sitio }}, {{ alert.patient.barangay }}</span>
+                                                {% if alert.location %}
+                                                    <a href="https://www.google.com/maps?q={{ alert.location }}" 
+                                                       target="_blank" 
+                                                       class="map-link">
+                                                        <span class="badge bg-primary">View Map</span>
+                                                    </a>
+                                                {% endif %}
                                             </div>
-                                        {% else %}
-                                            <span class="badge bg-warning">Awaiting Response</span>
-                                        {% endif %}
+                                        </div>
                                     </td>
                                     <td>
-                                        <a href="{% url 'tcl_management:emergency_detail' alert.id %}"
-                                           class="btn btn-sm {% if alert.status == 'ACTIVE' %}btn-danger{% else %}btn-primary{% endif %}">
-                                            <i class="fas fa-eye me-1"></i>
-                                            View
+                                        <div class="status-container">
+                                            <div class="status-indicator status-{{ alert.status|lower }}">
+                                                {{ alert.get_status_display }}
+                                            </div>
+                                            {% if alert.response_time %}
+                                                <div class="response-time">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    Responded {{ alert.response_time|timesince }} ago
+                                                </div>
+                                            {% else %}
+                                                <div class="pending-response">
+                                                    <i class="fas fa-hourglass-half"></i>
+                                                    Awaiting Response
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'tcl_management:emergency_detail' alert.id %}" 
+                                           class="action-button {% if alert.status == 'ACTIVE' %}action-urgent{% endif %}">
+                                                <i class="fas fa-eye"></i>
+                                                <span>View Details</span>
                                         </a>
                                     </td>
                                 </tr>
@@ -176,46 +167,11 @@
                         </tbody>
                     </table>
                 </div>
-
-                <!-- Pagination - Moved outside the table -->
-                {% if page_obj.has_other_pages %}
-                    <nav aria-label="Page navigation" class="mt-4 mb-3">
-                        <ul class="pagination justify-content-center">
-                            {% if page_obj.has_previous %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-
-                            {% for num in page_obj.paginator.page_range %}
-                                {% if page_obj.number == num %}
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ num }}</span>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-
-                            {% if page_obj.has_next %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                {% endif %}
             {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
                     <h5>No Active Emergencies</h5>
-                    <p class="text-muted">All emergency cases have been resolved</p>
+                    <p>All emergency cases have been resolved</p>
                 </div>
             {% endif %}
         </div>
@@ -224,66 +180,239 @@
 
 {% block extra_css %}
 <style>
-    .stat-icon {
-        width: 50px;
-        height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        transition: transform 0.3s ease;
+    /* Table Styles */
+    .emergency-table {
+        --border-color: #edf2f9;
+        border-collapse: separate;
+        border-spacing: 0 0.5rem;
     }
 
-    .card:hover .stat-icon {
-        transform: scale(1.1);
-    }
-
-    .avatar-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .emergency-table thead th {
+        background: #f8f9fa;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-size: 0.875rem;
         font-weight: 600;
-        font-size: 1.2rem;
+        color: #5e6e82;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .table > :not(caption) > * > * {
-        padding: 1rem 1rem;
+    .alert-row {
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .badge {
-        padding: 0.5rem 0.8rem;
-        font-weight: 500;
+    .alert-row:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     }
 
-    .badge.bg-active { background-color: var(--danger); }
-    .badge.bg-responded { background-color: var(--warning); }
-    .badge.bg-resolved { background-color: var(--success); }
-    .badge.bg-cancelled { background-color: var(--secondary); }
+    .alert-row td {
+        padding: 1.25rem 1.5rem;
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+        vertical-align: middle;
+    }
 
-    #currentDateTime {
-        background: rgba(220, 53, 69, 0.1);
+    .alert-row td:first-child {
+        border-left: 1px solid var(--border-color);
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+    }
+
+    .alert-row td:last-child {
+        border-right: 1px solid var(--border-color);
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    .alert-active {
+        background: #fff5f5;
+    }
+
+    /* Priority Indicator */
+    .priority-indicator {
+        display: inline-flex;
+        align-items: center;
         padding: 0.5rem 1rem;
-        border-radius: 10px;
-        color: var(--danger);
+        border-radius: 6px;
+        background: #e9ecef;
+        color: #495057;
+        font-size: 0.875rem;
         font-weight: 500;
     }
 
-    .table-danger {
-        background-color: rgba(220, 53, 69, 0.05) !important;
+    .priority-indicator i {
+        margin-right: 0.5rem;
     }
 
-    .btn-outline-primary {
-        border-color: var(--primary-color);
-        color: var(--primary-color);
+    .priority-high {
+        background: #dc354522;
+        color: #dc3545;
     }
 
-    .btn-outline-primary:hover {
-        background-color: var(--primary-color);
+
+    .patient-details {
+        flex: 1;
+    }
+
+    .patient-name {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.25rem;
+    }
+
+    .patient-contact {
+        font-size: 0.875rem;
+        color: #718096;
+    }
+
+    /* Emergency Info */
+    .emergency-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .time-info, .location-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #718096;
+        font-size: 0.875rem;
+    }
+
+    .map-link {
+        color: #4263eb;
+        text-decoration: none;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+
+    /* Status Styles */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .status-active {
+        background: #dc354522;
+        color: #dc3545;
+    }
+
+    .status-responded {
+        background: #ffc10722;
+        color: #ffc107;
+    }
+
+    .status-resolved {
+        background: #19875422;
+        color: #198754;
+    }
+
+    .response-time, .pending-response {
+        font-size: 0.875rem;
+        color: #718096;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Action Button */
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        background: #4263eb;
         color: white;
+        transition: all 0.2s ease;
+    }
+
+    .action-urgent {
+        background: #dc3545;
+    }
+
+    .action-button:hover {
+        transform: translateY(-1px);
+        color: white;
+        filter: brightness(110%);
+    }
+
+    /* Alert Counter */
+    .alert-counter {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #dc354522;
+        color: #dc3545;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+
+    .alert-counter .blink {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #dc3545;
+        border-radius: 50%;
+        animation: blink 1.5s infinite;
+    }
+
+    .alert-counter .count {
+        font-weight: 600;
+        margin-right: 0.25rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #718096;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #198754;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h5 {
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+    }
+
+    @keyframes blink {
+        0% { opacity: 1; }
+        50% { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 992px) {
+        .emergency-table {
+            font-size: 0.875rem;
+        }
+
+        .priority-indicator, .status-indicator {
+            padding: 0.375rem 0.75rem;
+        }
+
+        .action-button {
+            padding: 0.5rem 1rem;
+        }
     }
 </style>
 {% endblock %}

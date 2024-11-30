@@ -9,186 +9,150 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Using same base styles as login template */
         :root {
             --sidebar-width: 280px;
             --header-height: 70px;
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --gradient-start: #2c3e50;
-            --gradient-end: #3498db;
-            --transition-speed: 0.3s;
-            --sidebar-hover: rgba(52, 152, 219, 0.1);
+            --primary-color: #6c5ce7;
+            --secondary-color: #a8a4e9;
+            --accent-color: #00cec9;
+            --gradient-start: #6c5ce7;
+            --gradient-end: #00cec9;
+            --transition-speed: 0.4s;
+            --sidebar-hover: rgba(255, 255, 255, 0.15);
+            --card-shadow: 0 8px 20px rgba(108, 92, 231, 0.1);
+            --border-radius: 16px;
         }
 
         body {
             min-height: 100vh;
-            background-color: #f8f9fa;
+            background: #f8f9fe;
+            background-image:
+                radial-gradient(at 20% 25%, rgba(108, 92, 231, 0.1) 0px, transparent 50%),
+                radial-gradient(at 80% 75%, rgba(0, 206, 201, 0.1) 0px, transparent 50%);
             overflow-x: hidden;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Quicksand', sans-serif;
         }
 
-        /* Improved Sidebar */
+        /* Enhanced Sidebar */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-            transition: transform var(--transition-speed) ease;
+            background: linear-gradient(165deg, var(--gradient-start), var(--gradient-end));
+            transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1040;
             overflow-y: auto;
-            box-shadow: 0 0 25px rgba(0,0,0,0.15);
-            backdrop-filter: blur(10px);
+            box-shadow: var(--card-shadow);
+            border-radius: 0 var(--border-radius) var(--border-radius) 0;
         }
 
         .sidebar-brand {
-            padding: 1.5rem;
-            background: rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 1.8rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .sidebar-brand h4 {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            font-size: 1.5rem;
         }
 
         .sidebar-menu a {
-            padding: 0.75rem 1.5rem;
-            color: rgba(255,255,255,0.8);
+            padding: 0.9rem 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
             text-decoration: none;
             display: flex;
             align-items: center;
             transition: all var(--transition-speed);
-            border-radius: 8px;
-            margin: 0.2rem 0.8rem;
+            border-radius: var(--border-radius);
+            margin: 0.3rem 0.8rem;
+            font-weight: 500;
         }
 
         .sidebar-menu a:hover {
             background: var(--sidebar-hover);
             color: white;
-            transform: translateX(5px);
+            transform: translateX(5px) scale(1.02);
         }
 
         .sidebar-menu a.active {
-            background: rgba(52, 152, 219, 0.2);
+            background: rgba(255, 255, 255, 0.2);
             color: white;
-            border-left: 4px solid var(--accent-color);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-menu i {
+            font-size: 1.1rem;
+            margin-right: 1rem;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-menu a:hover i {
+            transform: scale(1.1);
         }
 
         .sidebar-heading {
-            color: rgba(255,255,255,0.4);
-            padding: 1rem 1.5rem 0.5rem;
-            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 1.2rem 1.5rem 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
         }
 
-        /* Enhanced Header */
+        /* Cute Header */
         .header {
             height: var(--header-height);
-            background-color: white;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(108, 92, 231, 0.08);
             position: fixed;
             top: 0;
             right: 0;
             left: var(--sidebar-width);
             z-index: 1030;
-            transition: left var(--transition-speed);
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95);
+            transition: all var(--transition-speed);
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
         }
 
-        /* Improved Main Content */
         .main-content {
-            margin-left: var(--sidebar-width);
+            padding-left: calc(var(--sidebar-width) + 1rem);
             min-height: 100vh;
-            transition: margin var(--transition-speed);
-            padding-top: var(--header-height);
-        }
-
-        .content-area {
-            padding: 2rem;
-            max-width: 1600px;
-            margin: 0 auto;
+            width: 100%;
+            transition: padding-left var(--transition-speed);
+            padding-top: calc(var(--header-height) + 1rem);
         }
 
         /* Enhanced Cards */
         .card {
             border: none;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            transition: transform 0.3s, box-shadow 0.3s;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.95);
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: var(--border-radius);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
         }
 
+        /* Remove transform and modify box-shadow on hover */
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            box-shadow: 0 12px 30px rgba(108, 92, 231, 0.15);
         }
 
-        /* Improved Dropdown */
-        .dropdown-menu {
-            border: none;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
-            padding: 0.5rem 0;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
-        }
-
-        .dropdown-item {
-            padding: 0.6rem 1.5rem;
-            transition: background-color 0.2s;
-            border-radius: 6px;
-            margin: 0 0.5rem;
-            width: calc(100% - 1rem);
-        }
-
-        .dropdown-header {
-            padding: 0.75rem 1.5rem;
-            background: #f8f9fa;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-
-        /* Stats Cards */
-        .bg-primary-gradient {
-            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-        }
-
-        .bg-success-gradient {
-            background: linear-gradient(45deg, #1cc88a 0%, #13855c 100%);
-        }
-
-        .bg-info-gradient {
-            background: linear-gradient(45deg, #36b9cc 0%, #258391 100%);
-        }
-
-        .bg-warning-gradient {
-            background: linear-gradient(45deg, #f6c23e 0%, #dda20a 100%);
-        }
-
-        .bg-danger-gradient {
-            background: linear-gradient(45deg, #e74a3b 0%, #be2617 100%);
-        }
-
-        /* Alert Styling */
-        .alert {
-            border-radius: 12px;
-            border: none;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-            font-weight: 500;
-            backdrop-filter: blur(10px);
-        }
-
-        /* Button Styling */
+        /* Cute Buttons */
         .btn {
-            border-radius: 10px;
-            padding: 0.6rem 1.2rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            border-radius: var(--border-radius);
+            padding: 0.7rem 1.4rem;
+            font-weight: 600;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.3px;
         }
 
         .btn-primary {
@@ -197,8 +161,78 @@
         }
 
         .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.2);
+        }
+
+        /* Cute Dropdown */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 8px 25px rgba(108, 92, 231, 0.15);
+            border-radius: var(--border-radius);
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            padding: 0.8rem 0;
+            animation: dropdownFade 0.3s ease;
+        }
+
+        .dropdown-item {
+            padding: 0.7rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            border-radius: calc(var(--border-radius) - 8px);
+            margin: 0.2rem 0.6rem;
+            width: calc(100% - 1.2rem);
+        }
+
+        .dropdown-item:hover {
+            background: rgba(108, 92, 231, 0.1);
+            transform: translateX(5px);
+        }
+
+        /* Cute Alerts */
+        .alert {
+            border-radius: var(--border-radius);
+            border: none;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.1);
+            animation: alertSlide 0.5s ease;
+        }
+
+        /* Animations */
+        @keyframes dropdownFade {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes alertSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Cute Badge */
+        .badge {
+            padding: 0.5em 0.8em;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
         }
 
         /* Mobile Responsiveness */
@@ -217,13 +251,9 @@
 
             .main-content {
                 margin-left: 0;
+                padding-left: 1rem;
             }
 
-            .content-area {
-                padding: 1rem;
-            }
-
-            /* Overlay when sidebar is active */
             .sidebar-overlay {
                 display: none;
                 position: fixed;
@@ -231,14 +261,43 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background: rgba(0,0,0,0.5);
-                z-index: 1035;
+                background: rgba(108, 92, 231, 0.3);
                 backdrop-filter: blur(4px);
+                z-index: 1035;
+                transition: all 0.3s;
             }
 
             .sidebar-overlay.active {
                 display: block;
+                animation: overlayFade 0.3s ease;
             }
+        }
+
+        @keyframes overlayFade {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
         }
     </style>
 </head>
@@ -356,15 +415,15 @@
     <!-- Logout Modal -->
     <div class="modal fade" id="logoutModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title">Ready to Leave?</h5>
+            <div class="modal-content" style="border-radius: var(--border-radius); border: none; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px);">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Ready to Leave?</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-0">Select "Logout" below if you are ready to end your current session.</p>
                 </div>
-                <div class="modal-footer border-0">
+                <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                     <a href="{% url 'tcl_management:logout' %}" class="btn btn-primary">
                         <i class="fas fa-sign-out-alt me-2"></i>Logout
@@ -432,3 +491,5 @@
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+
+<!--Hello-->

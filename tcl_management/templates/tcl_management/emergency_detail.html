@@ -38,11 +38,7 @@
                     <div class="info-list">
                         <div class="info-item">
                             <span class="info-label">Address</span>
-                            <span class="info-value">{{ alert.patient.sitio }} {{ alert.patient.barangay }}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Blood Type</span>
-                            <span class="info-value">{{ alert.patient.blood_type }}</span>
+                            <span class="info-value">{{ alert.patient.sitio }}, {{ alert.patient.barangay }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-label">Emergency Contact</span>
@@ -65,7 +61,16 @@
                     <h5 class="mb-0">
                         <i class="fas fa-bell me-2"></i>Alert Information
                     </h5>
-                    <span class="badge bg-{{ alert.status|lower }}">
+                    <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
+                                    {% elif alert.status == 'RESPONDED' %}bg-warning
+                                    {% elif alert.status == 'EN_ROUTE' %}bg-info
+                                    {% elif alert.status == 'RESOLVED' %}bg-success
+                                    {% else %}bg-secondary{% endif %}">
+                        <i class="fas {% if alert.status == 'ACTIVE' %}fa-exclamation-circle
+                                    {% elif alert.status == 'RESPONDED' %}fa-check-circle
+                                    {% elif alert.status == 'EN_ROUTE' %}fa-ambulance
+                                    {% elif alert.status == 'RESOLVED' %}fa-check-double
+                                    {% else %}fa-ban{% endif %} me-2"></i>
                         {{ alert.get_status_display }}
                     </span>
                 </div>

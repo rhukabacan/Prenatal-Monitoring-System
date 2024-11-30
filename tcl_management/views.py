@@ -102,22 +102,62 @@ def profile_update(request):
     tcl = request.user.barangay
 
     if request.method == 'POST':
+        # Get form data
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        contact_number = request.POST.get('contact_number', '').strip()
+        new_password = request.POST.get('new_password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+
+        # Validate required fields
+        if not all([first_name, last_name, contact_number]):
+            messages.error(request, 'Please fill in all required fields.')
+            return render(request, 'tcl_management/profile_edit.html', {
+                'tcl': tcl,
+                'title': 'Edit Profile'
+            })
+
         try:
             # Update User model
             user = request.user
-            user.first_name = request.POST.get('first_name')
-            user.last_name = request.POST.get('last_name')
-            user.email = request.POST.get('email')
+            user.first_name = first_name
+            user.last_name = last_name
+            user.email = email
+
+            # Handle password change if provided
+            if new_password:
+                if new_password != confirm_password:
+                    messages.error(request, 'Passwords do not match.')
+                    return render(request, 'tcl_management/profile_edit.html', {
+                        'tcl': tcl,
+                        'title': 'Edit Profile'
+                    })
+                if len(new_password) < 8:
+                    messages.error(request, 'Password must be at least 8 characters long.')
+                    return render(request, 'tcl_management/profile_edit.html', {
+                        'tcl': tcl,
+                        'title': 'Edit Profile'
+                    })
+                user.set_password(new_password)
+                messages.success(request, 'Password updated successfully. Please login again.')
+                user.save()
+                logout(request)
+                return redirect('tcl_management:login')
+
             user.save()
 
             # Update TCL profile
-            tcl.contact_number = request.POST.get('contact_number')
+            tcl.contact_number = contact_number
             tcl.save()
 
             messages.success(request, 'Profile updated successfully!')
-            return redirect('tcl_management:profile_view')
+            return redirect('tcl_management:profile')
+
         except Exception as e:
-            messages.error(request, 'An error occurred while updating your profile.')
+            # Log the actual error for debugging
+            print(f"Profile update error: {str(e)}")
+            messages.error(request, 'An error occurred while updating your profile. Please try again.')
 
     return render(request, 'tcl_management/profile_edit.html', {
         'tcl': tcl,
@@ -128,43 +168,115 @@ def profile_update(request):
 @login_required(login_url='tcl_management:login')
 @tcl_required
 def dashboard(request):
-    """Display TCL dashboard with barangay-specific information"""
+    """Display enhanced TCL dashboard with comprehensive statistics"""
     tcl = request.user.barangay
     today = timezone.localtime(timezone.now()).date()
+    now = timezone.now()
 
-    # Get barangay statistics
+    # Base querysets
+    patients = Patient.objects.filter(barangay=tcl)
+    checkups = PrenatalCheckup.objects.filter(patient__barangay=tcl)
+    emergencies = EmergencyAlert.objects.filter(patient__barangay=tcl)
+
+    # Enhanced statistics
     stats = {
-        'total_patients': Patient.objects.filter(
-            barangay=tcl
-        ).count(),
-        'new_patients': Patient.objects.filter(
-            barangay=tcl,
+        'total_patients': patients.count(),
+        'new_patients': patients.filter(
             created_at__gte=today - timedelta(days=30)
         ).count(),
-        'today_checkups': PrenatalCheckup.objects.filter(
-            patient__barangay=tcl,
+        'today_checkups': checkups.filter(
             checkup_date__date=today
         ).count(),
-        'active_emergencies': EmergencyAlert.objects.filter(
-            patient__barangay=tcl,
+        'active_emergencies': emergencies.filter(
             status='ACTIVE'
+        ).count(),
+        'recent_emergencies': emergencies.filter(
+            alert_time__gte=now - timedelta(hours=24)
+        ).count(),
+        'high_risk_cases': patients.filter(
+            prenatalcheckup__blood_pressure__contains='HIGH'
+        ).distinct().count(),
+        'critical_cases': emergencies.filter(
+            status='ACTIVE',
+            alert_time__lte=now - timedelta(hours=1)
+        ).count(),
+        'overdue_checkups': checkups.filter(
+            checkup_date__lt=today,
+            status='SCHEDULED'
+        ).count(),
+        'upcoming_deliveries': patients.filter(
+            prenatalcheckup__last_menstrual_period__lte=today - timedelta(weeks=38)
+        ).distinct().count(),
+        'pending_followups': checkups.filter(
+            status='COMPLETED',
+            checkup_date__date=today - timedelta(days=1)
         ).count()
     }
 
-    # Get recent activities
+    # Age Distribution Data
+    age_ranges = {
+        '18-25': (18, 25),
+        '26-35': (26, 35),
+        '36-45': (36, 45),
+        '45+': (46, 200)
+    }
+    
+    age_distribution = {}
+    for label, (min_age, max_age) in age_ranges.items():
+        count = 0
+        for patient in patients:
+            if min_age <= patient.age <= max_age:
+                count += 1
+        age_distribution[label] = count
+
+    # If no data, set empty dictionary
+    if not any(age_distribution.values()):
+        age_distribution = {'No Data': 1}
+
+    # Checkup Status Distribution
+    checkup_status = {
+        'Completed': checkups.filter(status='COMPLETED').count(),
+        'Scheduled': checkups.filter(status='SCHEDULED').count(),
+        'Missed': checkups.filter(status='MISSED').count()
+    }
+
+    # If no data, set empty dictionary
+    if not any(checkup_status.values()):
+        checkup_status = {'No Data': 1}
+
+    # Weekly Checkup Trend
+    weekly_trend = []
+    for i in range(7):
+        day = today - timedelta(days=i)
+        count = checkups.filter(checkup_date__date=day).count()
+        weekly_trend.append({
+            'day': day.strftime('%a'),
+            'count': count
+        })
+    weekly_trend.reverse()  # Show oldest to newest
+
+    # Get recent activities with enhanced details
     recent_activities = get_recent_barangay_activities(tcl)
 
-    # Get active emergencies
-    active_emergencies = EmergencyAlert.objects.filter(
-        patient__barangay=tcl,
+    # Get today's checkups with more details
+    upcoming_checkups = checkups.filter(
+        checkup_date__date=today,
+        status='SCHEDULED'
+    ).select_related('patient__user').order_by('checkup_date')
+
+    # Get active emergencies with location
+    active_emergencies = emergencies.filter(
         status='ACTIVE'
     ).select_related('patient__user').order_by('-alert_time')
 
     context = {
         'stats': stats,
+        'age_distribution': age_distribution,
+        'checkup_status': checkup_status,
+        'weekly_trend': weekly_trend,
         'recent_activities': recent_activities,
+        'upcoming_checkups': upcoming_checkups,
         'active_emergencies': active_emergencies,
-        'barangay': tcl,
         'title': f'TCL Dashboard - {tcl.barangay_name}'
     }
 
@@ -178,11 +290,8 @@ def patient_list(request):
     """Display list of patients from TCL's barangay"""
     tcl = request.user.barangay
 
-    # Get all barangays for the filter dropdown
-    barangays = Barangay.objects.all().order_by('barangay_name')
-
     # Base queryset filtered by barangay
-    patients = Patient.objects.all().order_by('-created_at')
+    patients = Patient.objects.filter(barangay=tcl).order_by('-created_at')
 
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -193,15 +302,11 @@ def patient_list(request):
             Q(contact_number__icontains=search_query)
         )
 
-    # Barangay filter
-    barangay_filter = request.GET.get('barangay', '')
-    if barangay_filter:
-        patients = patients.filter(barangay_id=barangay_filter)
-
-    # Calculate statistics
+    # Remove barangay filter since we're already filtering by TCL's barangay
+    # Calculate statistics for current barangay only
     stats = {
-        'total_patients': Patient.objects.count(),
-        'active_patients': Patient.objects.count(),
+        'total_patients': Patient.objects.filter(barangay=tcl).count(),
+        'active_patients': Patient.objects.filter(barangay=tcl).count(),
     }
 
     # Pagination
@@ -213,9 +318,7 @@ def patient_list(request):
         'patients': page_obj,
         'stats': stats,
         'search_query': search_query,
-        'barangay_filter': barangay_filter,
-        'barangays': barangays,
-        'barangay': tcl,
+        'tcl': tcl,
         'title': f'Patients - {tcl.barangay_name}'
     }
 
@@ -305,6 +408,7 @@ def checkup_list(request):
     page_obj = paginator.get_page(page_number)  # Changed variable name
 
     context = {
+        'tcl': tcl,
         'page_obj': page_obj,  # Changed from 'checkups' to 'page_obj'
         'stats': stats,
         'barangay_patients': barangay_patients,
@@ -377,7 +481,7 @@ def emergency_monitor(request):
     context = {
         'page_obj': page_obj,
         'stats': stats,
-        'barangay': tcl,
+        'tcl': tcl,
         'title': f'Emergency Monitor - {tcl.barangay_name}'
     }
 
@@ -479,7 +583,8 @@ def patient_report(request):
     context = {
         'stats': stats,
         'monthly_trend': monthly_trend,
-        'barangay': tcl,  # Changed this line
+        'tcl': tcl,  # Changed this line
+        'today': today,
         'title': f'Patient Report - {tcl.barangay_name}'  # Changed this line if 'name' is the field
     }
 
@@ -503,8 +608,21 @@ def checkup_report(request):
         'total_checkups': checkups.count(),
         'this_month': checkups.filter(checkup_date__month=today.month).count(),
         'high_bp_cases': checkups.filter(blood_pressure__contains='HIGH').count(),
-        'completed': checkups.filter(status='COMPLETED').count()
+        'completed': checkups.filter(status='COMPLETED').count(),
+        'scheduled': checkups.filter(status='SCHEDULED').count(),
+        'missed': checkups.filter(status='MISSED').count(),
+        'cancelled': checkups.filter(status='CANCELLED').count()
     }
+
+    # If no checkups exist, set status counts to 'No Data'
+    if not any([stats['completed'], stats['scheduled'], stats['missed'], stats['cancelled']]):
+        stats.update({
+            'completed': 0,
+            'scheduled': 0,
+            'missed': 0,
+            'cancelled': 0,
+            'no_data': True
+        })
 
     # Weekly checkup trend
     weekly_trend = []
@@ -520,7 +638,7 @@ def checkup_report(request):
     context = {
         'stats': stats,
         'weekly_trend': weekly_trend,
-        'barangay': tcl,
+        'tcl': tcl,
         'today': today,
         'title': f'Checkup Report - {tcl.barangay_name}'
     }
@@ -545,7 +663,6 @@ def emergency_report(request):
     count = 0
     for e in emergencies.exclude(response_time=None):
         if e.response_time and e.alert_time:
-            # Calculate time difference in minutes
             time_diff = (e.response_time - e.alert_time).total_seconds() / 60
             total_minutes += time_diff
             count += 1
@@ -557,8 +674,21 @@ def emergency_report(request):
         'total_alerts': emergencies.count(),
         'active_alerts': emergencies.filter(status='ACTIVE').count(),
         'response_time_avg': round(avg_response_time, 1) if avg_response_time else None,
-        'resolved_cases': emergencies.filter(status='RESOLVED').count()
+        'resolved_cases': emergencies.filter(status='RESOLVED').count(),
+        'responded_cases': emergencies.filter(status='RESPONDED').count(),
+        'cancelled_cases': emergencies.filter(status='CANCELLED').count()
     }
+
+    # If no emergencies exist, set status counts to 'No Data'
+    if not any([stats['active_alerts'], stats['responded_cases'], 
+                stats['resolved_cases'], stats['cancelled_cases']]):
+        stats.update({
+            'active_alerts': 0,
+            'responded_cases': 0,
+            'resolved_cases': 0,
+            'cancelled_cases': 0,
+            'no_data': True
+        })
 
     # Daily emergency trend
     daily_trend = []
@@ -573,7 +703,7 @@ def emergency_report(request):
     context = {
         'stats': stats,
         'daily_trend': daily_trend,
-        'barangay': tcl,
+        'tcl': tcl,
         'today': today,
         'title': f'Emergency Report - {tcl.barangay_name}'
     }

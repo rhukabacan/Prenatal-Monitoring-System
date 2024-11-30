@@ -2,134 +2,201 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Welcome Section -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="mb-1">Welcome back, {{ user.get_full_name }}</h4>
-            <p class="text-muted mb-0">
-                <i class="fas fa-map-marker-alt me-2"></i>{{ user.tclprofile.barangay.name }} Barangay Dashboard
-            </p>
+    <!-- Welcome & Quick Actions Section -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="card h-100 welcome-card">
+                <div class="card-body welcome-gradient-bg">
+                    <div class="d-flex justify-content-between align-items-center h-100 px-3">
+                        <div>
+                            <div class="welcome-emoji">✨</div>
+                            <h4 class="welcome-text mb-1">Hi, {{ user.get_full_name }}!</h4>
+                            <p class="location-text">
+                                <i class="fas fa-map-marker-alt me-2"></i>Barangay {{ user.barangay }}
+                            </p>
+                        </div>
+                        <div class="datetime-container text-end">
+                            <div class="date-pill mb-1">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                <span id="currentDate"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="text-end">
-            <p class="mb-0" id="currentDateTime">
-                <i class="fas fa-calendar-alt me-2"></i>
-                <span id="currentDate"></span>
-                <i class="fas fa-clock ms-3 me-2"></i>
-                <span id="currentTime"></span>
-            </p>
+        <div class="col-lg-4">
+            <div class="card h-100 action-card">
+                <div class="card-body p-3">
+                    <h6 class="action-title mb-2">Quick Actions</h6>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'tcl_management:patient_list' %}" class="btn btn-highlight-primary">
+                            <i class="fas fa-user-plus me-2"></i>View Patients
+                        </a>
+                        <a href="{% url 'tcl_management:checkup_list' %}" class="btn btn-highlight-success">
+                            <i class="fas fa-stethoscope me-2"></i>Manage Checkups
+                        </a>
+                        <a href="{% url 'tcl_management:emergency_monitor' %}" class="btn btn-highlight-danger position-relative">
+                            <i class="fas fa-ambulance me-2"></i>Monitor Emergencies
+                            {% if stats.active_emergencies > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-white text-danger">
+                                    {{ stats.active_emergencies }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Key Metrics -->
     <div class="row g-4 mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white h-100">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card bg-primary text-white h-100 stat-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between">
                         <div>
-                            <h6 class="mb-2">Total Patients</h6>
-                            <h2 class="mb-0 display-6">{{ stats.total_patients }}</h2>
-                            <small class="text-white-50">in {{ user.tclprofile.barangay.name }}</small>
+                            <p class="mb-2">Total Patients</p>
+                            <h3 class="mb-0">{{ stats.total_patients }}</h3>
+                            <small>Active Records</small>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-users fa-2x"></i>
                         </div>
                     </div>
+                    <div class="mt-3 small">
+                        <i class="fas fa-user-plus me-1"></i>
+                        {{ stats.new_patients }} new this month
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card bg-success text-white h-100">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card bg-success text-white h-100 stat-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between">
                         <div>
-                            <h6 class="mb-2">Today's Checkups</h6>
-                            <h2 class="mb-0 display-6">{{ stats.today_checkups }}</h2>
-                            <small class="text-white-50">scheduled appointments</small>
+                            <p class="mb-2">Today's Checkups</p>
+                            <h3 class="mb-0">{{ stats.today_checkups }}</h3>
+                            <small>Scheduled Today</small>
                         </div>
                         <div class="stat-icon">
                             <i class="fas fa-stethoscope fa-2x"></i>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card bg-warning text-white h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-2">Active Emergencies</h6>
-                            <h2 class="mb-0 display-6">{{ stats.active_emergencies }}</h2>
-                            <small class="text-white-50">requiring attention</small>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="fas fa-ambulance fa-2x"></i>
-                        </div>
+                    <div class="mt-3 small">
+                        <i class="fas fa-calendar me-1"></i>
+                        {{ checkup_status.Completed }} completed this week
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card bg-info text-white h-100">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card bg-danger text-white h-100 stat-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between">
                         <div>
-                            <h6 class="mb-2">New Patients</h6>
-                            <h2 class="mb-0 display-6">{{ stats.new_patients }}</h2>
-                            <small class="text-white-50">in last 30 days</small>
+                            <p class="mb-2">Active Emergencies</p>
+                            <h3 class="mb-0">{{ stats.active_emergencies }}</h3>
+                            <small>Requiring Attention</small>
                         </div>
                         <div class="stat-icon">
-                            <i class="fas fa-user-plus fa-2x"></i>
+                            <i class="fas fa-ambulance fa-2x"></i>
                         </div>
+                    </div>
+                    <div class="mt-3 small">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ stats.recent_emergencies }} in last 24h
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="card bg-info text-white h-100 stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <p class="mb-2">High-Risk Cases</p>
+                            <h3 class="mb-0">{{ stats.high_risk_cases }}</h3>
+                            <small>Need Special Attention</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="fas fa-heartbeat fa-2x"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 small">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        {{ stats.critical_cases }} critical cases
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Content Rows -->
+    <!-- Main Content Area -->
     <div class="row g-4">
-        <!-- Recent Activity -->
+        <!-- Left Column -->
         <div class="col-lg-8">
-            <div class="card shadow h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-history me-2"></i>Recent Activities
-                    </h5>
-                    <span class="badge bg-primary">Today</span>
+            <!-- Analytics Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Analytics Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-light">
+                                <h6 class="mb-3">Patient Age Distribution</h6>
+                                <canvas id="ageChart" height="200"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-light">
+                                <h6 class="mb-3">Checkup Completion Rate</h6>
+                                <canvas id="checkupChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities with Timeline -->
+            <div class="card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activities</h5>
                 </div>
                 <div class="card-body p-0">
                     {% if recent_activities %}
-                        <div class="list-group list-group-flush">
+                    <div class="timeline p-4">
                         {% for activity in recent_activities %}
-                            <div class="list-group-item border-0">
-                                <div class="d-flex align-items-center">
-                                    <div class="activity-icon rounded-circle me-3 d-flex align-items-center justify-content-center 
-                                        {% if activity.type == 'checkup' %}bg-primary-gradient
-                                        {% else %}bg-danger-gradient{% endif %} text-white"
-                                        style="width: 45px; height: 45px;">
-                                        <i class="fas {% if activity.type == 'checkup' %}fa-stethoscope{% else %}fa-ambulance{% endif %}"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <h6 class="mb-0">{{ activity.patient.user.get_full_name }}</h6>
-                                            <small class="text-muted">{{ activity.time|timesince }} ago</small>
-                                        </div>
-                                        <p class="mb-0 text-muted">{{ activity.description }}</p>
-                                    </div>
-                                </div>
+                        <div class="timeline-item">
+                            <div class="timeline-marker
+                                {% if activity.type == 'checkup' %}bg-primary
+                                {% elif activity.type == 'emergency' %}bg-danger
+                                {% else %}bg-info{% endif %}">
+                                <i class="fas {% if activity.type == 'checkup' %}fa-stethoscope
+                                    {% elif activity.type == 'emergency' %}fa-ambulance
+                                    {% else %}fa-info{% endif %}"></i>
                             </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-1">{{ activity.patient.user.get_full_name }}</h6>
+                                    <small class="text-muted">{{ activity.time|timesince }} ago</small>
+                                </div>
+                                <p class="mb-0 text-muted">{{ activity.description }}</p>
+                            </div>
+                        </div>
                         {% endfor %}
-                        </div>
+                    </div>
                     {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No recent activities</p>
-                        </div>
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent activities</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -137,76 +204,96 @@
 
         <!-- Right Column -->
         <div class="col-lg-4">
-            <!-- Today's Checkups -->
-            <div class="card shadow mb-4">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-calendar-check me-2"></i>Today's Schedule
-                    </h5>
+            <!-- Today's Schedule -->
+            <div class="card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Today's Schedule</h5>
+                    <span class="badge bg-success">{{ stats.today_checkups }} Appointments</span>
                 </div>
                 <div class="card-body p-0">
                     {% if upcoming_checkups %}
-                        <div class="list-group list-group-flush">
+                    <div class="list-group list-group-flush">
                         {% for checkup in upcoming_checkups %}
-                            <div class="list-group-item border-0">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1">{{ checkup.patient.user.get_full_name }}</h6>
-                                        <p class="mb-0 text-muted">
-                                            <i class="fas fa-clock me-1"></i>
-                                            {{ checkup.checkup_date|date:"g:i A" }}
-                                        </p>
-                                    </div>
-                                    <span class="badge bg-primary">{{ checkup.get_status_display }}</span>
+                        <div class="list-group-item border-0">
+                            <div class="d-flex align-items-center">
+                                <div class="schedule-time me-3 text-center">
+                                    <h6 class="mb-0">{{ checkup.checkup_date|date:"g:i" }}</h6>
+                                    <small class="text-muted">{{ checkup.checkup_date|date:"A" }}</small>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ checkup.patient.user.get_full_name }}</h6>
+                                    <p class="mb-0 text-muted small">
+                                        <i class="fas fa-phone-alt me-1"></i>
+                                        {{ checkup.patient.contact_number }}
+                                    </p>
+                                </div>
+                                <div class="ms-2">
+                                    <span class="badge bg-{{ checkup.status|lower }}">
+                                        {{ checkup.get_status_display }}
+                                    </span>
                                 </div>
                             </div>
+                        </div>
                         {% endfor %}
-                        </div>
+                    </div>
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No checkups scheduled for today</p>
-                        </div>
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No appointments scheduled for today</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
 
+            <!-- Weekly Trend -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Weekly Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="weeklyChart" height="200"></canvas>
+                </div>
+            </div>
+
             <!-- Active Emergencies -->
-            <div class="card shadow">
+            <div class="card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-exclamation-circle me-2"></i>Active Emergencies
                     </h5>
                     {% if active_emergencies %}
-                        <span class="badge bg-danger">{{ active_emergencies|length }} Active</span>
+                    <span class="badge bg-danger">{{ active_emergencies|length }} Active</span>
                     {% endif %}
                 </div>
                 <div class="card-body p-0">
                     {% if active_emergencies %}
-                        <div class="list-group list-group-flush">
+                    <div class="list-group list-group-flush">
                         {% for emergency in active_emergencies %}
-                            <div class="list-group-item border-0">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1">{{ emergency.patient.user.get_full_name }}</h6>
-                                        <p class="mb-0 text-muted">
-                                            <i class="fas fa-clock me-1"></i>
-                                            {{ emergency.alert_time|timesince }} ago
-                                        </p>
-                                    </div>
-                                    <a href="{% url 'tcl_management:emergency_detail' emergency.id %}" 
-                                       class="btn btn-sm btn-danger">
-                                        View Details
-                                    </a>
+                        <div class="list-group-item border-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ emergency.patient.user.get_full_name }}</h6>
+                                    <p class="mb-0 text-muted small">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ emergency.alert_time|timesince }} ago
+                                        <br>
+                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                        {{ emergency.patient.sitio }}, {{ emergency.patient.barangay }}
+                                    </p>
                                 </div>
+                                <a href="{% url 'tcl_management:emergency_detail' emergency.id %}" 
+                                   class="btn btn-sm btn-danger">
+                                    Respond
+                                </a>
                             </div>
+                        </div>
                         {% endfor %}
-                        </div>
+                    </div>
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No active emergencies</p>
-                        </div>
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No active emergencies</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -216,55 +303,378 @@
 
 {% block extra_css %}
 <style>
+    .stat-card {
+        transition: all 0.3s ease;
+        border: none;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
     .stat-icon {
-        width: 50px;
-        height: 50px;
+        width: 60px;
+        height: 60px;
         display: flex;
         align-items: center;
         justify-content: center;
         background: rgba(255, 255, 255, 0.2);
         border-radius: 12px;
-    }
-
-    .activity-icon {
         transition: all 0.3s ease;
     }
 
-    .list-group-item:hover .activity-icon {
-        transform: scale(1.1);
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1) rotate(10deg);
     }
 
-    .card {
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    .timeline {
+        position: relative;
     }
 
-    .card:hover {
-        transform: translateY(-5px);
+    .timeline-item {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: flex-start;
     }
 
-    #currentDateTime {
-        background: rgba(52, 152, 219, 0.1);
-        padding: 0.5rem 1rem;
-        border-radius: 10px;
-        color: var(--primary-color);
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.8rem;
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        flex: 1;
+    }
+
+    .schedule-time {
+        min-width: 60px;
+    }
+
+    @media (max-width: 768px) {
+        .stat-card {
+            margin-bottom: 1rem;
+        }
+        
+        .timeline-item {
+            padding-left: 30px;
+        }
+        
+        .timeline-marker {
+            width: 24px;
+            height: 24px;
+            font-size: 0.7rem;
+        }
+    }
+
+    .welcome-card, .action-card {
+        border: none;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+    }
+
+    .welcome-gradient-bg {
+        background: linear-gradient(120deg, #4776E6 0%, #8E54E9 100%);
+        border-radius: 12px;
+        color: white;
+    }
+
+    .welcome-emoji {
+        font-size: 2.2rem;
+        display: inline-block;
+        margin-bottom: 0.3rem;
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+        animation: sparkle 1.5s infinite;
+    }
+
+    @keyframes sparkle {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.9; }
+    }
+
+    .welcome-text {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .location-text {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 0;
+    }
+
+    .date-pill, .time-pill {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: white;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .action-card {
+        background: #fff;
+    }
+
+    .action-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3436;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-highlight-primary {
+        background: #4776E6;
+        color: white;
+        border: none;
+        padding: 0.6rem 1rem;
+        font-weight: 500;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(71, 118, 230, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-highlight-primary:hover {
+        background: #3d63c9;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(71, 118, 230, 0.4);
+    }
+
+    .btn-highlight-danger {
+        background: #FF416C;
+        color: white;
+        border: none;
+        padding: 0.6rem 1rem;
+        font-weight: 500;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(255, 65, 108, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-highlight-danger:hover {
+        background: #ff1f52;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 65, 108, 0.4);
+    }
+
+    .btn-highlight-success {
+        background: #00b894;
+        color: white;
+        border: none;
+        padding: 0.6rem 1rem;
+        font-weight: 500;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .btn-highlight-success:hover {
+        background: #00a382;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 184, 148, 0.4);
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Add glass morphism effect */
+    .action-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        
+        .welcome-text {
+            font-size: 1.2rem;
+        }
+        
+        .date-pill, .time-pill {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+        }
+    }
+
+    .btn-highlight-primary, .btn-highlight-success, .btn-highlight-danger {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .btn-highlight-primary i, .btn-highlight-success i, .btn-highlight-danger i {
+        font-size: 0.85rem;
+    }
+
+    .action-title {
+        font-size: 0.9rem;
+        margin-bottom: 0.8rem;
     }
 </style>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // DateTime Update
     function updateDateTime() {
         const now = new Date();
         const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const timeOptions = { hour: '2-digit', minute: '2-digit' };
         
         document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
-        document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', timeOptions);
     }
 
-    // Update time every second
     updateDateTime();
     setInterval(updateDateTime, 1000);
+
+    // Age Distribution Chart
+    const ageData = {{ age_distribution|safe }} || { 'No Data': 1 };
+    const ageChart = new Chart(document.getElementById('ageChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(ageData),
+            datasets: [{
+                data: Object.values(ageData),
+                backgroundColor: Object.keys(ageData).length === 1 && Object.keys(ageData)[0] === 'No Data' 
+                    ? ['#e0e0e0'] // Gray color for no data
+                    : ['#6c5ce7', '#00cec9', '#ffeaa7', '#fab1a0']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (Object.keys(ageData).length === 1 && Object.keys(ageData)[0] === 'No Data') {
+                                return 'No patient data available';
+                            }
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Checkup Status Chart
+    const checkupData = {{ checkup_status|safe }} || { 'No Data': 1 };
+    const checkupChart = new Chart(document.getElementById('checkupChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(checkupData),
+            datasets: [{
+                data: Object.values(checkupData),
+                backgroundColor: Object.keys(checkupData).length === 1 && Object.keys(checkupData)[0] === 'No Data'
+                    ? ['#e0e0e0'] // Gray color for no data
+                    : ['#00b894', '#6c5ce7', '#ff7675']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (Object.keys(checkupData).length === 1 && Object.keys(checkupData)[0] === 'No Data') {
+                                return 'No checkup data available';
+                            }
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Weekly Trend Chart
+    const weeklyData = {{ weekly_trend|safe }};
+    const weeklyChart = new Chart(document.getElementById('weeklyChart'), {
+        type: 'line',
+        data: {
+            labels: weeklyData.map(item => item.day),
+            datasets: [{
+                label: 'Checkups',
+                data: weeklyData.map(item => item.count),
+                borderColor: '#6c5ce7',
+                backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Checkups: ${context.raw}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
 </script>
 {% endblock %}
 {% endblock %}

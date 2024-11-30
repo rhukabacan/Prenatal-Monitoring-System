@@ -12,11 +12,13 @@
     
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --gradient-start: #2c3e50;
-            --gradient-end: #3498db;
+            --primary-color: #6c5ce7;
+            --secondary-color: #a8a4e9;
+            --accent-color: #00cec9;
+            --gradient-start: #6c5ce7;
+            --gradient-end: #00cec9;
+            --border-radius: 16px;
+            --card-shadow: 0 8px 20px rgba(108, 92, 231, 0.1);
         }
 
         body {
@@ -24,7 +26,7 @@
             background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             display: flex;
             align-items: center;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Quicksand', sans-serif;
             position: relative;
             overflow: hidden;
         }
@@ -38,8 +40,8 @@
             right: 0;
             bottom: 0;
             background: linear-gradient(45deg, 
-                rgba(52, 152, 219, 0.1) 0%,
-                rgba(44, 62, 80, 0.1) 100%);
+                rgba(255, 255, 255, 0.1) 0%,
+                rgba(255, 255, 255, 0.05) 100%);
             animation: gradientMove 15s ease infinite;
             z-index: 0;
         }
@@ -62,8 +64,8 @@
         .login-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
             overflow: hidden;
             transform: translateY(0);
             transition: all 0.3s ease;
@@ -78,8 +80,8 @@
             text-align: center;
             padding: 2.5rem 2rem;
             background: linear-gradient(to right, 
-                rgba(44, 62, 80, 0.05),
-                rgba(52, 152, 219, 0.05));
+                rgba(108, 92, 231, 0.05),
+                rgba(0, 206, 201, 0.05));
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         }
 
@@ -92,7 +94,7 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto 1.5rem;
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.3);
         }
 
         .login-icon i {
@@ -126,7 +128,7 @@
         }
 
         .form-control {
-            border-radius: 12px;
+            border-radius: var(--border-radius);
             padding: 0.8rem 1rem;
             border: 2px solid #e9ecef;
             font-size: 1rem;
@@ -136,12 +138,12 @@
 
         .form-control:focus {
             border-color: var(--accent-color);
-            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(108, 92, 231, 0.25);
             background-color: white;
         }
 
         .input-group-text {
-            border-radius: 12px 0 0 12px;
+            border-radius: var(--border-radius) 0 0 var(--border-radius);
             border: 2px solid #e9ecef;
             border-right: none;
             background-color: #f8f9fa;
@@ -150,22 +152,22 @@
         }
 
         .input-group .form-control {
-            border-radius: 0 12px 12px 0;
+            border-radius: 0 var(--border-radius) var(--border-radius) 0;
         }
 
         .btn-login {
             padding: 0.8rem 1.5rem;
             font-weight: 600;
             font-size: 1.1rem;
-            border-radius: 12px;
+            border-radius: var(--border-radius);
             background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             border: none;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.2);
         }
 
         .btn-login:active {
@@ -173,11 +175,14 @@
         }
 
         .alert {
-            border-radius: 12px;
+            border-radius: var(--border-radius);
             border: none;
             padding: 1rem;
             margin-bottom: 1.5rem;
             font-weight: 500;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.1);
         }
 
         .alert-dismissible .btn-close {
@@ -229,6 +234,9 @@
             }
         }
     </style>
+
+    <!-- Add Google Fonts link in the head section -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="login-container">

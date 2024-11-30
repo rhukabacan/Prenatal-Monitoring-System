@@ -201,18 +201,12 @@
                             <div class="value-card">
                                 <small class="text-muted d-block">Weight</small>
                                 <strong>{{ checkup.weight }} kg</strong>
-                                {% if checkup.weight != checkup.initial_weight %}
-                                <span class="change-badge ms-2">Changed</span>
-                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="value-card">
                                 <small class="text-muted d-block">Blood Pressure</small>
                                 <strong>{{ checkup.blood_pressure }}</strong>
-                                {% if checkup.blood_pressure != checkup.initial_blood_pressure %}
-                                <span class="change-badge ms-2">Changed</span>
-                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-6">
