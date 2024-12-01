@@ -24,14 +24,14 @@
                                 <div class="mb-3">
                                     <label for="first_name" class="form-label">First Name</label>
                                     <input type="text" class="form-control" id="first_name"
-                                           name="first_name" value="{{ staff.user.first_name }}" required>
+                                           name="first_name" value="{{ user.first_name }}" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="last_name" class="form-label">Last Name</label>
                                     <input type="text" class="form-control" id="last_name"
-                                           name="last_name" value="{{ staff.user.last_name }}" required>
+                                           name="last_name" value="{{ user.last_name }}" required>
                                 </div>
                             </div>
                         </div>
@@ -41,50 +41,40 @@
                             <i class="fas fa-address-card me-2"></i>Contact Information
                         </h5>
                         <div class="row mb-4">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="mb-3">
                                     <label for="email" class="form-label">Email</label>
                                     <input type="email" class="form-control" id="email"
-                                           name="email" value="{{ staff.user.email }}" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="contact_number" class="form-label">Contact Number</label>
-                                    <input type="tel" class="form-control" id="contact_number"
-                                           name="contact_number" value="{{ staff.contact_number }}" required>
+                                           name="email" value="{{ user.email }}" required>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Professional Information -->
+                        <!-- Password Change Section -->
                         <h5 class="mb-3">
-                            <i class="fas fa-certificate me-2"></i>Professional Information
+                            <i class="fas fa-key me-2"></i>Change Password
                         </h5>
                         <div class="mb-4">
                             <div class="mb-3">
-                                <label for="license_number" class="form-label">License Number</label>
-                                <input type="text" class="form-control" id="license_number"
-                                       name="license_number" value="{{ staff.license_number }}" required>
+                                <label for="current_password" class="form-label">Current Password</label>
+                                <input type="password" class="form-control" id="current_password"
+                                       name="current_password">
+                                <small class="text-muted">Leave blank if you don't want to change your password</small>
                             </div>
                             <div class="mb-3">
-                                <label for="specialization" class="form-label">Specialization</label>
-                                <input type="text" class="form-control" id="specialization"
-                                       name="specialization" value="{{ staff.specialization }}">
+                                <label for="new_password" class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="new_password"
+                                       name="new_password">
                             </div>
-                        </div>
-
-                        <!-- Address -->
-                        <h5 class="mb-3">
-                            <i class="fas fa-map-marker-alt me-2"></i>Address
-                        </h5>
-                        <div class="mb-4">
-                            <textarea class="form-control" id="address" name="address"
-                                      rows="3" required>{{ staff.address }}</textarea>
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                <input type="password" class="form-control" id="confirm_password"
+                                       name="confirm_password">
+                            </div>
                         </div>
 
                         <div class="text-center">
-                            <a href="{% url 'rhu_management:profile_view' %}" class="btn btn-secondary me-2">
+                            <a href="{% url 'rhu_management:dashboard' %}" class="btn btn-secondary me-2">
                                 <i class="fas fa-times me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">

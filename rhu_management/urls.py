@@ -13,7 +13,6 @@ urlpatterns = [
     path('', views.rhu_dashboard, name='dashboard'),
 
     # Profile Management
-    path('profile/', views.profile_view, name='profile_view'),
     path('profile/update/', views.profile_update, name='profile_update'),
 
     # Barangay Management

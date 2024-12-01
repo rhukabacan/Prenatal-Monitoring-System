@@ -1,6 +1,5 @@
 # rhu_management/views.py
 
-import json
 import os
 from datetime import datetime, timedelta
 from functools import wraps
@@ -78,49 +77,56 @@ def rhu_logout(request):
 
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
-def profile_view(request):
-    if not request.user.is_superuser:
-        return redirect('rhu_management:rhu_login')
-
-    context = {
-        'user': request.user,
-        'title': 'My Profile'
-    }
-    return render(request, 'rhu_management/view_profile.html', context)
-
-
-@login_required(login_url='rhu_management:rhu_login')
-@superuser_required
 def profile_update(request):
     """Handle RHU staff profile update"""
-    staff = get_object_or_404(User, user=request.user)
+    # Get the user directly since we're updating the User model
+    user = request.user
 
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Update User model
-                user = request.user
+                # Update User model fields
                 user.first_name = request.POST.get('first_name')
                 user.last_name = request.POST.get('last_name')
                 user.email = request.POST.get('email')
+                
+                # Handle password change if provided
+                new_password = request.POST.get('new_password')
+                confirm_password = request.POST.get('confirm_password')
+                
+                if new_password:
+                    if new_password != confirm_password:
+                        messages.error(request, 'New passwords do not match.')
+                        return redirect('rhu_management:profile_update')
+                    
+                    # Check if current password is correct
+                    current_password = request.POST.get('current_password')
+                    if not user.check_password(current_password):
+                        messages.error(request, 'Current password is incorrect.')
+                        return redirect('rhu_management:profile_update')
+                    
+                    user.set_password(new_password)
+                    messages.success(request, 'Password updated successfully. Please login again.')
+                
                 user.save()
-
-                # Update RHUStaff model
-                staff.contact_number = request.POST.get('contact_number')
-                staff.save()
-
+                
                 messages.success(request, 'Profile updated successfully!')
-                return redirect('rhu_management:profile_view')
+                
+                # If password was changed, redirect to login
+                if new_password:
+                    return redirect('rhu_management:rhu_login')
+                    
+                return redirect('rhu_management:dashboard')
 
         except Exception as e:
-            messages.error(request, 'An error occurred while updating your profile.')
+            messages.error(request, f'An error occurred while updating your profile: {str(e)}')
 
     context = {
-        'staff': staff,
+        'user': user,
         'title': 'Edit Profile'
     }
 
-    return render(request, 'rhu_management/profile_edit.html', context)
+    return render(request, 'rhu_management/edit_profile.html', context)
 
 
 @login_required(login_url='rhu_management:rhu_login')
@@ -405,7 +411,7 @@ def patient_list(request):
         ).distinct().count(),
         'due_this_month': Patient.objects.filter(
             prenatalcheckup__last_menstrual_period__month=(
-                        timezone.now() - timedelta(days=280)).month,  # ~9 months ago
+                    timezone.now() - timedelta(days=280)).month,  # ~9 months ago
             prenatalcheckup__status='SCHEDULED'
         ).distinct().count()
     }
@@ -789,7 +795,7 @@ def checkup_create(request, patient_id):
                 # Create checkup record
                 checkup = PrenatalCheckup.objects.create(
                     patient=patient,
-                    checkup_date = datetime.combine(checkup_date, checkup_time),
+                    checkup_date=datetime.combine(checkup_date, checkup_time),
                     weight=request.POST.get('weight'),
                     height=request.POST.get('height'),
                     blood_pressure=request.POST.get('blood_pressure'),
@@ -801,7 +807,7 @@ def checkup_create(request, patient_id):
                 )
 
                 messages.success(request, 'Checkup record added successfully!')
-                return redirect('rhu_management:checkup_detail', checkup_id=checkup.id)
+                return redirect('rhu_management:checkup_detail', checkup.id)
 
         except Exception as e:
             messages.error(request, 'Error adding checkup record.')
@@ -896,7 +902,6 @@ def checkup_update(request, checkup_id):
     }
 
     return render(request, 'rhu_management/checkup/edit_checkup.html', context)
-
 
 
 @login_required(login_url='rhu_management:rhu_login')
@@ -1076,7 +1081,6 @@ def get_status_notification_message(status):
     return messages.get(status, 'Emergency alert status has been updated.')
 
 
-
 def send_sms(phone_number, message):
     """Implement SMS sending logic"""
     # Integrate with your SMS service provider
@@ -1099,22 +1103,15 @@ def reports_dashboard(request):
 
     # Calculate general statistics
     stats = {
-        'total_patients': Patient.objects.filter(is_active=True).count(),
+        'total_patients': Patient.objects.all().count(),
         'new_patients': Patient.objects.filter(
             created_at__gte=start_date
         ).count(),
         'total_checkups': PrenatalCheckup.objects.filter(
             checkup_date__gte=start_date
         ).count(),
-        'total_appointments': Appointment.objects.filter(
-            appointment_date__gte=start_date
-        ).count(),
         'emergency_alerts': EmergencyAlert.objects.filter(
             alert_time__gte=start_date
-        ).count(),
-        'missed_appointments': Appointment.objects.filter(
-            status='MISSED',
-            appointment_date__gte=start_date
         ).count()
     }
 
@@ -1124,8 +1121,6 @@ def reports_dashboard(request):
     # Get monthly trends
     monthly_trends = get_monthly_trends()
 
-    print(monthly_trends)
-
     context = {
         'stats': stats,
         'recent_reports': recent_reports,
@@ -1133,7 +1128,7 @@ def reports_dashboard(request):
         'title': 'Reports Dashboard'
     }
 
-    return render(request, 'rhu_management/report_dashboard.html', context)
+    return render(request, 'rhu_management/report/report_dashboard.html', context)
 
 
 @login_required(login_url='rhu_management:rhu_login')
@@ -1191,7 +1186,7 @@ def generate_report(request):
         'title': 'Generate Report'
     }
 
-    return render(request, 'rhu_management/generate_report.html', context)
+    return render(request, 'rhu_management/report/generate_report.html', context)
 
 
 def get_available_metrics():
@@ -1199,7 +1194,6 @@ def get_available_metrics():
     return [
         {'id': 'patients', 'name': 'Patient Statistics'},
         {'id': 'checkups', 'name': 'Checkup Analytics'},
-        {'id': 'appointments', 'name': 'Appointment Tracking'},
         {'id': 'emergencies', 'name': 'Emergency Alerts'},
         {'id': 'notifications', 'name': 'Notification Stats'}
     ]
@@ -1232,10 +1226,6 @@ def generate_daily_report(start_date, end_date):
                 checkup_date__gte=start_date,
                 checkup_date__lte=end_date
             ).count(),
-            'total_appointments': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date
-            ).count(),
             'total_emergencies': EmergencyAlert.objects.filter(
                 alert_time__gte=start_date,
                 alert_time__lte=end_date
@@ -1257,10 +1247,6 @@ def generate_daily_report(start_date, end_date):
                 'checkups': PrenatalCheckup.objects.filter(
                     checkup_date__gte=current_date,
                     checkup_date__lt=next_date
-                ).count(),
-                'appointments': Appointment.objects.filter(
-                    appointment_date__gte=current_date,
-                    appointment_date__lt=next_date
                 ).count(),
                 'emergencies': EmergencyAlert.objects.filter(
                     alert_time__gte=current_date,
@@ -1291,10 +1277,6 @@ def generate_weekly_report(start_date, end_date):
                 checkup_date__gte=start_date,
                 checkup_date__lte=end_date
             ).count(),
-            'total_appointments': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date
-            ).count(),
             'total_emergencies': EmergencyAlert.objects.filter(
                 alert_time__gte=start_date,
                 alert_time__lte=end_date
@@ -1318,10 +1300,6 @@ def generate_weekly_report(start_date, end_date):
                 'checkups': PrenatalCheckup.objects.filter(
                     checkup_date__gte=current_date,
                     checkup_date__lt=next_date
-                ).count(),
-                'appointments': Appointment.objects.filter(
-                    appointment_date__gte=current_date,
-                    appointment_date__lt=next_date
                 ).count(),
                 'emergencies': EmergencyAlert.objects.filter(
                     alert_time__gte=current_date,
@@ -1352,10 +1330,6 @@ def generate_monthly_report(start_date, end_date):
                 checkup_date__gte=start_date,
                 checkup_date__lte=end_date
             ).count(),
-            'total_appointments': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date
-            ).count(),
             'total_emergencies': EmergencyAlert.objects.filter(
                 alert_time__gte=start_date,
                 alert_time__lte=end_date
@@ -1385,10 +1359,6 @@ def generate_monthly_report(start_date, end_date):
                 'checkups': PrenatalCheckup.objects.filter(
                     checkup_date__gte=current_date,
                     checkup_date__lt=next_date
-                ).count(),
-                'appointments': Appointment.objects.filter(
-                    appointment_date__gte=current_date,
-                    appointment_date__lt=next_date
                 ).count(),
                 'emergencies': EmergencyAlert.objects.filter(
                     alert_time__gte=current_date,
@@ -1423,10 +1393,6 @@ def generate_quarterly_report(start_date, end_date):
             'total_checkups': PrenatalCheckup.objects.filter(
                 checkup_date__gte=start_date,
                 checkup_date__lte=end_date
-            ).count(),
-            'total_appointments': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date
             ).count(),
             'total_emergencies': EmergencyAlert.objects.filter(
                 alert_time__gte=start_date,
@@ -1466,10 +1432,6 @@ def generate_quarterly_report(start_date, end_date):
                     checkup_date__gte=current_date,
                     checkup_date__lt=next_date
                 ).count(),
-                'appointments': Appointment.objects.filter(
-                    appointment_date__gte=current_date,
-                    appointment_date__lt=next_date
-                ).count(),
                 'emergencies': EmergencyAlert.objects.filter(
                     alert_time__gte=current_date,
                     alert_time__lt=next_date
@@ -1504,10 +1466,6 @@ def generate_annual_report(start_date, end_date):
                 checkup_date__gte=start_date,
                 checkup_date__lte=end_date
             ).count(),
-            'total_appointments': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date
-            ).count(),
             'total_emergencies': EmergencyAlert.objects.filter(
                 alert_time__gte=start_date,
                 alert_time__lte=end_date
@@ -1532,10 +1490,6 @@ def generate_annual_report(start_date, end_date):
                 'checkups': PrenatalCheckup.objects.filter(
                     checkup_date__gte=current_date,
                     checkup_date__lt=next_date
-                ).count(),
-                'appointments': Appointment.objects.filter(
-                    appointment_date__gte=current_date,
-                    appointment_date__lt=next_date
                 ).count(),
                 'emergencies': EmergencyAlert.objects.filter(
                     alert_time__gte=current_date,
@@ -1589,24 +1543,6 @@ def generate_custom_report(start_date, end_date, metrics):
                 checkup_date__gte=start_date,
                 checkup_date__lte=end_date,
                 status='HIGH_RISK'
-            ).count()
-        }
-
-    if 'appointments' in metrics:
-        data['statistics']['appointments'] = {
-            'total': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date
-            ).count(),
-            'completed': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date,
-                status='COMPLETED'
-            ).count(),
-            'missed': Appointment.objects.filter(
-                appointment_date__gte=start_date,
-                appointment_date__lte=end_date,
-                status='MISSED'
             ).count()
         }
 
@@ -1723,7 +1659,7 @@ def export_report(report):
                     for sub_key, sub_value in value.items():
                         stats_data.append([
                             Paragraph(f"{key.replace('_', ' ').title()} - {sub_key.replace('_', ' ').title()}",
-                                      normal_style),
+                            normal_style),
                             Paragraph(str(sub_value), normal_style)
                         ])
                 else:
@@ -1959,34 +1895,29 @@ def analytics_view(request):
     end_date = timezone.now()
     start_date = end_date - timedelta(days=int(time_range))
 
-    # Get patient analytics
+    # Get analytics
     patient_stats = get_patient_analytics(start_date, end_date)
-
-    # Get checkup analytics
     checkup_stats = get_checkup_analytics(start_date, end_date)
-
-    # Get emergency response analytics
     emergency_stats = get_emergency_analytics(start_date, end_date)
 
     context = {
         'patient_stats': patient_stats,
         'checkup_stats': checkup_stats,
-        'appointment_stats': appointment_stats,
         'emergency_stats': emergency_stats,
         'time_range': time_range,
         'metric_type': metric_type,
-        'title': 'Analytics'
+        'title': 'Analytics',
     }
 
-    return render(request, 'rhu_management/report_analytics.html', context)
+    return render(request, 'rhu_management/report/report_analytics.html', context)
 
 
 # Analytics Functions
 def get_patient_analytics(start_date, end_date, barangay=None):
     """Get detailed patient statistics with optional barangay filter"""
-    query = Patient.objects.filter(is_active=True)
+    query = Patient.objects.all()
     if barangay:
-        query = query.filter(address__icontains=barangay.name)
+        query = query.filter(barangay=barangay)  # Use the barangay foreign key directly
 
     return {
         'total_patients': query.count(),
@@ -2004,7 +1935,7 @@ def get_checkup_analytics(start_date, end_date, barangay=None):
         checkup_date__range=(start_date, end_date)
     )
     if barangay:
-        query = query.filter(patient__address__icontains=barangay.name)
+        query = query.filter(patient__barangay=barangay)  # Use the correct path through patient to barangay
 
     return {
         'total_checkups': query.count(),
@@ -2021,30 +1952,36 @@ def get_emergency_analytics(start_date, end_date, barangay=None):
         alert_time__range=(start_date, end_date)
     )
     if barangay:
-        query = query.filter(patient__address__icontains=barangay.name)
+        query = query.filter(patient__barangay=barangay)
+
+    # Calculate average response time
+    avg_response_time = calculate_avg_response_time(query)
+    
+    # Calculate resolution rate
+    resolution_rate = calculate_resolution_rate(query)
+
+    # Get status distribution
+    status_dist = get_status_distribution(query)
+    
+    # Debug prints
+    print("Emergency Analytics Debug:")
+    print(f"Total Alerts: {query.count()}")
+    print(f"Avg Response Time: {avg_response_time}")
+    print(f"Resolution Rate: {resolution_rate}")
+    print("Status Distribution:", status_dist)
 
     return {
         'total_alerts': query.count(),
+        'avg_response_time': avg_response_time if avg_response_time else 0,
+        'resolution_rate': resolution_rate,
         'response_times': calculate_response_times(query),
-        'status_distribution': get_status_distribution(query)
-    }
-
-
-def get_appointment_analytics(start_date, end_date):
-    """Get checkup statistics and outcomes"""
-    checkups = PrenatalCheckup.objects.filter(
-        checkup_date__range=(start_date, end_date)
-    )
-
-    return {
-        'total_checkups': checkups.count(),
-        'status_distribution': get_appointment_status_distribution(checkups),
-        'attendance_rate': calculate_attendance_rate(checkups)
+        'status_distribution': status_dist
     }
 
 
 def get_age_distribution(barangay=None):
     """Calculate patient age distribution"""
+    today = timezone.now().date()
     age_groups = {
         '18-24': (18, 24),
         '25-29': (25, 29),
@@ -2054,19 +1991,20 @@ def get_age_distribution(barangay=None):
 
     distribution = {}
     for group, (min_age, max_age) in age_groups.items():
-        min_date = timezone.now() - timedelta(days=365 * max_age)
-        max_date = timezone.now() - timedelta(days=365 * min_age)
+        # Calculate date ranges for each age group
+        max_birth_date = today - timedelta(days=(min_age * 365))  # Youngest allowed in group
+        min_birth_date = today - timedelta(days=(max_age * 365 + 365))  # Oldest allowed in group
 
         if barangay:
             query = Patient.objects.filter(
-                address__icontains=barangay.name,
-                birth_date__gte=min_date,
-                birth_date__lte=max_date
+                barangay=barangay,
+                birth_date__gt=min_birth_date,
+                birth_date__lte=max_birth_date
             )
         else:
             query = Patient.objects.filter(
-                birth_date__gte=min_date,
-                birth_date__lte=max_date
+                birth_date__gt=min_birth_date,
+                birth_date__lte=max_birth_date
             )
 
         count = query.count()
@@ -2079,14 +2017,27 @@ def get_location_distribution(barangay=None):
     """Get distribution of patients by location"""
     if barangay:
         query = Patient.objects.filter(
-            address__icontains=barangay.name
-        ).values('address').annotate(
+            barangay=barangay
+        ).values('sitio', 'barangay__barangay_name').annotate(
             count=Count('id')
         ).order_by('-count')[:10]
     else:
-        return Patient.objects.values('address').annotate(
+        query = Patient.objects.values(
+            'sitio', 'barangay__barangay_name'
+        ).annotate(
             count=Count('id')
         ).order_by('-count')[:10]
+
+    # Format the results to combine sitio and barangay name
+    distribution = []
+    for item in query:
+        location = f"{item['sitio']}, {item['barangay__barangay_name']}"
+        distribution.append({
+            'location': location,
+            'count': item['count']
+        })
+
+    return distribution
 
 
 def get_weekly_checkup_distribution(checkups):
@@ -2101,31 +2052,15 @@ def get_weekly_checkup_distribution(checkups):
     return distribution
 
 
-def get_appointment_status_distribution(appointments):
-    """Calculate distribution of appointment statuses"""
-    return appointments.values('status').annotate(
-        count=Count('id')
-    ).order_by('status')
-
-
-def calculate_attendance_rate(appointments):
-    """Calculate appointment attendance rate"""
-    total = appointments.count()
-    if total == 0:
-        return 0
-
-    attended = appointments.filter(status='COMPLETED').count()
-    return (attended / total) * 100
-
-
 def calculate_avg_response_time(alerts):
     """Calculate average emergency response time in minutes"""
     responded_alerts = alerts.filter(
-        response_time__isnull=False
+        response_time__isnull=False,
+        alert_time__isnull=False
     ).exclude(status='CANCELLED')
 
     if not responded_alerts.exists():
-        return None
+        return 0
 
     total_minutes = 0
     count = 0
@@ -2135,7 +2070,7 @@ def calculate_avg_response_time(alerts):
         total_minutes += response_time
         count += 1
 
-    return total_minutes / count if count > 0 else None
+    return round(total_minutes / count, 1) if count > 0 else 0
 
 
 def calculate_resolution_rate(alerts):
@@ -2145,7 +2080,47 @@ def calculate_resolution_rate(alerts):
         return 0
 
     resolved = alerts.filter(status='RESOLVED').count()
-    return (resolved / total) * 100
+    return round((resolved / total) * 100, 1)
+
+
+def get_status_distribution(alerts):
+    """Calculate distribution of emergency alert statuses"""
+    # Debug print
+    print("\nStatus Distribution Debug:")
+    
+    status_counts = alerts.values('status').annotate(
+        count=Count('id')
+    ).order_by('status')
+    
+    print("Raw Status Counts:", status_counts)
+
+    # Convert to a dictionary for easier access
+    distribution = {
+        'ACTIVE': 0,
+        'RESPONDED': 0,
+        'EN_ROUTE': 0,
+        'RESOLVED': 0,
+        'CANCELLED': 0
+    }
+
+    # Update counts from query
+    for status in status_counts:
+        distribution[status['status']] = status['count']
+    
+    print("Distribution before percentages:", distribution)
+
+    # Calculate percentages
+    total = sum(distribution.values())
+    if total > 0:
+        distribution.update({
+            k: {
+                'count': v,
+                'percentage': round((v / total) * 100, 1)
+            } for k, v in distribution.items()
+        })
+    
+    print("Final Distribution:", distribution)
+    return distribution
 
 
 @login_required(login_url='rhu_management:rhu_login')
@@ -2234,19 +2209,49 @@ def get_recent_activities():
     activities = []
 
     # Get recent checkups
-    recent_checkups = PrenatalCheckup.objects.order_by('-checkup_date')[:10]
+    recent_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        status='COMPLETED'
+    ).order_by('-checkup_date')[:3]
+
     for checkup in recent_checkups:
         activities.append({
             'type': 'checkup',
-            'time': timezone.localtime(
-                timezone.make_aware(datetime.combine(checkup.checkup_date, datetime.min.time()))),
+            'time': checkup.created_at,  # Use created_at instead of checkup_date
             'patient': checkup.patient,
-            'description': f"{checkup.patient.user.get_full_name()} had a prenatal checkup"
+            'description': 'completed a prenatal checkup'
         })
 
-    # Sort all activities by time
+    # Get recent emergency alerts
+    recent_emergencies = EmergencyAlert.objects.select_related(
+        'patient__user'
+    ).order_by('-alert_time')[:3]
+
+    for emergency in recent_emergencies:
+        activities.append({
+            'type': 'emergency',
+            'time': emergency.alert_time,
+            'patient': emergency.patient,
+            'description': 'triggered an emergency alert'
+        })
+
+    # Get recent patient registrations
+    recent_patients = Patient.objects.select_related(
+        'user'
+    ).order_by('-created_at')[:3]
+
+    for patient in recent_patients:
+        activities.append({
+            'type': 'registration',
+            'time': patient.created_at,
+            'patient': patient,
+            'description': 'registered as a new patient'
+        })
+
+    # Sort all activities by time and get the 3 most recent
     activities.sort(key=lambda x: x['time'], reverse=True)
-    return activities[:10]
+    return activities[:3]
 
 
 def get_pending_tasks(staff=None):
@@ -2257,28 +2262,35 @@ def get_pending_tasks(staff=None):
     # Check unresponded emergency alerts
     active_emergencies = EmergencyAlert.objects.filter(
         status='ACTIVE'
-    ).count()
-    if active_emergencies > 0:
+    ).order_by('-alert_time')[:3]
+
+    for emergency in active_emergencies:
         tasks.append({
             'type': 'emergency',
-            'description': f'{active_emergencies} active emergency alerts need response',
-            'priority': 'high',
-            'url': 'rhu_management:emergency_dashboard'
+            'reference_id': emergency.id,
+            'description': f'Emergency alert from {emergency.patient.user.get_full_name()} needs response',
+            'priority': 'high'
         })
 
-    # Check patients needing follow-up
-    need_followup = PrenatalCheckup.objects.filter(
-        checkup_date__gte=today - timedelta(days=30)
-    ).count()
-    if need_followup > 0:
+    # Check upcoming checkups
+    upcoming_checkups = PrenatalCheckup.objects.filter(
+        checkup_date__gte=today,
+        status='SCHEDULED'
+    ).order_by('checkup_date')[:3]
+
+    for checkup in upcoming_checkups:
         tasks.append({
-            'type': 'followup',
-            'description': f'{need_followup} patients need follow-up checkups',
-            'priority': 'normal',
-            'url': 'rhu_management:checkup_list'
+            'type': 'checkup',
+            'reference_id': checkup.id,
+            'description': f'Scheduled checkup for {checkup.patient.user.get_full_name()}',
+            'priority': 'medium' if checkup.checkup_date == today else 'normal'
         })
 
-    return tasks
+    # Sort tasks by priority (high -> medium -> normal)
+    priority_order = {'high': 0, 'medium': 1, 'normal': 2}
+    tasks.sort(key=lambda x: priority_order[x['priority']])
+
+    return tasks[:3]  # Return only top 5 tasks
 
 
 def get_monthly_trends():
@@ -2286,6 +2298,7 @@ def get_monthly_trends():
     now = timezone.now()
     months = []
     data = {
+        'patients': [],
         'checkups': [],
         'emergencies': []
     }
@@ -2302,6 +2315,12 @@ def get_monthly_trends():
         months.append(month_start.strftime('%B %Y'))
 
         # Get counts for each type
+        data['patients'].append(
+            Patient.objects.filter(
+                created_at__range=(month_start, month_end)
+            ).count()
+        )
+
         data['checkups'].append(
             PrenatalCheckup.objects.filter(
                 checkup_date__range=(month_start, month_end)
@@ -2318,3 +2337,57 @@ def get_monthly_trends():
         'months': list(reversed(months)),
         'datasets': {k: list(reversed(v)) for k, v in data.items()}
     }
+
+
+def calculate_response_times(alerts):
+    """Calculate various response time metrics for emergency alerts"""
+    response_times = {
+        'average': None,
+        'min': None,
+        'max': None,
+        'under_15_min': 0,
+        'under_30_min': 0,
+        'over_30_min': 0
+    }
+
+    # Get alerts that have been responded to
+    responded_alerts = alerts.filter(
+        response_time__isnull=False,
+        alert_time__isnull=False
+    ).exclude(status='CANCELLED')
+
+    if not responded_alerts.exists():
+        return response_times
+
+    total_minutes = 0
+    min_time = float('inf')
+    max_time = 0
+    count = 0
+
+    for alert in responded_alerts:
+        # Calculate response time in minutes
+        response_time = (alert.response_time - alert.alert_time).total_seconds() / 60
+
+        # Update totals
+        total_minutes += response_time
+        count += 1
+
+        # Update min/max
+        min_time = min(min_time, response_time)
+        max_time = max(max_time, response_time)
+
+        # Update time brackets
+        if response_time <= 15:
+            response_times['under_15_min'] += 1
+        elif response_time <= 30:
+            response_times['under_30_min'] += 1
+        else:
+            response_times['over_30_min'] += 1
+
+    # Calculate average
+    if count > 0:
+        response_times['average'] = round(total_minutes / count, 1)
+        response_times['min'] = round(min_time, 1)
+        response_times['max'] = round(max_time, 1)
+
+    return response_times

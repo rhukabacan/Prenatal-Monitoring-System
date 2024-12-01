@@ -5,7 +5,7 @@
 <div class="container-fluid">
     <!-- Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -18,7 +18,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card bg-info text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -44,20 +44,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-0" style="white-space: nowrap">Appointments</h6>
-                            <h2 class="mb-0">{{ stats.total_appointments }}</h2>
-                        </div>
-                        <i class="fas fa-calendar-check fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <div class="card bg-danger text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -66,19 +53,6 @@
                             <h2 class="mb-0">{{ stats.emergency_alerts }}</h2>
                         </div>
                         <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card bg-secondary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-0" style="white-space: nowrap">Missed Appt.</h6>
-                            <h2 class="mb-0">{{ stats.missed_appointments }}</h2>
-                        </div>
-                        <i class="fas fa-user-clock fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -194,10 +168,6 @@
                                 onclick="generateQuickReport('checkups')">
                             <i class="fas fa-stethoscope me-2"></i>Checkup Analysis
                         </button>
-                        <button class="btn btn-outline-primary"
-                                onclick="generateQuickReport('appointments')">
-                            <i class="fas fa-calendar-check me-2"></i>Appointment Statistics
-                        </button>
                     </div>
                 </div>
             </div>
@@ -220,18 +190,18 @@
                 labels: trendsData.months,
                 datasets: [
                     {
-                        label: 'Checkups',
-                        data: trendsData.datasets.checkups,
-                        borderColor: 'rgb(25, 135, 84)', // Bootstrap success
-                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        label: 'Patients',
+                        data: trendsData.datasets.patients,
+                        borderColor: 'rgb(13, 110, 253)', // Bootstrap primary
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
                         tension: 0.1,
                         fill: true
                     },
                     {
-                        label: 'Appointments',
-                        data: trendsData.datasets.appointments,
-                        borderColor: 'rgb(13, 110, 253)', // Bootstrap primary
-                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        label: 'Checkups',
+                        data: trendsData.datasets.checkups,
+                        borderColor: 'rgb(25, 135, 84)', // Bootstrap success
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
                         tension: 0.1,
                         fill: true
                     },

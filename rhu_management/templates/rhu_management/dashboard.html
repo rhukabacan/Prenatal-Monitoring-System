@@ -180,16 +180,20 @@
                 <div class="card-body">
                     {% if recent_activities %}
                         {% for activity in recent_activities %}
-                            <div class="activity-item mb-3 pb-3 border-bottom">
+                            <div class="mb-3 pb-3 border-bottom">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         {% if activity.type == 'checkup' %}
                                             <span class="badge bg-success">
                                                 <i class="fas fa-stethoscope me-1"></i>Checkup
                                             </span>
-                                        {% else %}
+                                        {% elif activity.type == 'emergency' %}
                                             <span class="badge bg-danger">
                                                 <i class="fas fa-exclamation-circle me-1"></i>Emergency
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-user-plus me-1"></i>New Patient
                                             </span>
                                         {% endif %}
                                         <small class="text-muted ms-2">
@@ -202,16 +206,13 @@
                                        class="text-decoration-none">
                                         {{ activity.patient.user.get_full_name }}
                                     </a>
-                                    {% if activity.type == 'checkup' %}
-                                        had a prenatal checkup
-                                    {% else %}
-                                        triggered an emergency alert
-                                    {% endif %}
+                                    {{ activity.description }}
                                 </div>
                             </div>
                         {% endfor %}
                         <div class="text-center">
-                            <a href="{% url 'rhu_management:reports_dashboard' %}" class="btn btn-link text-decoration-none">
+                            <a href="{% url 'rhu_management:reports_dashboard' %}" 
+                               class="btn btn-link text-decoration-none">
                                 View All Activity
                             </a>
                         </div>
@@ -237,7 +238,7 @@
                 <div class="card-body">
                     {% if pending_tasks %}
                         {% for task in pending_tasks %}
-                            <div class="task-item mb-3">
+                            <div class="mb-3 pb-3 border-bottom">
                                 <div class="d-flex align-items-center">
                                     <span class="badge {% if task.priority == 'high' %}bg-danger
                                                       {% elif task.priority == 'medium' %}bg-warning
@@ -247,9 +248,22 @@
                                     <div>{{ task.description }}</div>
                                 </div>
                                 <div class="mt-2">
-                                    <a href="#" class="btn btn-sm btn-outline-primary">
-                                        Take Action
-                                    </a>
+                                    {% if task.type == 'checkup' %}
+                                        <a href="{% url 'rhu_management:checkup_detail' task.reference_id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Take Action
+                                        </a>
+                                    {% elif task.type == 'emergency' %}
+                                        <a href="{% url 'rhu_management:emergency_detail' task.reference_id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Take Action
+                                        </a>
+                                    {% elif task.type == 'patient' %}
+                                        <a href="{% url 'rhu_management:patient_detail' task.reference_id %}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            Take Action
+                                        </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
@@ -286,6 +300,12 @@ new Chart(ctx, {
                 label: 'Emergencies',
                 data: {{ monthly_trends.datasets.emergencies|safe }},
                 borderColor: 'rgb(255, 99, 132)',
+                tension: 0.1
+            },
+            {
+                label: 'New Patients',
+                data: {{ monthly_trends.datasets.patients|safe }},
+                borderColor: 'rgb(54, 162, 235)',
                 tension: 0.1
             }
         ]

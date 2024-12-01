@@ -108,38 +108,7 @@
     <!-- Emergency Analytics -->
     {% if metric_type in 'all,emergencies' %}
         <div class="row mb-4">
-            <div class="col-md-4">
-                <!-- Response Time -->
-                <div class="card shadow h-100">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-clock me-2"></i>Avg. Response Time
-                        </h5>
-                    </div>
-                    <div class="card-body text-center">
-                        <div class="response-time">
-                            <h2>{{ emergency_stats.avg_response_time|floatformat:1 }}</h2>
-                            <p class="text-muted">Minutes</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <!-- Resolution Rate -->
-                <div class="card shadow h-100">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-check-circle me-2"></i>Resolution Rate
-                        </h5>
-                    </div>
-                    <div class="card-body text-center">
-                        <div class="resolution-gauge" id="resolutionGauge"></div>
-                        <h3 class="mt-3">{{ emergency_stats.resolution_rate|floatformat:1 }}%</h3>
-                        <p class="text-muted">Emergency Resolution Rate</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
+            <div class="col-md-6">
                 <!-- Emergency Types -->
                 <div class="card shadow h-100">
                     <div class="card-header bg-white">
@@ -152,6 +121,43 @@
                     </div>
                 </div>
             </div>
+            <div class="col-md-6">
+                <div class="row gap-4">
+                    <div class="col-md-12">
+                        <!-- Response Time -->
+                        <div class="card shadow h-100">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clock me-2"></i>Avg. Response Time
+                                </h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="response-time">
+                                    <h2>{{ emergency_stats.avg_response_time|default:0|floatformat:1 }}</h2>
+                                    <p class="text-muted">Minutes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                <!-- Resolution Rate -->
+                <div class="card shadow h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-check-circle me-2"></i>Resolution Rate
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="gauge-container">
+                            <canvas id="resolutionGauge" width="200" height="160"></canvas>
+                        </div>
+                        <h3 class="mt-3">{{ emergency_stats.resolution_rate|default:0|floatformat:1 }}%</h3>
+                        <p class="text-muted">Emergency Resolution Rate</p>
+                    </div>
+                </div>
+            </div>
+                </div>
+            </div>
         </div>
     {% endif %}
 </div>
@@ -159,7 +165,7 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gauge.js"></script>
+<script src="https://bernii.github.io/gauge.js/dist/gauge.min.js"></script>
 
 <script>
 // Age Distribution Chart
@@ -267,30 +273,46 @@ new Chart(weeklyCtx, {
 // Emergency Analytics
 {% if metric_type in 'all,emergencies' %}
 // Resolution Gauge
-const resolutionGauge = new Gauge(document.getElementById('resolutionGauge')).setOptions({
-    angle: 0.15,
-    lineWidth: 0.44,
-    radiusScale: 1,
-    pointer: {
-        length: 0.6,
-        strokeWidth: 0.035,
-        color: '#000000'
-    },
-    limitMax: false,
-    limitMin: false,
-    colorStart: '#FF4646',
-    colorStop: '#FF7676',
-    strokeColor: '#E0E0E0',
-    generateGradient: true,
-    highDpiSupport: true
-});
-resolutionGauge.maxValue = 100;
-resolutionGauge.setMinValue(0);
-resolutionGauge.animationSpeed = 32;
-resolutionGauge.set({{ emergency_stats.resolution_rate }});
+window.onload = function() {
+    const gaugeElement = document.getElementById('resolutionGauge');
+    if (!gaugeElement) {
+        console.warn('Resolution gauge element not found');
+        return;
+    }
+
+    try {
+        const opts = {
+            angle: -0.2,
+            lineWidth: 0.2,
+            radiusScale: 1,
+            pointer: {
+                length: 0.6,
+                strokeWidth: 0.035,
+                color: '#000000'
+            },
+            limitMax: false,
+            limitMin: false,
+            colorStart: '#6FADCF',
+            colorStop: '#8FC0DA',
+            strokeColor: '#E0E0E0',
+            generateGradient: true,
+            highDpiSupport: true
+        };
+
+        const gauge = new Gauge(gaugeElement);
+        gauge.setOptions(opts);
+        gauge.maxValue = 100;
+        gauge.setMinValue(0);
+        gauge.animationSpeed = 32;
+        gauge.set({{ emergency_stats.resolution_rate|default:0 }});
+    } catch (error) {
+        console.error('Error initializing resolution gauge:', error);
+    }
+};
 
 // Emergency Types Chart
 const emergencyCtx = document.getElementById('emergencyTypesChart').getContext('2d');
+
 new Chart(emergencyCtx, {
     type: 'pie',
     data: {
@@ -298,11 +320,11 @@ new Chart(emergencyCtx, {
         datasets: [{
             data: [{% for type, data in emergency_stats.status_distribution.items %}{{ data.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
             backgroundColor: [
-                'rgba(255, 99, 132, 0.5)',
-                'rgba(54, 162, 235, 0.5)',
-                'rgba(255, 206, 86, 0.5)',
-                'rgba(75, 192, 192, 0.5)',
-                'rgba(153, 102, 255, 0.5)'
+                'rgba(255, 99, 132, 0.5)',  // Red for ACTIVE
+                'rgba(54, 162, 235, 0.5)',  // Blue for RESPONDED
+                'rgba(255, 206, 86, 0.5)',  // Yellow for EN_ROUTE
+                'rgba(75, 192, 192, 0.5)',  // Green for RESOLVED
+                'rgba(153, 102, 255, 0.5)'  // Purple for CANCELLED
             ]
         }]
     },
@@ -311,6 +333,16 @@ new Chart(emergencyCtx, {
         plugins: {
             legend: {
                 position: 'bottom'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.raw || 0;
+                        const percentage = context.dataset.data[context.dataIndex].percentage || 0;
+                        return `${label}: ${value} (${percentage}%)`;
+                    }
+                }
             }
         }
     }
@@ -329,4 +361,18 @@ document.addEventListener('DOMContentLoaded', function() {
     tooltips.forEach(tooltip => new bootstrap.Tooltip(tooltip));
 });
 </script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gauge-container {
+        width: 200px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    canvas#resolutionGauge {
+        display: inline-block;
+    }
+</style>
 {% endblock %}

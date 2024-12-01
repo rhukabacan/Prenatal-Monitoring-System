@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'rhu_management.apps.RhuManagementConfig',
     'tcl_management.apps.TclManagementConfig',
     'patient_management.apps.PatientManagementConfig',
+
+    'django_q',
 ]
 
 MIDDLEWARE = [
@@ -80,23 +82,23 @@ WSGI_APPLICATION = 'prenatal_monitoring.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'railway',
-        'USER': 'postgres',
-        'PASSWORD': 'HeOAJcLuckfwQOwPZNmwDfxJGkpMzfrM',
-        'HOST': 'junction.proxy.rlwy.net',
-        'PORT': '41476',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'railway',
+#         'USER': 'postgres',
+#         'PASSWORD': 'HeOAJcLuckfwQOwPZNmwDfxJGkpMzfrM',
+#         'HOST': 'junction.proxy.rlwy.net',
+#         'PORT': '41476',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -144,3 +146,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Semaphore SMS Configuration
+SEMAPHORE_API_KEY = '336dad3ce470602cbc2640158eaf9775'
+SEMAPHORE_SENDER_NAME = 'RHUKABACAN'
+
+# Simple Django Q configuration
+Q_CLUSTER = {
+    'name': 'prenatal_monitoring',
+    'workers': 1,
+    'timeout': 60,
+    'retry': 120,
+    'queue_limit': 50,
+    'bulk': 10,
+    'orm': 'default'
+}
