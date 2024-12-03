@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -507,7 +508,7 @@
         });
 
         // Emergency alert sound
-        const emergencySound = new Audio('/static/sounds/emergency.mp3');
+        const emergencySound = new Audio("{% static 'sounds/emergency.mp3' %}");
         emergencySound.loop = true;
 
         // Get emergency modal element
