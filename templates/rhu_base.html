@@ -507,9 +507,26 @@
             });
         });
 
-        // Emergency alert sound
-        const emergencySound = new Audio("{% static 'sounds/emergency.mp3' %}");
-        emergencySound.loop = true;
+        // Emergency alert sound - Update this section
+        const emergencySound = new Audio();
+        emergencySound.src = "{% static 'sounds/emergency.mp3' %}";
+        emergencySound.preload = 'auto';
+
+        // Add detailed error handling for audio loading
+        emergencySound.addEventListener('error', function(e) {
+            console.error('Error loading emergency sound:', e);
+            console.error('Audio source:', emergencySound.src);
+            // Log the complete error details
+            if (e.target.error) {
+                console.error('Media error code:', e.target.error.code);
+                console.error('Media error message:', e.target.error.message);
+            }
+        });
+
+        // Add a load success handler for debugging
+        emergencySound.addEventListener('loadeddata', function() {
+            console.log('Emergency sound loaded successfully');
+        });
 
         // Get emergency modal element
         const emergencyModal = document.getElementById('emergencyAlertModal');
@@ -523,6 +540,27 @@
         // Keep track of known alerts to prevent duplicate notifications
         let knownAlerts = new Set();
         
+        // Add these variables at the top of your script
+        let hasUserInteracted = false;
+        let pendingEmergencyAlert = false;
+
+        // Add this function to handle user interaction
+        function handleUserInteraction() {
+            hasUserInteracted = true;
+            if (pendingEmergencyAlert) {
+                emergencySound.play().catch(error => {
+                    console.error("Audio playback failed:", error);
+                });
+            }
+            // Remove the event listeners after first interaction
+            document.removeEventListener('click', handleUserInteraction);
+            document.removeEventListener('keydown', handleUserInteraction);
+        }
+
+        // Add event listeners for user interaction
+        document.addEventListener('click', handleUserInteraction);
+        document.addEventListener('keydown', handleUserInteraction);
+
         function checkEmergencyAlerts() {
             fetch('{% url "rhu_management:check_emergency_alerts" %}')
                 .then(response => response.json())
@@ -568,8 +606,23 @@
                             const modal = new bootstrap.Modal(document.getElementById('emergencyAlertModal'));
                             modal.show();
                             
-                            // Play sound
-                            emergencySound.play().catch(() => {});
+                            // Play sound only if user has interacted with the page
+                            if (hasUserInteracted) {
+                                emergencySound.play().catch(error => {
+                                    console.error("Audio playback failed:", error);
+                                });
+                            } else {
+                                pendingEmergencyAlert = true;
+                                // Add a visible notification that user interaction is needed
+                                const alertContent = document.getElementById('emergencyAlertContent');
+                                const interactionNote = document.createElement('div');
+                                interactionNote.className = 'alert alert-warning mt-3';
+                                interactionNote.innerHTML = `
+                                    <i class="fas fa-bell me-2"></i>
+                                    <strong>Click anywhere on the page to enable emergency sound alerts</strong>
+                                `;
+                                alertContent.insertBefore(interactionNote, alertContent.firstChild);
+                            }
                         }
 
                         // Update known alerts
@@ -600,5 +653,10 @@
         });
     </script>
     {% block extra_js %}{% endblock %}
+
+    <!-- Add this temporarily for debugging -->
+    <div style="display:none">
+        Debug: Emergency sound URL: {% static 'sounds/emergency.mp3' %}
+    </div>
 </body>
 </html>
