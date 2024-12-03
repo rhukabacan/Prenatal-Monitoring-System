@@ -514,29 +514,6 @@
     setInterval(updateTimers, 1000);
     updateTimers();
 
-    // Auto refresh page
-    {% if refresh_interval %}
-        setTimeout(() => {
-            window.location.reload();
-        }, {{ refresh_interval }} * 1000);
-    {% endif %}
 
-    // Sound alert for active emergencies
-    {% if active_alerts %}
-        const audio = new Audio('/static/sounds/emergency.mp3');
-        audio.loop = true;
-
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'visible') {
-                audio.play().catch(() => {});
-            } else {
-                audio.pause();
-            }
-        });
-
-        if (document.visibilityState === 'visible') {
-            audio.play().catch(() => {});
-        }
-    {% endif %}
 </script>
 {% endblock %}

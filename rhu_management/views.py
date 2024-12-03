@@ -21,7 +21,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
+from .tasks import check_active_emergencies
 
 from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory
 
@@ -975,11 +976,9 @@ def emergency_list(request):
         'stats': stats,
         'status_choices': EmergencyAlert.STATUS_CHOICES,
         'barangays': Barangay.objects.all(),
-        'active_alerts': active_alerts,
         'in_progress_alerts': in_progress_alerts,
         'recent_alerts': recent_alerts,
-        'title': 'Emergency Alerts',
-        'refresh_interval': 30
+        'title': 'Emergency Alerts'
     }
 
     return render(request, 'rhu_management/emergency/emergency_list.html', context)
@@ -2394,38 +2393,10 @@ def calculate_response_times(alerts):
     return response_times
 
 
-@csrf_exempt
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
-def check_new_emergencies(request):
-    """API endpoint to check for new emergencies"""
-    last_check = request.session.get('last_emergency_check')
-    current_time = timezone.now()
-    
-    print(f"Checking emergencies. Last check: {last_check}")
-    
-    if last_check:
-        # Convert string to datetime if needed
-        last_check = timezone.datetime.fromisoformat(last_check)
-        
-        # Check for new emergencies
-        new_emergency = EmergencyAlert.objects.filter(
-            alert_time__gt=last_check,
-            status='ACTIVE'
-        ).exists()
-    else:
-        # First check - only get emergencies from the last minute
-        new_emergency = EmergencyAlert.objects.filter(
-            alert_time__gte=current_time - timezone.timedelta(minutes=1),
-            status='ACTIVE'
-        ).exists()
-    
-    print(f"New emergency found: {new_emergency}")
-    
-    # Update last check time in session
-    request.session['last_emergency_check'] = current_time.isoformat()
-    
-    return JsonResponse({
-        'new_emergency': new_emergency,
-        'message': 'New emergency alert requires immediate attention!'
-    })
+@require_GET
+def check_emergency_alerts(request):
+    """API endpoint to check for active emergency alerts"""
+    result = check_active_emergencies()
+    return JsonResponse(result)

@@ -694,3 +694,130 @@ def send_test_email(email):
     except Exception as e:
         print(f"Error sending test email: {str(e)}")
         return False
+
+
+@login_required(login_url='patient_management:login')
+@patient_required
+def vital_signs(request):
+    """Display vital signs monitoring page"""
+    patient = request.user.patient
+    
+    # Get latest checkup and history
+    latest_checkup = PrenatalCheckup.objects.filter(
+        patient=patient
+    ).order_by('-checkup_date').first()
+    
+    checkups = list(PrenatalCheckup.objects.filter(
+        patient=patient
+    ).order_by('-checkup_date')[:10])  # Last 10 records
+    
+    # Process checkups to include changes and status
+    processed_checkups = []
+    for i, checkup in enumerate(checkups):
+        checkup_data = {
+            'date': checkup.checkup_date,
+            'weight': checkup.weight,
+            'blood_pressure': checkup.blood_pressure,
+            'bmi': checkup.get_bmi(),
+            'notes': checkup.notes,
+            'weight_change': None,
+            'weight_change_type': None,
+            'bp_status': None,
+            'bmi_category': None
+        }
+        
+        # Calculate weight change from previous record
+        if i < len(checkups) - 1:
+            prev_weight = checkups[i + 1].weight
+            if checkup.weight and prev_weight:
+                weight_diff = float(checkup.weight) - float(prev_weight)
+                checkup_data['weight_change'] = abs(weight_diff)
+                checkup_data['weight_change_type'] = 'increase' if weight_diff > 0 else 'decrease'
+        
+        # Determine blood pressure status
+        if checkup.blood_pressure:
+            try:
+                systolic = int(checkup.blood_pressure.split('/')[0])
+                if systolic < 120:
+                    checkup_data['bp_status'] = {'text': 'Normal', 'class': 'text-success'}
+                elif systolic < 130:
+                    checkup_data['bp_status'] = {'text': 'Elevated', 'class': 'text-warning'}
+                else:
+                    checkup_data['bp_status'] = {'text': 'High', 'class': 'text-danger'}
+            except (ValueError, IndexError):
+                pass
+        
+        # Determine BMI category
+        if checkup.get_bmi():
+            bmi = float(checkup.get_bmi())
+            if bmi < 18.5:
+                checkup_data['bmi_category'] = {'text': 'Underweight', 'class': 'text-warning'}
+            elif bmi < 25:
+                checkup_data['bmi_category'] = {'text': 'Normal', 'class': 'text-success'}
+            elif bmi < 30:
+                checkup_data['bmi_category'] = {'text': 'Overweight', 'class': 'text-warning'}
+            else:
+                checkup_data['bmi_category'] = {'text': 'Obese', 'class': 'text-danger'}
+        
+        processed_checkups.append(checkup_data)
+    
+    # Calculate overall weight difference for the latest checkup card
+    weight_difference = None
+    weight_change_type = None
+    if latest_checkup and latest_checkup.weight and latest_checkup.initial_weight:
+        weight_diff = float(latest_checkup.weight) - float(latest_checkup.initial_weight)
+        weight_difference = abs(weight_diff)
+        weight_change_type = 'increase' if weight_diff > 0 else 'decrease'
+    
+    return render(request, 'patient_management/vital_signs.html', {
+        'title': 'Vital Signs Monitoring',
+        'latest_checkup': latest_checkup,
+        'checkups': processed_checkups,
+        'weight_difference': f"{weight_difference:.1f}" if weight_difference is not None else None,
+        'weight_change_type': weight_change_type,
+    })
+
+@login_required(login_url='patient_management:login')
+@patient_required
+@require_POST
+def update_vital_signs(request):
+    """Handle vital signs update"""
+    try:
+        patient = request.user.patient
+        
+        # Get the latest checkup
+        latest_checkup = PrenatalCheckup.objects.filter(
+            patient=patient
+        ).order_by('-checkup_date').first()
+        
+        if not latest_checkup:
+            messages.error(request, 'No checkup record found to update.')
+            return redirect('patient_management:vital_signs')
+        
+        # Update the vital signs
+        latest_checkup.weight = request.POST.get('weight')
+        latest_checkup.blood_pressure = request.POST.get('blood_pressure')
+        
+        # If this is the first update to vital signs, set initial values
+        if latest_checkup.is_initial_record and not latest_checkup.initial_weight:
+            latest_checkup.initial_weight = latest_checkup.weight
+            latest_checkup.initial_blood_pressure = latest_checkup.blood_pressure
+        
+        # Add notes if provided
+        notes = request.POST.get('notes')
+        if notes:
+            # Append new notes with timestamp
+            current_time = timezone.now().strftime('%Y-%m-%d %H:%M')
+            new_note = f"[{current_time}] Vital signs update: {notes}"
+            if latest_checkup.notes:
+                latest_checkup.notes = f"{latest_checkup.notes}\n{new_note}"
+            else:
+                latest_checkup.notes = new_note
+        
+        latest_checkup.save()
+        messages.success(request, 'Vital signs updated successfully!')
+        
+    except Exception as e:
+        messages.error(request, f'Error updating vital signs: {str(e)}')
+    
+    return redirect('patient_management:vital_signs')

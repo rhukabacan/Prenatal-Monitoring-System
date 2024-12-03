@@ -1,24 +1,7 @@
 from datetime import timedelta
 from django.utils import timezone
-from django.core.cache import cache
 from .models import PrenatalCheckup, EmergencyAlert
 from .utils import send_checkup_reminder_sms
-
-def check_new_emergencies():
-    """Task to check for new emergency alerts"""
-    last_check_time = cache.get('last_emergency_check') or timezone.now()
-    current_time = timezone.now()
-    
-    # Check for new emergencies since last check
-    new_emergencies = EmergencyAlert.objects.filter(
-        alert_time__gt=last_check_time,
-        status='ACTIVE'
-    ).exists()
-    
-    # Update last check time
-    cache.set('last_emergency_check', current_time)
-    
-    return new_emergencies
 
 def send_checkup_reminders():
     """Task to send SMS reminders for tomorrow's checkups"""
@@ -30,4 +13,22 @@ def send_checkup_reminders():
     ).select_related('patient', 'patient__user')
     
     for checkup in upcoming_checkups:
-        send_checkup_reminder_sms(checkup) 
+        send_checkup_reminder_sms(checkup)
+
+def check_active_emergencies():
+    """Task to check for active emergency alerts"""
+    active_alerts = EmergencyAlert.objects.filter(
+        status='ACTIVE'
+    ).select_related('patient', 'patient__user', 'patient__barangay')
+    
+    return {
+        'has_active_alerts': active_alerts.exists(),
+        'active_alerts': [{
+            'id': alert.id,
+            'patient_name': alert.patient.user.get_full_name(),
+            'sitio': alert.patient.sitio,
+            'barangay': alert.patient.barangay.barangay_name,
+            'alert_time': alert.alert_time.strftime('%I:%M %p - %b. %d, %Y').replace(' 0', ' ').replace('AM', 'AM').replace('PM', 'PM'),
+            'location': alert.location or 'No location provided'
+        } for alert in active_alerts]
+    } 

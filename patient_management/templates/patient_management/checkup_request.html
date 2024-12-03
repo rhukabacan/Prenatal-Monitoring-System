@@ -190,10 +190,73 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="alert alert-danger mt-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check me-3 fa-2x"></i>
+                                <div>
+                                    <h6 class="mb-1">Estimated Delivery Date</h6>
+                                    <strong>{{ initial_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vital Signs Information -->
+                    <div class="form-section">
+                        <h5 class="section-header">
+                            <i class="fas fa-heartbeat me-2"></i>Vital Signs
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="weight" class="form-label">
+                                        <i class="fas fa-weight me-2"></i>Weight (kg)
+                                    </label>
+                                    <input type="number" step="0.1" class="form-control" id="weight"
+                                           name="weight" value="{{ initial_checkup.weight|default:'' }}" required min="30" max="200">
+                                    <small class="text-muted">Enter weight in kilograms</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="height" class="form-label">
+                                        <i class="fas fa-ruler-vertical me-2"></i>Height (cm)
+                                    </label>
+                                    <input type="number" step="0.1" class="form-control" id="height"
+                                           name="height" value="{{ initial_checkup.height|default:'' }}" required min="100" max="250">
+                                    <small class="text-muted">Enter height in centimeters</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="blood_pressure" class="form-label">
+                                        <i class="fas fa-heartbeat me-2"></i>Blood Pressure
+                                    </label>
+                                    <input type="text" class="form-control" id="blood_pressure"
+                                           name="blood_pressure" value="{{ initial_checkup.blood_pressure|default:'' }}" placeholder="120/80" required
+                                           pattern="\d{2,3}\/\d{2,3}">
+                                    <small class="text-muted">Format: systolic/diastolic</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-calculator me-2"></i>BMI <span class="text-muted fw-normal fst-italic">(Auto-calculated)</span>
+                                    </label>
+                                    <div class="form-control bg-light" style="cursor: default;">
+                                        {{ initial_checkup.get_bmi|floatformat:1 }}
+                                    </div>
+                                    <small class="text-muted">
+                                        BMI Category: {{ initial_checkup.get_bmi_category }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {% if not has_previous_checkup %}
-                    <!-- Initial Checkup Information -->
+                    <!-- Pregnancy Information -->
                     <div class="form-section">
                         <div class="alert alert-danger mb-4">
                             <h5 class="alert-heading mb-2">
@@ -202,46 +265,7 @@
                             <p class="mb-0">Since this is your first checkup, please provide the following information:</p>
                         </div>
 
-                        <!-- Vital Signs -->
                         <h5 class="section-header">
-                            <i class="fas fa-heartbeat me-2"></i>Vital Signs
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="weight" class="form-label">
-                                        <i class="fas fa-weight me-2"></i>Weight (kg)
-                                    </label>
-                                    <input type="number" step="0.1" class="form-control" id="weight"
-                                           name="weight" required min="30" max="200">
-                                    <small class="text-muted">Enter weight in kilograms</small>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="height" class="form-label">
-                                        <i class="fas fa-ruler-vertical me-2"></i>Height (cm)
-                                    </label>
-                                    <input type="number" step="0.1" class="form-control" id="height"
-                                           name="height" required min="100" max="250">
-                                    <small class="text-muted">Enter height in centimeters</small>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="blood_pressure" class="form-label">
-                                        <i class="fas fa-heartbeat me-2"></i>Blood Pressure
-                                    </label>
-                                    <input type="text" class="form-control" id="blood_pressure"
-                                           name="blood_pressure" placeholder="120/80" required
-                                           pattern="\d{2,3}\/\d{2,3}">
-                                    <small class="text-muted">Format: systolic/diastolic</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Pregnancy Information -->
-                        <h5 class="section-header mt-4">
                             <i class="fas fa-baby me-2"></i>Pregnancy Information
                         </h5>
                         <div class="row">
@@ -263,50 +287,6 @@
                                     <input type="date" class="form-control" id="estimated_delivery_date"
                                            name="estimated_delivery_date" readonly>
                                     <small class="text-muted">Automatically calculated</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <!-- Previous Checkup Information -->
-                    <div class="form-section">
-                        <h5 class="section-header">
-                            <i class="fas fa-history me-2"></i>Previous Checkup Information
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="info-display">
-                                    <small class="text-muted d-block">Weight</small>
-                                    <span class="value-display">{{ initial_checkup.weight }} kg</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="info-display">
-                                    <small class="text-muted d-block">Height</small>
-                                    <span class="value-display">{{ initial_checkup.height }} cm</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="info-display">
-                                    <small class="text-muted d-block">Blood Pressure</small>
-                                    <span class="value-display">{{ initial_checkup.blood_pressure }}</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="info-display">
-                                    <small class="text-muted d-block">BMI</small>
-                                    <span class="value-display">{{ initial_checkup.get_bmi|floatformat:1 }}</span>
-                                    <small>({{ initial_checkup.get_bmi_category }})</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="alert alert-danger mt-3">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-calendar-check me-3 fa-2x"></i>
-                                <div>
-                                    <h6 class="mb-1">Estimated Delivery Date</h6>
-                                    <strong>{{ initial_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
                                 </div>
                             </div>
                         </div>

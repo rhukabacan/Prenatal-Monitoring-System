@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-{% load static%}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -205,51 +204,77 @@
             background: linear-gradient(45deg, #e74a3b 0%, #be2617 100%);
         }
 
-        /* Emergency Alert Modal */
-        .emergency-alert-modal {
-            position: fixed;
+        /* Emergency Modal Styles */
+        #emergencyAlertModal .modal-content {
+            box-shadow: 0 0 20px rgba(220, 53, 69, 0.3);
+        }
+        
+        #emergencyAlertModal .modal-header {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pulse-ring {
+            position: absolute;
             top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2000;
-            background: #fff;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
-            max-width: 500px;
-            width: 90%;
-            display: none;
+            right: 20px;
+            transform: translateY(-50%);
+            width: 15px;
+            height: 15px;
         }
-
-        .emergency-alert-modal.active {
-            display: block;
-            animation: slideIn 0.3s ease;
+        
+        .pulse-ring:before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            border-radius: 50%;
+            animation: pulse 1.5s ease-out infinite;
         }
-
-        @keyframes slideIn {
-            from {
-                transform: translate(-50%, -60%);
-                opacity: 0;
-            }
-            to {
-                transform: translate(-50%, -50%);
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(0.3);
                 opacity: 1;
             }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
         }
-
-        .emergency-alert-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 1999;
-            display: none;
+        
+        .emergency-icon-wrapper {
+            display: inline-block;
+            padding: 20px;
+            border-radius: 50%;
+            background: rgba(220, 53, 69, 0.1);
         }
-
-        .emergency-alert-overlay.active {
-            display: block;
+        
+        .emergency-icon {
+            animation: shake 1s ease-in-out infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        #emergencyAlertContent .alert {
+            border-left: 4px solid #dc3545;
+            background-color: rgba(220, 53, 69, 0.05);
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+        
+        #emergencyAlertContent .alert:last-child {
+            margin-bottom: 0;
+        }
+        
+        #emergencyAlertContent .alert-heading {
+            color: #dc3545;
+            font-weight: 600;
         }
     </style>
 
@@ -392,29 +417,38 @@
     </div>
 
     <!-- Emergency Alert Modal -->
-    <div class="emergency-alert-overlay" id="emergencyAlertOverlay"></div>
-    <div class="emergency-alert-modal" id="emergencyAlertModal">
-        <div class="text-center mb-4">
-            <i class="fas fa-exclamation-triangle fa-3x text-danger"></i>
-        </div>
-        <h4 class="text-center mb-3">New Emergency Alert!</h4>
-        <p class="text-center mb-4" id="emergencyAlertMessage">
-            There is a new emergency alert that requires immediate attention.
-        </p>
-        <div class="d-grid gap-2">
-            <a href="{% url 'rhu_management:emergency_list' %}" class="btn btn-danger">
-                <i class="fas fa-ambulance me-2"></i>View Emergency
-            </a>
-            <button type="button" class="btn btn-secondary" onclick="dismissEmergencyAlert()">
-                Dismiss
-            </button>
+    <div class="modal fade" id="emergencyAlertModal" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white py-3">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle fa-lg me-2"></i>
+                        <span class="fw-bold">EMERGENCY ALERT!</span>
+                        <div class="pulse-ring"></div>
+                    </h5>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-3">
+                        <div class="emergency-icon-wrapper mb-2">
+                            <i class="fas fa-ambulance fa-3x text-danger emergency-icon"></i>
+                        </div>
+                        <h6 class="text-danger mb-3">Immediate Attention Required!</h6>
+                    </div>
+                    <div id="emergencyAlertContent">
+                        <!-- Alert content will be inserted here -->
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4 px-4">
+                    <a href="{% url 'rhu_management:emergency_list' %}" class="btn btn-danger w-100 mb-2">
+                        <i class="fas fa-ambulance me-2"></i>View Emergency Alerts
+                    </a>
+                    <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Close
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
-
-    <!-- Emergency Sound -->
-    <audio id="emergencySound" preload="auto">
-        <source src="{% static 'rhu_management/sounds/emergency.mp3' %}" type="audio/mpeg">
-    </audio>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -470,84 +504,99 @@
                     }, 300);
                 });
             });
-
-            // Emergency Alert System
-            const emergencySound = document.getElementById('emergencySound');
-            const emergencyModal = document.getElementById('emergencyAlertModal');
-            const emergencyOverlay = document.getElementById('emergencyAlertOverlay');
-            let checkEmergencyInterval;
-
-            function showEmergencyAlert(message) {
-                console.log('Showing emergency alert:', message);
-                emergencyModal.classList.add('active');
-                emergencyOverlay.classList.add('active');
-                if (emergencySound) {
-                    // Try to play sound with user interaction
-                    const playPromise = emergencySound.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch((error) => {
-                            console.error('Error playing sound:', error);
-                            // Add a play button if autoplay is blocked
-                            if (error.name === 'NotAllowedError') {
-                                const playButton = document.createElement('button');
-                                playButton.className = 'btn btn-warning mt-3';
-                                playButton.innerHTML = '<i class="fas fa-volume-up me-2"></i>Play Alert Sound';
-                                playButton.onclick = () => emergencySound.play();
-                                document.querySelector('#emergencyAlertModal .d-grid').appendChild(playButton);
-                            }
-                        });
-                    }
-                }
-            }
-
-            function dismissEmergencyAlert() {
-                emergencyModal.classList.remove('active');
-                emergencyOverlay.classList.remove('active');
-                if (emergencySound) {
-                    emergencySound.pause();
-                    emergencySound.currentTime = 0;
-                }
-            }
-
-            // Check for new emergencies every 30 seconds
-            async function checkNewEmergencies() {
-                try {
-                    console.log('Checking for new emergencies...');
-                    const response = await fetch('{% url "rhu_management:check_new_emergencies" %}');
-                    const data = await response.json();
-                    
-                    console.log('Emergency check response:', data);
-                    if (data.new_emergency) {
-                        showEmergencyAlert(data.message);
-                    }
-                } catch (error) {
-                    console.error('Error checking emergencies:', error);
-                }
-            }
-
-            // Start checking for emergencies
-            checkEmergencyInterval = setInterval(checkNewEmergencies, 5000); // Check every 5 seconds for testing
-            checkNewEmergencies(); // Check immediately on page load
-
-            // Clean up on page unload
-            window.addEventListener('beforeunload', function() {
-                clearInterval(checkEmergencyInterval);
-            });
         });
 
-        // Make dismissEmergencyAlert globally available
-        window.dismissEmergencyAlert = function() {
-            const emergencyModal = document.getElementById('emergencyAlertModal');
-            const emergencyOverlay = document.getElementById('emergencyAlertOverlay');
-            const emergencySound = document.getElementById('emergencySound');
-            
-            emergencyModal.classList.remove('active');
-            emergencyOverlay.classList.remove('active');
-            if (emergencySound) {
+        // Emergency alert sound
+        const emergencySound = new Audio('/static/sounds/emergency.mp3');
+        emergencySound.loop = true;
+
+        // Get emergency modal element
+        const emergencyModal = document.getElementById('emergencyAlertModal');
+        
+        // Add event listener for when modal is hidden
+        emergencyModal.addEventListener('hidden.bs.modal', function () {
+            emergencySound.pause();
+            emergencySound.currentTime = 0;
+        });
+        
+        // Keep track of known alerts to prevent duplicate notifications
+        let knownAlerts = new Set();
+        
+        function checkEmergencyAlerts() {
+            fetch('{% url "rhu_management:check_emergency_alerts" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.has_active_alerts) {
+                        // Format alert content
+                        const alertContent = data.active_alerts.map(alert => `
+                            <div class="alert mb-3">
+                                <h6 class="alert-heading mb-2">
+                                    <i class="fas fa-user-injured me-2"></i>${alert.patient_name}
+                                </h6>
+                                <div class="ms-1">
+                                    <p class="mb-2">
+                                        <i class="fas fa-map-marker-alt me-2"></i>
+                                        <strong>Address:</strong> ${alert.sitio}, ${alert.barangay}
+                                    </p>
+                                    <p class="mb-2">
+                                        <i class="fas fa-clock me-2"></i>
+                                        <strong>Time:</strong> ${alert.alert_time}
+                                    </p>
+                                    <p class="mb-0">
+                                        <i class="fas fa-location-dot me-2"></i>
+                                        <strong>Location:</strong>
+                                        <a href="https://www.google.com/maps?q=${alert.location}"
+                                           target="_blank" 
+                                           class="badge bg-secondary text-white text-decoration-none ms-1">
+                                            <i class="fas fa-map-marker-alt me-2"></i>View on Map
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
+                        `).join('');
+
+                        // Check for new alerts
+                        const currentAlertIds = new Set(data.active_alerts.map(a => a.id));
+                        const hasNewAlerts = [...currentAlertIds].some(id => !knownAlerts.has(id));
+
+                        if (hasNewAlerts) {
+                            // Update modal content
+                            document.getElementById('emergencyAlertContent').innerHTML = alertContent;
+                            
+                            // Show modal if not already visible
+                            const modal = new bootstrap.Modal(document.getElementById('emergencyAlertModal'));
+                            modal.show();
+                            
+                            // Play sound
+                            emergencySound.play().catch(() => {});
+                        }
+
+                        // Update known alerts
+                        knownAlerts = currentAlertIds;
+                    } else {
+                        // Stop sound if no active alerts
+                        emergencySound.pause();
+                        emergencySound.currentTime = 0;
+                        knownAlerts.clear();
+                    }
+                })
+                .catch(error => console.error('Error checking emergency alerts:', error));
+        }
+
+        // Check for emergencies every 30 seconds
+        setInterval(checkEmergencyAlerts, 30000);
+        
+        // Initial check
+        checkEmergencyAlerts();
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
                 emergencySound.pause();
-                emergencySound.currentTime = 0;
+            } else {
+                checkEmergencyAlerts();
             }
-        };
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

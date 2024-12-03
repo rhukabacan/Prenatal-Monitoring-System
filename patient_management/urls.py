@@ -34,4 +34,8 @@ urlpatterns = [
     path('emergency/', views.emergency_alert, name='emergency_alert'),
     path('emergency/history/', views.emergency_history,
          name='emergency_history'),
+
+    # Vital Signs
+    path('vital-signs/', views.vital_signs, name='vital_signs'),
+    path('vital-signs/update/', views.update_vital_signs, name='update_vital_signs'),
 ]

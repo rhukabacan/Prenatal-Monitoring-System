@@ -11,25 +11,15 @@ class RhuManagementConfig(AppConfig):
             from django_q.tasks import schedule
             from django_q.models import Schedule
             
-            # Remove existing schedules
-            Schedule.objects.filter(
-                name__in=['checkup_reminders', 'emergency_check']
-            ).delete()
+            # Remove existing schedule
+            Schedule.objects.filter(name='checkup_reminders').delete()
             
-            # Schedule checkup reminders
+            # Create new daily schedule
             schedule(
                 'rhu_management.tasks.send_checkup_reminders',
                 name='checkup_reminders',
-                schedule_type='I',
-                minutes=5
-            )
-            
-            # Schedule emergency checks
-            schedule(
-                'rhu_management.tasks.check_new_emergencies',
-                name='emergency_check',
-                schedule_type='I',
-                minutes=1  # Check every minute
+                schedule_type='I',  # Minutes schedule
+                minutes=5  # Run every 5 minutes
             )
         except Exception as e:
-            print(f"Error scheduling tasks: {str(e)}")
+            print(f"Error scheduling task: {str(e)}")
