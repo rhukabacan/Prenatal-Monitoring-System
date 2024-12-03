@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction, models
 from django.db.models import Count, Avg, Q, OuterRef, Subquery
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from reportlab.lib import colors
@@ -21,6 +21,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory
 
@@ -2391,3 +2392,40 @@ def calculate_response_times(alerts):
         response_times['max'] = round(max_time, 1)
 
     return response_times
+
+
+@csrf_exempt
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def check_new_emergencies(request):
+    """API endpoint to check for new emergencies"""
+    last_check = request.session.get('last_emergency_check')
+    current_time = timezone.now()
+    
+    print(f"Checking emergencies. Last check: {last_check}")
+    
+    if last_check:
+        # Convert string to datetime if needed
+        last_check = timezone.datetime.fromisoformat(last_check)
+        
+        # Check for new emergencies
+        new_emergency = EmergencyAlert.objects.filter(
+            alert_time__gt=last_check,
+            status='ACTIVE'
+        ).exists()
+    else:
+        # First check - only get emergencies from the last minute
+        new_emergency = EmergencyAlert.objects.filter(
+            alert_time__gte=current_time - timezone.timedelta(minutes=1),
+            status='ACTIVE'
+        ).exists()
+    
+    print(f"New emergency found: {new_emergency}")
+    
+    # Update last check time in session
+    request.session['last_emergency_check'] = current_time.isoformat()
+    
+    return JsonResponse({
+        'new_emergency': new_emergency,
+        'message': 'New emergency alert requires immediate attention!'
+    })

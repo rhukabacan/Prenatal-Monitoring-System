@@ -78,4 +78,6 @@ urlpatterns = [
     #      name='notification_settings'),
     # path('settings/schedule/', views.schedule_settings, name='schedule_settings'),
 
+    path('check-emergencies/', views.check_new_emergencies, name='check_new_emergencies'),
+
 ]

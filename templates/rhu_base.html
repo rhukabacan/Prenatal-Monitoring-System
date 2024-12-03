@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static%}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -203,6 +204,53 @@
         .bg-danger-gradient {
             background: linear-gradient(45deg, #e74a3b 0%, #be2617 100%);
         }
+
+        /* Emergency Alert Modal */
+        .emergency-alert-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 90%;
+            display: none;
+        }
+
+        .emergency-alert-modal.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translate(-50%, -60%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .emergency-alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1999;
+            display: none;
+        }
+
+        .emergency-alert-overlay.active {
+            display: block;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -343,6 +391,31 @@
         </div>
     </div>
 
+    <!-- Emergency Alert Modal -->
+    <div class="emergency-alert-overlay" id="emergencyAlertOverlay"></div>
+    <div class="emergency-alert-modal" id="emergencyAlertModal">
+        <div class="text-center mb-4">
+            <i class="fas fa-exclamation-triangle fa-3x text-danger"></i>
+        </div>
+        <h4 class="text-center mb-3">New Emergency Alert!</h4>
+        <p class="text-center mb-4" id="emergencyAlertMessage">
+            There is a new emergency alert that requires immediate attention.
+        </p>
+        <div class="d-grid gap-2">
+            <a href="{% url 'rhu_management:emergency_list' %}" class="btn btn-danger">
+                <i class="fas fa-ambulance me-2"></i>View Emergency
+            </a>
+            <button type="button" class="btn btn-secondary" onclick="dismissEmergencyAlert()">
+                Dismiss
+            </button>
+        </div>
+    </div>
+
+    <!-- Emergency Sound -->
+    <audio id="emergencySound" preload="auto">
+        <source src="{% static 'rhu_management/sounds/emergency.mp3' %}" type="audio/mpeg">
+    </audio>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -397,8 +470,84 @@
                     }, 300);
                 });
             });
+
+            // Emergency Alert System
+            const emergencySound = document.getElementById('emergencySound');
+            const emergencyModal = document.getElementById('emergencyAlertModal');
+            const emergencyOverlay = document.getElementById('emergencyAlertOverlay');
+            let checkEmergencyInterval;
+
+            function showEmergencyAlert(message) {
+                console.log('Showing emergency alert:', message);
+                emergencyModal.classList.add('active');
+                emergencyOverlay.classList.add('active');
+                if (emergencySound) {
+                    // Try to play sound with user interaction
+                    const playPromise = emergencySound.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch((error) => {
+                            console.error('Error playing sound:', error);
+                            // Add a play button if autoplay is blocked
+                            if (error.name === 'NotAllowedError') {
+                                const playButton = document.createElement('button');
+                                playButton.className = 'btn btn-warning mt-3';
+                                playButton.innerHTML = '<i class="fas fa-volume-up me-2"></i>Play Alert Sound';
+                                playButton.onclick = () => emergencySound.play();
+                                document.querySelector('#emergencyAlertModal .d-grid').appendChild(playButton);
+                            }
+                        });
+                    }
+                }
+            }
+
+            function dismissEmergencyAlert() {
+                emergencyModal.classList.remove('active');
+                emergencyOverlay.classList.remove('active');
+                if (emergencySound) {
+                    emergencySound.pause();
+                    emergencySound.currentTime = 0;
+                }
+            }
+
+            // Check for new emergencies every 30 seconds
+            async function checkNewEmergencies() {
+                try {
+                    console.log('Checking for new emergencies...');
+                    const response = await fetch('{% url "rhu_management:check_new_emergencies" %}');
+                    const data = await response.json();
+                    
+                    console.log('Emergency check response:', data);
+                    if (data.new_emergency) {
+                        showEmergencyAlert(data.message);
+                    }
+                } catch (error) {
+                    console.error('Error checking emergencies:', error);
+                }
+            }
+
+            // Start checking for emergencies
+            checkEmergencyInterval = setInterval(checkNewEmergencies, 5000); // Check every 5 seconds for testing
+            checkNewEmergencies(); // Check immediately on page load
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', function() {
+                clearInterval(checkEmergencyInterval);
+            });
         });
 
+        // Make dismissEmergencyAlert globally available
+        window.dismissEmergencyAlert = function() {
+            const emergencyModal = document.getElementById('emergencyAlertModal');
+            const emergencyOverlay = document.getElementById('emergencyAlertOverlay');
+            const emergencySound = document.getElementById('emergencySound');
+            
+            emergencyModal.classList.remove('active');
+            emergencyOverlay.classList.remove('active');
+            if (emergencySound) {
+                emergencySound.pause();
+                emergencySound.currentTime = 0;
+            }
+        };
     </script>
     {% block extra_js %}{% endblock %}
 </body>
