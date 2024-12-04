@@ -154,6 +154,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Semaphore SMS Configuration
 SEMAPHORE_API_KEY = '336dad3ce470602cbc2640158eaf9775'
 SEMAPHORE_SENDER_NAME = 'RHUKABACAN'
+RHU_CONTACT_NUMBER = '09516575200'
 
 # Simple Django Q configuration
 Q_CLUSTER = {

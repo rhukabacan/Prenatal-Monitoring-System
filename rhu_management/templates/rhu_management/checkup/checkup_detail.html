@@ -14,7 +14,7 @@
                         <i class="fas fa-edit me-2"></i>Edit Record
                     </a>
                     <a href="{% url 'rhu_management:checkup_create' checkup.patient.id %}" class="btn btn-light btn-sm ms-2">
-                        <i class="fas fa-plus me-2"></i>New Checkup
+                        <i class="fas fa-plus me-2"></i>Schedule Checkup
                     </a>
                 </div>
             </div>
@@ -60,18 +60,18 @@
                 {% endif %}
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body mt-3">
             <!-- Basic Information -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
-                            <i class="fas fa-user text-primary"></i>
-                        </div>
-                        <h5 class="mb-0">Patient Information</h5>
-                    </div>
-                    <div class="d-flex flex-column gap-3">
-                        <div class="d-flex align-items-center">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-user text-primary me-2"></i>Patient Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
                             <i class="fas fa-user text-primary me-3"></i>
                             <div>
                                 <small class="text-muted d-block">Patient Name</small>
@@ -81,14 +81,18 @@
                                 </a>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center">
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
                             <i class="fas fa-calendar text-primary me-3"></i>
                             <div>
                                 <small class="text-muted d-block">Checkup Date</small>
                                 <strong>{{ checkup.checkup_date|date:"F d, Y g:i A" }}</strong>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center">
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
                             <i class="fas fa-clipboard-check text-primary me-3"></i>
                             <div>
                                 <small class="text-muted d-block">Status</small>
@@ -102,61 +106,269 @@
                                 </span>
                             </div>
                         </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Vital Signs -->
-                <div class="col-md-6">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-info bg-opacity-10 rounded-circle p-2 me-2">
-                            <i class="fas fa-heartbeat text-info"></i>
-                        </div>
-                        <h5 class="mb-0">Vital Signs</h5>
-                    </div>
-                    <div class="d-flex flex-column gap-3">
-                        <!-- Row 1 -->
-                        <div class="row">
-                            <div class="col-6">
+            {% if vital_signs %}
+            <!-- Vital Signs -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-heartbeat text-info me-2"></i>Vital Signs
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Basic Measurements -->
+                    <div class="mb-5">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-stethoscope me-2"></i>Basic Measurements
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-weight text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Weight</small>
-                                        <strong>{{ checkup.weight }} kg</strong>
+                                        <strong>{{ vital_signs.weight|default:"--" }} kg</strong>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-md-3">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-ruler-vertical text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Height</small>
-                                        <strong>{{ checkup.height }} cm</strong>
+                                        <strong>{{ vital_signs.height|default:"--" }} cm</strong>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Row 2 -->
-                        <div class="row">
-                            <div class="col-6">
+                            <div class="col-md-3">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-heart text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Blood Pressure</small>
-                                        <strong>{{ checkup.blood_pressure }}</strong>
+                                        <strong>{{ vital_signs.blood_pressure|default:"--" }}</strong>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-md-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="fas fa-calculator text-info me-3"></i>
+                                    <i class="fas fa-calendar-week text-info me-3"></i>
                                     <div>
-                                        <small class="text-muted d-block">BMI</small>
-                                        {% if checkup.get_bmi %}
-                                        <strong>{{ checkup.get_bmi|floatformat:1 }}</strong>
-                                        <span class="text-muted">({{ checkup.get_bmi_category }})</span>
-                                        {% else %}
-                                        <span class="text-muted">Not available</span>
-                                        {% endif %}
+                                        <small class="text-muted d-block">Age of Gestation</small>
+                                        <strong>{{ vital_signs.age_of_gestation|default:"--" }} weeks</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status & Planning -->
+                    <div class="mb-5">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-clipboard-check me-2"></i>Status & Planning
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-utensils text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Nutritional Status</small>
+                                        <strong>{{ vital_signs.get_nutritional_status_display|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-baby-carriage text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Birth Plan Status</small>
+                                        <strong>{{ vital_signs.get_birth_plan_status_display|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tooth text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Dental Checkup Status</small>
+                                        <strong>{{ vital_signs.get_dental_checkup_status_display|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-check text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Dental Checkup Date</small>
+                                        <strong>{{ vital_signs.dental_checkup_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Laboratory Tests -->
+                    <div class="mb-5">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-flask me-2"></i>Laboratory Tests
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tint text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Hemoglobin Count</small>
+                                        <strong>{{ vital_signs.hemoglobin_count|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-flask text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Urinalysis Date</small>
+                                        <strong>{{ vital_signs.urinalysis_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-vial text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">CBC Date</small>
+                                        <strong>{{ vital_signs.cbc_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-microscope text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Stool Exam Date</small>
+                                        <strong>{{ vital_signs.stool_exam_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STI Tests -->
+                    <div class="mb-5">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-virus-slash me-2"></i>STI Tests
+                        </h6>
+                        <div class="row g-3">
+                            <!-- Syphilis -->
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Syphilis Test Date</small>
+                                        <strong>{{ vital_signs.syphilis_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-medical-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Syphilis Result</small>
+                                        <strong>{{ vital_signs.syphilis_result|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- HIV -->
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">HIV Test Date</small>
+                                        <strong>{{ vital_signs.hiv_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-medical-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">HIV Result</small>
+                                        <strong>{{ vital_signs.hiv_result|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Hepatitis B -->
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Hepatitis B Test Date</small>
+                                        <strong>{{ vital_signs.hepatitis_b_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-medical-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Hepatitis B Result</small>
+                                        <strong>{{ vital_signs.hepatitis_b_result|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Treatments -->
+                    <div class="mb-5">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-pills me-2"></i>Treatments
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-syringe text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Tetanus Vaccine Date</small>
+                                        <strong>{{ vital_signs.tetanus_vaccine_date|date:"M d, Y"|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-prescription-bottle-alt text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Syphilis Treatment</small>
+                                        <strong>{{ vital_signs.syphilis_treatment|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-capsules text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">ARV Treatment</small>
+                                        <strong>{{ vital_signs.arv_treatment|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-prescription text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Bacteriuria Treatment</small>
+                                        <strong>{{ vital_signs.bacteriuria_treatment|default:"--" }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tablets text-info me-3"></i>
+                                    <div>
+                                        <small class="text-muted d-block">Anemia Treatment</small>
+                                        <strong>{{ vital_signs.anemia_treatment|default:"--" }}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -164,17 +376,17 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Pregnancy Progress -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success bg-opacity-10 rounded-circle p-2 me-2">
-                            <i class="fas fa-baby text-success"></i>
-                        </div>
-                        <h5 class="mb-0">Pregnancy Progress</h5>
-                    </div>
-                    <div class="progress mb-3" style="height: 20px;">
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-baby text-success me-2"></i>Pregnancy Progress
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mt-2 mb-3" style="height: 20px;">
                         <div class="progress-bar bg-success" role="progressbar"
                              style="width: {{ progress_percentage }}%"
                              aria-valuenow="{{ weeks_pregnant }}"
@@ -207,14 +419,13 @@
 
             <!-- Notes -->
             {% if checkup.notes %}
-            <div class="row">
-                <div class="col-12">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-warning bg-opacity-10 rounded-circle p-2 me-2">
-                            <i class="fas fa-clipboard-list text-warning"></i>
-                        </div>
-                        <h5 class="mb-0">Notes & Observations</h5>
-                    </div>
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5>
+                        <i class="fas fa-clipboard-list text-warning me-2"></i>Notes & Observations
+                    </h5>
+                </div>
+                <div class="card-body">
                     <div class="card bg-light shadow-sm">
                         <div class="card-body py-2">
                             {{ checkup.notes|linebreaks }}

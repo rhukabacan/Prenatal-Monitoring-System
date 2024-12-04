@@ -461,54 +461,45 @@ def request_checkup(request):
     """Handle checkup requests from patients"""
     patient = request.user.patient
 
-    # Get the initial checkup data
-    checkup = PrenatalCheckup.objects.filter(
+    # Get previous checkup for reference
+    previous_checkup = PrenatalCheckup.objects.filter(
         patient=patient
-    ).first()
+    ).order_by('-checkup_date').first()
 
     # Check if patient has vital signs
     has_vital_signs = VitalSigns.objects.filter(patient=patient).exists()
 
     if request.method == 'POST':
         try:
-            requested_date = datetime.strptime(
-                f"{request.POST.get('checkup_date')} {request.POST.get('checkup_time')}",
-                '%Y-%m-%d %H:%M'
+            requested_date = datetime.combine(
+                datetime.strptime(request.POST.get('checkup_date'), '%Y-%m-%d').date(),
+                datetime.strptime(request.POST.get('checkup_time'), '%H:%M').time()
             )
 
-            # Get the last menstrual period from form
-            new_lmp = request.POST.get('last_menstrual_period')
-            
-            # Get previous or first checkup's LMP
-            previous_lmp = None
-            if checkup:
-                previous_lmp = checkup.last_menstrual_period
-            else:
-                first_checkup = PrenatalCheckup.objects.filter(
-                    patient=patient
-                ).order_by('created_at').first()
-                if first_checkup:
-                    previous_lmp = first_checkup.last_menstrual_period
+            # Determine last menstrual period
+            last_menstrual_period = request.POST.get('last_menstrual_period')
+            if not last_menstrual_period and previous_checkup:
+                last_menstrual_period = previous_checkup.last_menstrual_period
 
-            checkup_data = {
-                'patient': patient,
-                'checkup_date': requested_date,
-                'notes': request.POST.get('notes'),
-                'status': 'REQUESTED',
-                'last_menstrual_period': (
-                    datetime.strptime(new_lmp, '%Y-%m-%d').date()
-                    if new_lmp
-                    else previous_lmp
-                )
-            }
+            # Convert last_menstrual_period to date if it's a string
+            if isinstance(last_menstrual_period, str):
+                last_menstrual_period = datetime.strptime(last_menstrual_period, '%Y-%m-%d').date()
 
-            if not checkup:
+            # Create checkup record
+            checkup = PrenatalCheckup.objects.create(
+                patient=patient,
+                checkup_date=requested_date,
+                last_menstrual_period=last_menstrual_period,
+                notes=request.POST.get('notes', ''),
+                status='REQUESTED'
+            )
+
+            if not previous_checkup:
                 # Check if vital signs exist before creating first checkup
                 if not has_vital_signs:
                     messages.warning(request, 'Please update your vital signs first before requesting a checkup.')
                     return redirect('patient_management:vital_signs')
 
-            PrenatalCheckup.objects.create(**checkup_data)
             messages.success(request, 'Checkup request submitted successfully!')
             return redirect('patient_management:checkup_list')
 
@@ -518,8 +509,7 @@ def request_checkup(request):
             messages.error(request, str(e))
 
     return render(request, 'patient_management/checkup_request.html', {
-        'has_previous_checkup': bool(checkup),
-        'checkup': checkup,
+        'previous_checkup': previous_checkup,
         'has_vital_signs': has_vital_signs,
         'title': 'Request Checkup'
     })

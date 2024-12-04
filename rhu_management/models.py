@@ -251,16 +251,15 @@ class PrenatalCheckup(models.Model):
 
     def get_pregnancy_week(self):
         """Calculate pregnancy week using initial checkup values"""
-        initial_checkup = PrenatalCheckup.objects.filter(
+        checkup = PrenatalCheckup.objects.filter(
             patient=self.patient,
-            is_initial_record=True
         ).first()
 
-        if not initial_checkup or not initial_checkup.last_menstrual_period:
+        if not checkup or not checkup.last_menstrual_period:
             return None
 
         # Calculate weeks based on current date
-        days_pregnant = (timezone.now().date() - initial_checkup.last_menstrual_period).days
+        days_pregnant = (timezone.now().date() - checkup.last_menstrual_period).days
         weeks = min(days_pregnant // 7, 42)
 
         return {

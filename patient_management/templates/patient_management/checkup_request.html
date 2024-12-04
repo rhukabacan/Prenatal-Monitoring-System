@@ -227,20 +227,20 @@
                             </div>
                         </div>
 
-                        {% if checkup.estimated_delivery_date %}
+                        {% if previous_checkup.estimated_delivery_date %}
                         <div class="alert alert-danger mt-3">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-calendar-check me-3 fa-2x"></i>
                                 <div>
                                     <h6 class="mb-1">Estimated Delivery Date</h6>
-                                    <strong>{{ checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                    <strong>{{ previous_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
                                 </div>
                             </div>
                         </div>
                         {% endif %}
                     </div>
 
-                    {% if not has_previous_checkup %}
+                    {% if not previous_checkup.last_menstrual_period %}
                     <!-- Pregnancy Information -->
                     <div class="form-section">
                         <div class="alert alert-danger mb-4">
@@ -269,8 +269,7 @@
                                     <label for="estimated_delivery_date" class="form-label">
                                         <i class="fas fa-calendar-check me-2"></i>Estimated Delivery Date
                                     </label>
-                                    <input type="date" class="form-control" id="estimated_delivery_date"
-                                           name="estimated_delivery_date" readonly>
+                                    <input type="date" class="form-control" id="estimated_delivery_date" readonly>
                                     <small class="text-muted">Automatically calculated</small>
                                 </div>
                             </div>

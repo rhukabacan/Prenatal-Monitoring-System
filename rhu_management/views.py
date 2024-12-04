@@ -23,8 +23,9 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from django.views.decorators.http import require_GET
 from .tasks import check_active_emergencies
+import requests
 
-from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory
+from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory, VitalSigns
 
 
 def superuser_required(view_func):
@@ -787,41 +788,118 @@ def checkup_create(request, patient_id):
     """Record new checkup for a patient"""
     patient = get_object_or_404(Patient, id=patient_id)
 
-    if request.method == 'POST':
-        # Get form data
-        checkup_date = datetime.strptime(request.POST.get('checkup_date'), '%Y-%m-%d').date()
-        checkup_time = datetime.strptime(request.POST.get('checkup_time'), '%H:%M').time()
-
-        try:
-            with transaction.atomic():
-                # Create checkup record
-                checkup = PrenatalCheckup.objects.create(
-                    patient=patient,
-                    checkup_date=datetime.combine(checkup_date, checkup_time),
-                    weight=request.POST.get('weight'),
-                    height=request.POST.get('height'),
-                    blood_pressure=request.POST.get('blood_pressure'),
-                    last_menstrual_period=datetime.strptime(
-                        request.POST.get('last_menstrual_period'),
-                        '%Y-%m-%d'
-                    ).date(),
-                    notes=request.POST.get('notes', ''),
-                )
-
-                messages.success(request, 'Checkup record added successfully!')
-                return redirect('rhu_management:checkup_detail', checkup.id)
-
-        except Exception as e:
-            messages.error(request, 'Error adding checkup record.')
-
     # Get previous checkup for reference
     previous_checkup = PrenatalCheckup.objects.filter(
         patient=patient
     ).order_by('-checkup_date').first()
 
+    # Get latest vital signs
+    latest_vitals = VitalSigns.objects.filter(
+        patient=patient
+    ).order_by('-recorded_at').first()
+
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Determine last menstrual period
+                last_menstrual_period = request.POST.get('last_menstrual_period')
+                if not last_menstrual_period and previous_checkup:
+                    last_menstrual_period = previous_checkup.last_menstrual_period
+
+                # Convert last_menstrual_period to date if it's a string
+                if isinstance(last_menstrual_period, str):
+                    last_menstrual_period = datetime.strptime(last_menstrual_period, '%Y-%m-%d').date()
+
+                # Create checkup record
+                checkup = PrenatalCheckup.objects.create(
+                    patient=patient,
+                    checkup_date=datetime.combine(
+                        datetime.strptime(request.POST.get('checkup_date'), '%Y-%m-%d').date(),
+                        datetime.strptime(request.POST.get('checkup_time'), '%H:%M').time()
+                    ),
+                    last_menstrual_period=last_menstrual_period,
+                    notes=request.POST.get('notes', ''),
+                    status='SCHEDULED'
+                )
+
+                # Create vital signs record
+                vital_signs = VitalSigns.objects.create(
+                    patient=patient,
+                    # Basic Measurements
+                    weight=request.POST.get('weight'),
+                    height=request.POST.get('height'),
+                    blood_pressure=request.POST.get('blood_pressure'),
+                    age_of_gestation=request.POST.get('age_of_gestation'),
+                    
+                    # Status & Planning
+                    nutritional_status=request.POST.get('nutritional_status'),
+                    birth_plan_status=request.POST.get('birth_plan_status'),
+                    dental_checkup_status=request.POST.get('dental_checkup_status'),
+                    dental_checkup_date=request.POST.get('dental_checkup_date') or None,
+                    
+                    # Laboratory Tests
+                    hemoglobin_count=request.POST.get('hemoglobin_count') or None,
+                    urinalysis_date=request.POST.get('urinalysis_date') or None,
+                    cbc_date=request.POST.get('cbc_date') or None,
+                    stool_exam_date=request.POST.get('stool_exam_date') or None,
+                    
+                    # STI Tests
+                    syphilis_test_date=request.POST.get('syphilis_test_date') or None,
+                    syphilis_result=request.POST.get('syphilis_result'),
+                    hiv_test_date=request.POST.get('hiv_test_date') or None,
+                    hiv_result=request.POST.get('hiv_result'),
+                    hepatitis_b_test_date=request.POST.get('hepatitis_b_test_date') or None,
+                    hepatitis_b_result=request.POST.get('hepatitis_b_result'),
+                    
+                    # Treatments
+                    tetanus_vaccine_date=request.POST.get('tetanus_vaccine_date') or None,
+                    syphilis_treatment=request.POST.get('syphilis_treatment'),
+                    arv_treatment=request.POST.get('arv_treatment'),
+                    bacteriuria_treatment=request.POST.get('bacteriuria_treatment'),
+                    anemia_treatment=request.POST.get('anemia_treatment')
+                )
+
+                # Send SMS notification
+                api_url = "https://api.semaphore.co/api/v4/messages"
+                message = (
+                    f"RHU KABACAN NOTIFICATION!\n\n"
+                    f"Dear {patient.user.first_name},\n\n"
+                    f"Your prenatal checkup is scheduled on "
+                    f"{checkup.checkup_date.strftime('%B %d, %Y')} ({checkup.checkup_date.strftime('%A')}) "
+                    f"at {checkup.checkup_date.strftime('%I:%M %p')}.\n"
+                    f"Please bring your prenatal record book.\n\n"
+                    f"For any concerns, please contact us at {settings.RHU_CONTACT_NUMBER}. THANK YOU!"
+                )
+                
+                payload = {
+                    'apikey': settings.SEMAPHORE_API_KEY,
+                    'number': patient.contact_number,
+                    'message': message,
+                    'sendername': settings.SEMAPHORE_SENDER_NAME
+                }
+                
+                try:
+                    response = requests.post(api_url, data=payload)
+                    response.raise_for_status()
+                    messages.success(request, 'Checkup record added and SMS reminder sent successfully!')
+                except Exception as sms_error:
+                    print(f"Error sending SMS: {str(sms_error)}")
+                    messages.success(request, 'Checkup record added successfully!')
+                    messages.warning(request, 'Failed to send SMS reminder.')
+
+                return redirect('rhu_management:checkup_detail', checkup.id)
+
+        except Exception as e:
+            messages.error(request, f'Error adding checkup record: {str(e)}')
+            return redirect('rhu_management:checkup_create', patient_id=patient_id)
+
     context = {
         'patient': patient,
         'previous_checkup': previous_checkup,
+        'latest_vitals': latest_vitals,
+        'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
+        'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
+        'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
         'title': f'New Checkup - {patient.user.get_full_name()}'
     }
 
@@ -834,6 +912,11 @@ def checkup_detail(request, checkup_id):
     """Display detailed checkup information"""
     checkup = get_object_or_404(PrenatalCheckup, id=checkup_id)
 
+    # Get vital signs for this checkup
+    vital_signs = VitalSigns.objects.filter(
+        patient=checkup.patient,
+    ).latest('recorded_at')
+
     # Calculate pregnancy week and progress
     weeks_pregnant = None
     progress_percentage = None
@@ -842,7 +925,7 @@ def checkup_detail(request, checkup_id):
         weeks_pregnant = min(days_pregnant // 7, 42)
         progress_percentage = min((weeks_pregnant / 42) * 100, 100)
 
-    # Get previous and next checkups for this patient
+    # Get previous and next checkups
     previous_checkup = PrenatalCheckup.objects.filter(
         patient=checkup.patient,
         checkup_date__lt=checkup.checkup_date
@@ -855,6 +938,7 @@ def checkup_detail(request, checkup_id):
 
     context = {
         'checkup': checkup,
+        'vital_signs': vital_signs,  # Add vital signs to context
         'weeks_pregnant': weeks_pregnant,
         'progress_percentage': progress_percentage,
         'previous_checkup': previous_checkup,
@@ -870,36 +954,72 @@ def checkup_detail(request, checkup_id):
 def checkup_update(request, checkup_id):
     """Update existing checkup record"""
     checkup = get_object_or_404(PrenatalCheckup, id=checkup_id)
+    
+    try:
+        vital_signs = VitalSigns.objects.filter(patient=checkup.patient).latest('recorded_at')
+    except VitalSigns.DoesNotExist:
+        # Create new vital signs if none exist
+        vital_signs = VitalSigns(patient=checkup.patient)
 
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Get form data
+                # Update checkup details
                 checkup_date = datetime.strptime(request.POST.get('checkup_date'), '%Y-%m-%d').date()
                 checkup_time = datetime.strptime(request.POST.get('checkup_time'), '%H:%M').time()
-
-                # Update checkup details
                 checkup.checkup_date = datetime.combine(checkup_date, checkup_time)
                 checkup.status = request.POST.get('status')
-                checkup.weight = request.POST.get('weight')
-                checkup.height = request.POST.get('height')
-                checkup.blood_pressure = request.POST.get('blood_pressure')
-                checkup.last_menstrual_period = datetime.strptime(
-                    request.POST.get('last_menstrual_period'),
-                    '%Y-%m-%d'
-                ).date()
                 checkup.notes = request.POST.get('notes', '')
                 checkup.save()
+
+                # Update vital signs
+                vital_signs.weight = request.POST.get('weight')
+                vital_signs.height = request.POST.get('height')
+                vital_signs.blood_pressure = request.POST.get('blood_pressure')
+                vital_signs.age_of_gestation = request.POST.get('age_of_gestation')
+                
+                # Status & Planning
+                vital_signs.nutritional_status = request.POST.get('nutritional_status')
+                vital_signs.birth_plan_status = request.POST.get('birth_plan_status')
+                vital_signs.dental_checkup_status = request.POST.get('dental_checkup_status')
+                vital_signs.dental_checkup_date = request.POST.get('dental_checkup_date') or None
+                
+                # Laboratory Tests
+                vital_signs.hemoglobin_count = request.POST.get('hemoglobin_count')
+                vital_signs.urinalysis_date = request.POST.get('urinalysis_date') or None
+                vital_signs.cbc_date = request.POST.get('cbc_date') or None
+                vital_signs.stool_exam_date = request.POST.get('stool_exam_date') or None
+                
+                # STI Tests
+                vital_signs.syphilis_test_date = request.POST.get('syphilis_test_date') or None
+                vital_signs.syphilis_result = request.POST.get('syphilis_result')
+                vital_signs.hiv_test_date = request.POST.get('hiv_test_date') or None
+                vital_signs.hiv_result = request.POST.get('hiv_result')
+                vital_signs.hepatitis_b_test_date = request.POST.get('hepatitis_b_test_date') or None
+                vital_signs.hepatitis_b_result = request.POST.get('hepatitis_b_result')
+                
+                # Treatments
+                vital_signs.tetanus_vaccine_date = request.POST.get('tetanus_vaccine_date') or None
+                vital_signs.syphilis_treatment = request.POST.get('syphilis_treatment')
+                vital_signs.arv_treatment = request.POST.get('arv_treatment')
+                vital_signs.bacteriuria_treatment = request.POST.get('bacteriuria_treatment')
+                vital_signs.anemia_treatment = request.POST.get('anemia_treatment')
+                
+                vital_signs.save()
 
                 messages.success(request, 'Checkup record updated successfully!')
                 return redirect('rhu_management:checkup_detail', checkup_id=checkup.id)
 
         except Exception as e:
-            messages.error(request, 'Error updating checkup record.')
+            messages.error(request, f'Error updating checkup record: {str(e)}')
 
     context = {
         'checkup': checkup,
+        'vital_signs': vital_signs,
         'status_choices': PrenatalCheckup.STATUS_CHOICES,
+        'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
+        'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
+        'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
         'title': f'Edit Checkup - {checkup.patient.user.get_full_name()}'
     }
 
@@ -1012,7 +1132,54 @@ def emergency_respond(request, alert_id):
 
                 alert.save()
 
-                messages.success(request, 'Emergency alert updated successfully!')
+                # Send SMS notification based on status
+                api_url = "https://api.semaphore.co/api/v4/messages"
+                
+                # Define status-specific messages
+                if new_status == 'RESPONDED':
+                    message = (
+                        f"EMERGENCY ALERT UPDATE!\n\n"
+                        f"Dear {alert.patient.user.first_name},\n\n"
+                        f"RHU Kabacan has received your emergency alert and is coordinating response. "
+                        f"Our medical team will contact you shortly.\n\n"
+                        f"Stay calm and keep your phone line open.\n"
+                        f"Emergency Hotline: {settings.RHU_CONTACT_NUMBER}"
+                    )
+                elif new_status == 'EN_ROUTE':
+                    message = (
+                        f"EMERGENCY ALERT UPDATE!\n\n"
+                        f"Dear {alert.patient.user.first_name},\n\n"
+                        f"Our medical response team is now en route to your location. "
+                        f"Please ensure your location is accessible.\n\n"
+                        f"Keep your phone line open for updates.\n"
+                        f"Emergency Hotline: {settings.RHU_CONTACT_NUMBER}"
+                    )
+                elif new_status == 'RESOLVED':
+                    message = (
+                        f"EMERGENCY ALERT UPDATE!\n\n"
+                        f"Dear {alert.patient.user.first_name},\n\n"
+                        f"Your emergency alert has been resolved. "
+                        f"Please don't hesitate to reach out if you need further assistance.\n\n"
+                        f"Take care and stay healthy!\n"
+                        f"RHU Kabacan Hotline: {settings.RHU_CONTACT_NUMBER}"
+                    )
+
+                # Send SMS
+                payload = {
+                    'apikey': settings.SEMAPHORE_API_KEY,
+                    'number': alert.patient.contact_number,
+                    'message': message,
+                    'sendername': settings.SEMAPHORE_SENDER_NAME
+                }
+
+                try:
+                    response = requests.post(api_url, data=payload)
+                    response.raise_for_status()
+                    messages.success(request, f'Emergency alert updated and notification sent successfully!')
+                except Exception as sms_error:
+                    print(f"Error sending SMS: {str(sms_error)}")
+                    messages.success(request, 'Emergency alert updated successfully!')
+                    messages.warning(request, 'Failed to send status update notification.')
 
                 return redirect('rhu_management:emergency_list')
 
@@ -1375,6 +1542,7 @@ def generate_monthly_report(start_date, end_date):
             current_date = current_date.replace(month=current_date.month + 1)
 
     return data
+
 
 
 def generate_quarterly_report(start_date, end_date):
@@ -1759,7 +1927,7 @@ def export_report(report):
 
                         # Alternate row colors
                         ('ROWBACKGROUNDS', (0, 1), (-1, -1),
-                         [colors.HexColor('#ffffff'), colors.HexColor('#f9f9f9')]),
+                        [colors.HexColor('#ffffff'), colors.HexColor('#f9f9f9')]),
 
                         # Padding
                         ('TOPPADDING', (0, 1), (-1, -1), 8),

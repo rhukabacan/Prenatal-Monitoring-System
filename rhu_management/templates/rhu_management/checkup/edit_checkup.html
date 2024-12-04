@@ -17,119 +17,315 @@
                         {% csrf_token %}
 
                         <!-- Checkup Schedule -->
-                        <h5 class="mb-3">
-                            <i class="fas fa-clipboard-list me-2"></i>Checkup Schedule
-                        </h5>
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="checkup_date" class="form-label">Checkup Date</label>
-                                    <input type="date" class="form-control" id="checkup_date"
-                                           name="checkup_date" value="{{ checkup.checkup_date|date:'Y-m-d' }}" required>
+                        <div class="card mb-4">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clipboard-list me-2"></i>Checkup Schedule
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="checkup_date" class="form-label">
+                                                <i class="fas fa-calendar-alt me-2"></i>Checkup Date
+                                            </label>
+                                            <input type="date" class="form-control" id="checkup_date"
+                                                   name="checkup_date" value="{{ checkup.checkup_date|date:'Y-m-d' }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="checkup_time" class="form-label">
+                                                <i class="fas fa-clock me-2"></i>Checkup Time
+                                            </label>
+                                            <input type="time" class="form-control" id="checkup_time"
+                                                   name="checkup_time" value="{{ checkup.checkup_date|time:'H:i' }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="status" class="form-label">
+                                                <i class="fas fa-tasks me-2"></i>Status
+                                            </label>
+                                            <select class="form-select" id="status" name="status" required>
+                                                {% for value, label in status_choices %}
+                                                    <option value="{{ value }}" {% if checkup.status == value %}selected{% endif %}>
+                                                        {{ label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="checkup_time" class="form-label">Checkup Time</label>
-                                    <input type="time" class="form-control" id="checkup_time"
-                                           name="checkup_time" value="{{ checkup.checkup_date|time:'H:i' }}" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="status" class="form-label">Status</label>
-                                    <select class="form-select" id="status" name="status" required>
-                                        {% for value, label in status_choices %}
-                                            <option value="{{ value }}" {% if checkup.status == value %}selected{% endif %}>
-                                                {{ label }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Initial Checkup Information -->
-                        <div class="alert alert-info mb-4">
-                            <h5 class="alert-heading mb-3">
-                                <i class="fas fa-info-circle me-2"></i>Initial Checkup Information
-                            </h5>
-                            <p class="mb-2">This is the initial checkup record. These values will be used as baseline measurements for future checkups.</p>
                         </div>
 
                         <!-- Vital Signs -->
                         <div class="card mb-4">
-                            <div class="card-header bg-info text-white">
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-heartbeat me-2"></i>Vital Signs
-                                    </h5>
-                                    <div class="badge bg-light text-dark p-2">
-                                        <i class="fas fa-flag me-1"></i>Initial Record
-                                    </div>
-                                </div>
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-heartbeat me-2"></i>Vital Signs
+                                </h5>
                             </div>
                             <div class="card-body">
+                                <!-- Basic Measurements -->
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-stethoscope me-2"></i>Basic Measurements
+                                </h6>
                                 <div class="row">
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="weight" class="form-label">Weight (kg)</label>
+                                            <label for="weight" class="form-label">
+                                                <i class="fas fa-weight me-2"></i>Weight (kg)
+                                            </label>
                                             <input type="number" step="0.1" class="form-control" id="weight"
-                                                   name="weight" value="{{ checkup.weight }}" min="30" max="200" required>
+                                                   name="weight" value="{{ vital_signs.weight }}" min="30" max="200" required>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="height" class="form-label">Height (cm)</label>
+                                            <label for="height" class="form-label">
+                                                <i class="fas fa-ruler-vertical me-2"></i>Height (cm)
+                                            </label>
                                             <input type="number" step="0.1" class="form-control" id="height"
-                                                   name="height" value="{{ checkup.height }}" min="100" max="250" required>
+                                                   name="height" value="{{ vital_signs.height }}" min="100" max="250" required>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="blood_pressure" class="form-label">Blood Pressure</label>
+                                            <label for="blood_pressure" class="form-label">
+                                                <i class="fas fa-heart me-2"></i>Blood Pressure
+                                            </label>
                                             <input type="text" class="form-control" id="blood_pressure"
-                                                   name="blood_pressure" value="{{ checkup.blood_pressure }}"
+                                                   name="blood_pressure" value="{{ vital_signs.blood_pressure }}"
                                                    placeholder="120/80" pattern="\d{2,3}\/\d{2,3}" required>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Pregnancy Information -->
-                        <div class="card mb-4">
-                            <div class="card-header bg-info text-white">
-                                <div class="d-flex justify-content-between align-items-center">
-
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-baby me-2"></i>Pregnancy Information
-                                    </h5>
-                                    <div class="badge bg-light text-dark p-2">
-                                        <i class="fas fa-flag me-1"></i>Initial Record
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="age_of_gestation" class="form-label">
+                                                <i class="fas fa-calendar-week me-2"></i>Age of Gestation (weeks)
+                                            </label>
+                                            <input type="number" class="form-control" id="age_of_gestation"
+                                                   name="age_of_gestation" value="{{ vital_signs.age_of_gestation }}"
+                                                   min="1" max="42" required>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="card-body">
+
+                                <!-- Status & Planning -->
+                                <h6 class="mb-3 mt-4 text-primary">
+                                    <i class="fas fa-clipboard-check me-2"></i>Status & Planning
+                                </h6>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="last_menstrual_period" class="form-label">Last Menstrual Period</label>
-                                            <input type="date" class="form-control" id="last_menstrual_period"
-                                                   name="last_menstrual_period"
-                                                   value="{{ checkup.last_menstrual_period|date:'Y-m-d' }}" required>
+                                            <label for="nutritional_status" class="form-label">
+                                                <i class="fas fa-utensils me-2"></i>Nutritional Status
+                                            </label>
+                                            <select class="form-select" id="nutritional_status" name="nutritional_status" required>
+                                                <option value="">Select status</option>
+                                                {% for value, label in nutritional_status_choices %}
+                                                    <option value="{{ value }}" {% if vital_signs.nutritional_status == value %}selected{% endif %}>
+                                                        {{ label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="estimated_delivery_date" class="form-label">
-                                                Estimated Delivery Date
-                                                <small class="text-muted fst-italic">(Auto-calculated)</small>
+                                            <label for="birth_plan_status" class="form-label">
+                                                <i class="fas fa-baby-carriage me-2"></i>Birth Plan Status
                                             </label>
-                                            <input type="date" class="form-control" id="estimated_delivery_date"
-                                                   value="{{ checkup.estimated_delivery_date|date:'Y-m-d' }}"
-                                                   readonly disabled>
+                                            <select class="form-select" id="birth_plan_status" name="birth_plan_status" required>
+                                                <option value="">Select status</option>
+                                                {% for value, label in birth_plan_choices %}
+                                                    <option value="{{ value }}" {% if vital_signs.birth_plan_status == value %}selected{% endif %}>
+                                                        {{ label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="dental_checkup_status" class="form-label">
+                                                <i class="fas fa-tooth me-2"></i>Dental Checkup Status
+                                            </label>
+                                            <select class="form-select" id="dental_checkup_status" name="dental_checkup_status" required>
+                                                <option value="">Select status</option>
+                                                {% for value, label in dental_checkup_choices %}
+                                                    <option value="{{ value }}" {% if vital_signs.dental_checkup_status == value %}selected{% endif %}>
+                                                        {{ label }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="dental_checkup_date" class="form-label">
+                                                <i class="fas fa-calendar-check me-2"></i>Dental Checkup Date
+                                            </label>
+                                            <input type="date" class="form-control" id="dental_checkup_date"
+                                                   name="dental_checkup_date" value="{{ vital_signs.dental_checkup_date|date:'Y-m-d'|default:'' }}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Laboratory Tests -->
+                                <h6 class="mb-3 mt-4 text-primary">
+                                    <i class="fas fa-flask me-2"></i>Laboratory Tests
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hemoglobin_count" class="form-label">
+                                                <i class="fas fa-tint me-2"></i>Hemoglobin Count
+                                            </label>
+                                            <input type="number" step="0.1" class="form-control" id="hemoglobin_count"
+                                                   name="hemoglobin_count" value="{{ vital_signs.hemoglobin_count }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="urinalysis_date" class="form-label">
+                                                <i class="fas fa-flask me-2"></i>Urinalysis Date
+                                            </label>
+                                            <input type="date" class="form-control" id="urinalysis_date"
+                                                   name="urinalysis_date" value="{{ vital_signs.urinalysis_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="cbc_date" class="form-label">
+                                                <i class="fas fa-vial me-2"></i>CBC Date
+                                            </label>
+                                            <input type="date" class="form-control" id="cbc_date"
+                                                   name="cbc_date" value="{{ vital_signs.cbc_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="stool_exam_date" class="form-label">
+                                                <i class="fas fa-microscope me-2"></i>Stool Examination Date
+                                            </label>
+                                            <input type="date" class="form-control" id="stool_exam_date"
+                                                   name="stool_exam_date" value="{{ vital_signs.stool_exam_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- STI Tests -->
+                                <h6 class="mb-3 mt-4 text-primary">
+                                    <i class="fas fa-virus-slash me-2"></i>STI Tests
+                                </h6>
+                                <div class="row">
+                                    <!-- Syphilis -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="syphilis_test_date" class="form-label">
+                                                <i class="fas fa-calendar-alt me-2"></i>Syphilis Test Date
+                                            </label>
+                                            <input type="date" class="form-control" id="syphilis_test_date"
+                                                   name="syphilis_test_date" value="{{ vital_signs.syphilis_test_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="syphilis_result" class="form-label">
+                                                <i class="fas fa-file-medical-alt me-2"></i>Syphilis Result
+                                            </label>
+                                            <input type="text" class="form-control" id="syphilis_result"
+                                                   name="syphilis_result" value="{{ vital_signs.syphilis_result|default:'' }}">
+                                        </div>
+                                    </div>
+                                    <!-- HIV -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hiv_test_date" class="form-label">
+                                                <i class="fas fa-calendar-alt me-2"></i>HIV Test Date
+                                            </label>
+                                            <input type="date" class="form-control" id="hiv_test_date"
+                                                   name="hiv_test_date" value="{{ vital_signs.hiv_test_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hiv_result" class="form-label">
+                                                <i class="fas fa-file-medical-alt me-2"></i>HIV Result
+                                            </label>
+                                            <input type="text" class="form-control" id="hiv_result"
+                                                   name="hiv_result" value="{{ vital_signs.hiv_result }}">
+                                        </div>
+                                    </div>
+                                    <!-- Hepatitis B -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hepatitis_b_test_date" class="form-label">
+                                                <i class="fas fa-calendar-alt me-2"></i>Hepatitis B Test Date
+                                            </label>
+                                            <input type="date" class="form-control" id="hepatitis_b_test_date"
+                                                   name="hepatitis_b_test_date" value="{{ vital_signs.hepatitis_b_test_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hepatitis_b_result" class="form-label">
+                                                <i class="fas fa-file-medical-alt me-2"></i>Hepatitis B Result
+                                            </label>
+                                            <input type="text" class="form-control" id="hepatitis_b_result"
+                                                   name="hepatitis_b_result" value="{{ vital_signs.hepatitis_b_result }}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Treatments -->
+                                <h6 class="mb-3 mt-4 text-primary">
+                                    <i class="fas fa-pills me-2"></i>Treatments
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label for="tetanus_vaccine_date" class="form-label">
+                                                <i class="fas fa-syringe me-2"></i>Tetanus Vaccine Date
+                                            </label>
+                                            <input type="date" class="form-control" id="tetanus_vaccine_date"
+                                                   name="tetanus_vaccine_date" value="{{ vital_signs.tetanus_vaccine_date|date:'Y-m-d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="syphilis_treatment" class="form-label">
+                                                <i class="fas fa-prescription-bottle-alt me-2"></i>Syphilis Treatment
+                                            </label>
+                                            <textarea class="form-control" id="syphilis_treatment" name="syphilis_treatment" rows="2">{{ vital_signs.syphilis_treatment|default:'' }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="arv_treatment" class="form-label">
+                                                <i class="fas fa-capsules me-2"></i>ARV Treatment
+                                            </label>
+                                            <textarea class="form-control" id="arv_treatment" name="arv_treatment" rows="2">{{ vital_signs.arv_treatment }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="bacteriuria_treatment" class="form-label">
+                                                <i class="fas fa-prescription me-2"></i>Bacteriuria Treatment
+                                            </label>
+                                            <textarea class="form-control" id="bacteriuria_treatment" name="bacteriuria_treatment" rows="2">{{ vital_signs.bacteriuria_treatment }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="anemia_treatment" class="form-label">
+                                                <i class="fas fa-tablets me-2"></i>Anemia Treatment
+                                            </label>
+                                            <textarea class="form-control" id="anemia_treatment" name="anemia_treatment" rows="2">{{ vital_signs.anemia_treatment }}</textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -137,12 +333,16 @@
                         </div>
 
                         <!-- Notes -->
-                        <h5 class="mb-3">
-                            <i class="fas fa-clipboard-list me-2"></i>Notes & Observations
-                        </h5>
-                        <div class="mb-4">
-                            <textarea class="form-control" id="notes" name="notes"
-                                      rows="4">{{ checkup.notes }}</textarea>
+                        <div class="card mb-4">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clipboard-list me-2"></i>Notes & Observations
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <textarea class="form-control" id="notes" name="notes"
+                                          rows="4">{{ checkup.notes }}</textarea>
+                            </div>
                         </div>
 
                         <div class="text-center">
@@ -170,20 +370,13 @@
     // Set min date for Checkup Date (can't select past dates)
     document.getElementById('checkup_date').setAttribute('min', today);
 
-    // Set max date for Last Menstrual Period (can't select future dates)
-    document.getElementById('last_menstrual_period').setAttribute('max', today);
-</script>
-<script>
-    // Calculate EDD when LMP changes
-    document.getElementById('last_menstrual_period').addEventListener('change', function() {
-        const lmpDate = new Date(this.value);
-        if (lmpDate) {
-            const edd = new Date(lmpDate.getTime() + (280 * 24 * 60 * 60 * 1000));
-            // Format date as YYYY-MM-DD
-            const year = edd.getFullYear();
-            const month = String(edd.getMonth() + 1).padStart(2, '0');
-            const day = String(edd.getDate()).padStart(2, '0');
-            document.getElementById('estimated_delivery_date').value = `${year}-${month}-${day}`;
+    // Validate blood pressure format
+    document.getElementById('blood_pressure').addEventListener('input', function() {
+        const pattern = /^\d{2,3}\/\d{2,3}$/;
+        if (!pattern.test(this.value)) {
+            this.setCustomValidity('Please enter blood pressure in format: 120/80');
+        } else {
+            this.setCustomValidity('');
         }
     });
 </script>

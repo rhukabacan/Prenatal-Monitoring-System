@@ -72,7 +72,7 @@
                 <div class="col-auto">
                     <div class="dropdown">
                         <button class="btn btn-primary dropdown-toggle" type="button" id="addCheckupDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-plus me-2"></i>Add New Checkup
+                            <i class="fas fa-plus me-2"></i>Create New Checkup
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="addCheckupDropdown">
                             {% for patient in patients %}
@@ -137,7 +137,6 @@
                             <tr>
                                 <th>Date</th>
                                 <th>Patient</th>
-                                <th>Vital Signs</th>
                                 <th>Pregnancy Week</th>
                                 <th>Estimated Delivery Date</th>
                                 <th>Status</th>
@@ -160,14 +159,6 @@
                                         <a href="{% url 'rhu_management:patient_detail' checkup.patient.id %}" class="text-decoration-none">
                                             {{ checkup.patient.user.get_full_name }}
                                         </a>
-                                    </td>
-                                    <td>
-                                        <small>
-                                            <strong>BP:</strong> {{ checkup.blood_pressure }}<br>
-                                            <strong>Weight:</strong> {{ checkup.weight }} kg<br>
-                                            <strong>Height:</strong> {{ checkup.height }} cm<br>
-                                            <strong>BMI:</strong> {{ checkup.get_bmi|floatformat:1 }} ({{ checkup.get_bmi_category }})
-                                        </small>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -193,10 +184,6 @@
                                             <a href="{% url 'rhu_management:checkup_detail' checkup.id %}"
                                                class="btn btn-sm btn-primary">
                                                 <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{% url 'rhu_management:checkup_update' checkup.id %}"
-                                               class="btn btn-sm btn-warning">
-                                                <i class="fas fa-edit"></i>
                                             </a>
                                         </div>
                                     </td>
