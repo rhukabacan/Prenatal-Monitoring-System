@@ -1733,8 +1733,8 @@ def generate_custom_report(start_date, end_date, metrics):
 def export_report(report):
     """Export report to PDF with enhanced formatting"""
     try:
-        # Create the reports directory if it doesn't exist
-        reports_dir = os.path.join(settings.MEDIA_ROOT, 'reports')
+        # Use /tmp directory for Lambda environment
+        reports_dir = '/tmp/reports' if os.path.exists('/tmp') else os.path.join(settings.MEDIA_ROOT, 'reports')
         os.makedirs(reports_dir, exist_ok=True)
 
         # Generate unique filename
@@ -1963,7 +1963,6 @@ def export_report(report):
         print(f"Error generating PDF: {str(e)}")
         raise
 
-
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
 def view_report(request, report_id):
@@ -1971,40 +1970,30 @@ def view_report(request, report_id):
     try:
         report = RHUReport.objects.get(id=report_id)
 
-        if not report.file_path:
-            # Generate the report if it doesn't exist
-            try:
-                report.file_path = export_report(report)
-                report.save()
-            except Exception as e:
-                messages.error(request, f'Error generating report: {str(e)}')
-                return redirect('rhu_management:reports_dashboard')
-
-        file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
-
-        if not os.path.exists(file_path):
-            # Regenerate if file is missing
-            try:
-                report.file_path = export_report(report)
-                report.save()
-                file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
-            except Exception as e:
-                messages.error(request, f'Error generating report: {str(e)}')
-                return redirect('rhu_management:reports_dashboard')
-
+        # Generate the report if it doesn't exist or regenerate if needed
         try:
+            # Use /tmp directory for Lambda environment
+            reports_dir = '/tmp/reports' if os.path.exists('/tmp') else os.path.join(settings.MEDIA_ROOT, 'reports')
+            file_path = os.path.join(reports_dir, os.path.basename(report.file_path)) if report.file_path else None
+
+            if not file_path or not os.path.exists(file_path):
+                file_path = export_report(report)
+                report.file_path = os.path.basename(file_path)  # Store only filename in database
+                report.save()
+
+            # Serve the file
             with open(file_path, 'rb') as pdf_file:
                 response = HttpResponse(pdf_file.read(), content_type='application/pdf')
                 response['Content-Disposition'] = f'inline; filename="{os.path.basename(file_path)}"'
                 return response
+
         except Exception as e:
-            messages.error(request, f'Error reading report file: {str(e)}')
+            messages.error(request, f'Error generating report: {str(e)}')
             return redirect('rhu_management:reports_dashboard')
 
     except RHUReport.DoesNotExist:
         messages.error(request, 'Report not found.')
         return redirect('rhu_management:reports_dashboard')
-
 
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
@@ -2013,38 +2002,24 @@ def download_report(request, report_id):
     try:
         report = RHUReport.objects.get(id=report_id)
 
-        # Check if file path exists in database
-        if not report.file_path:
-            # Try to generate the report if it doesn't exist
-            try:
-                report.file_path = export_report(report)
-                report.save()
-            except Exception as e:
-                messages.error(request, f'Error generating report: {str(e)}')
-                return redirect('rhu_management:reports_dashboard')
-
-        # Get the full file path
-        file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
-
-        # Check if file exists in filesystem
-        if not os.path.exists(file_path):
-            # Try to regenerate the report
-            try:
-                report.file_path = export_report(report)
-                report.save()
-                file_path = os.path.join(settings.MEDIA_ROOT, report.file_path)
-            except Exception as e:
-                messages.error(request, f'Error generating report: {str(e)}')
-                return redirect('rhu_management:reports_dashboard')
-
-        # Serve the file
         try:
+            # Use /tmp directory for Lambda environment
+            reports_dir = '/tmp/reports' if os.path.exists('/tmp') else os.path.join(settings.MEDIA_ROOT, 'reports')
+            file_path = os.path.join(reports_dir, os.path.basename(report.file_path)) if report.file_path else None
+
+            if not file_path or not os.path.exists(file_path):
+                file_path = export_report(report)
+                report.file_path = os.path.basename(file_path)  # Store only filename in database
+                report.save()
+
+            # Serve the file
             with open(file_path, 'rb') as pdf_file:
                 response = HttpResponse(pdf_file.read(), content_type='application/pdf')
                 response['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
                 return response
+
         except Exception as e:
-            messages.error(request, f'Error reading report file: {str(e)}')
+            messages.error(request, f'Error generating report: {str(e)}')
             return redirect('rhu_management:reports_dashboard')
 
     except RHUReport.DoesNotExist:
