@@ -121,6 +121,93 @@ class PregnancyHistory(models.Model):
         return f"Pregnancy History - {self.patient} ({self.delivery_date})"
 
 
+class VitalSigns(models.Model):
+    """Model for tracking patient vital signs and medical tests"""
+    
+    NUTRITIONAL_STATUS_CHOICES = [
+        ('NORMAL', 'Normal'),
+        ('UNDERWEIGHT', 'Underweight'),
+        ('OVERWEIGHT', 'Overweight')
+    ]
+
+    BIRTH_PLAN_STATUS = [
+        ('COMPLETED', 'Completed'),
+        ('IN_PROGRESS', 'In Progress'),
+        ('NOT_STARTED', 'Not Started')
+    ]
+
+    DENTAL_CHECKUP_STATUS = [
+        ('COMPLETED', 'Completed'),
+        ('SCHEDULED', 'Scheduled'),
+        ('NOT_DONE', 'Not Done')
+    ]
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    
+    # Basic Measurements
+    weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    height = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    age_of_gestation = models.PositiveIntegerField(null=True, blank=True)  # in weeks
+    blood_pressure = models.CharField(max_length=20, null=True, blank=True)
+    nutritional_status = models.CharField(
+        max_length=20, 
+        choices=NUTRITIONAL_STATUS_CHOICES,
+        null=True, blank=True
+    )
+
+    # Birth Plan and Dental
+    birth_plan_status = models.CharField(
+        max_length=20,
+        choices=BIRTH_PLAN_STATUS,
+        default='NOT_STARTED'
+    )
+    dental_checkup_status = models.CharField(
+        max_length=20,
+        choices=DENTAL_CHECKUP_STATUS,
+        default='NOT_DONE'
+    )
+    dental_checkup_date = models.DateField(null=True, blank=True)
+
+    # Laboratory Tests
+    hemoglobin_count = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    urinalysis_date = models.DateField(null=True, blank=True)
+    cbc_date = models.DateField(null=True, blank=True)
+    
+    # STI Tests
+    syphilis_test_date = models.DateField(null=True, blank=True)
+    syphilis_result = models.CharField(max_length=20, null=True, blank=True)
+    hiv_test_date = models.DateField(null=True, blank=True)
+    hiv_result = models.CharField(max_length=20, null=True, blank=True)
+    hepatitis_b_test_date = models.DateField(null=True, blank=True)
+    hepatitis_b_result = models.CharField(max_length=20, null=True, blank=True)
+    
+    # Additional Tests
+    stool_exam_date = models.DateField(null=True, blank=True)
+    stool_exam_result = models.TextField(null=True, blank=True)
+    acetic_acid_wash_date = models.DateField(null=True, blank=True)
+    acetic_acid_wash_result = models.TextField(null=True, blank=True)
+
+    # Vaccines and Treatments
+    tetanus_vaccine_date = models.DateField(null=True, blank=True)
+    
+    # Treatments
+    syphilis_treatment = models.TextField(null=True, blank=True)
+    arv_treatment = models.TextField(null=True, blank=True)
+    bacteriuria_treatment = models.TextField(null=True, blank=True)
+    anemia_treatment = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Vital Signs for {self.patient}"
+
+    class Meta:
+        verbose_name_plural = "Vital Signs"
+        ordering = ['-recorded_at']
+
+
 class PrenatalCheckup(models.Model):
     STATUS_CHOICES = [
         ('SCHEDULED', 'Scheduled'),
@@ -133,20 +220,7 @@ class PrenatalCheckup(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     checkup_date = models.DateTimeField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SCHEDULED')
-
-    # Initial checkup fields
-    initial_weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    initial_height = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    initial_blood_pressure = models.CharField(max_length=20, null=True, blank=True)
-    initial_last_menstrual_period = models.DateField(null=True, blank=True)
-    is_initial_record = models.BooleanField(default=False)
-
-    # Current checkup fields (can be updated by RHU)
-    weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    height = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    blood_pressure = models.CharField(max_length=20, null=True, blank=True)
     last_menstrual_period = models.DateField(null=True, blank=True)
-
     notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -167,107 +241,6 @@ class PrenatalCheckup(models.Model):
 
             if conflicts.exists():
                 raise ValidationError('This time slot is already booked')
-
-    def save(self, *args, **kwargs):
-        """Handle saving of checkup records and manage initial values."""
-        # For new checkup records
-        if not self.pk:
-            first_checkup = PrenatalCheckup.objects.filter(
-                patient=self.patient,
-                is_initial_record=True
-            ).first()
-
-            if first_checkup:
-                """Copy initial values from first checkup"""
-                self.initial_weight = first_checkup.initial_weight
-                self.initial_height = first_checkup.initial_height
-                self.initial_blood_pressure = first_checkup.initial_blood_pressure
-                self.initial_last_menstrual_period = first_checkup.initial_last_menstrual_period
-
-                # Get the latest checkup before this one
-                previous_checkup = PrenatalCheckup.objects.filter(
-                    patient=self.patient
-                ).order_by('-checkup_date').first()
-
-                if previous_checkup:
-                    # If any values are different from the previous checkup, update all checkups
-                    if (self.weight != previous_checkup.weight or
-                            self.height != previous_checkup.height or
-                            self.blood_pressure != previous_checkup.blood_pressure or
-                            self.last_menstrual_period != previous_checkup.last_menstrual_period):
-                        PrenatalCheckup.objects.filter(patient=self.patient).update(
-                            weight=self.weight,
-                            height=self.height,
-                            blood_pressure=self.blood_pressure,
-                            last_menstrual_period=self.last_menstrual_period
-                        )
-            else:
-                """Set initial values for first checkup record"""
-                self.is_initial_record = True
-                self.initial_weight = self.weight
-                self.initial_height = self.height
-                self.initial_blood_pressure = self.blood_pressure
-                self.initial_last_menstrual_period = self.last_menstrual_period
-
-        # For updating existing checkups
-        else:
-            # Get the original record before changes
-            original = PrenatalCheckup.objects.get(pk=self.pk)
-
-            # Check if any vital signs have changed
-            if (self.weight != original.weight or
-                    self.height != original.height or
-                    self.blood_pressure != original.blood_pressure or
-                    self.last_menstrual_period != original.last_menstrual_period):
-
-                # Update all checkups for this patient
-                PrenatalCheckup.objects.filter(patient=self.patient).update(
-                    weight=self.weight,
-                    height=self.height,
-                    blood_pressure=self.blood_pressure,
-                    last_menstrual_period=self.last_menstrual_period
-                )
-
-                # If this is the initial record, also update initial values
-                if self.is_initial_record:
-                    PrenatalCheckup.objects.filter(patient=self.patient).update(
-                        initial_weight=self.weight,
-                        initial_height=self.height,
-                        initial_blood_pressure=self.blood_pressure,
-                        initial_last_menstrual_period=self.last_menstrual_period
-                    )
-
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-    def get_initial_bmi(self):
-        """Calculate initial BMI"""
-        if self.initial_weight and self.initial_height:
-            height_in_meters = self.initial_height / 100
-            return self.initial_weight / (height_in_meters * height_in_meters)
-        return None
-
-    def get_bmi(self):
-        """Calculate BMI (weight in kg / height in meters squared)"""
-        if self.weight and self.height:
-            height_in_meters = self.height / 100
-            return self.weight / (height_in_meters * height_in_meters)
-        return None
-
-    def get_bmi_category(self):
-        """Return BMI category based on WHO standards"""
-        bmi = self.get_bmi()
-        if bmi is None:
-            return None
-
-        if bmi < 18.5:
-            return "Underweight"
-        elif bmi < 25:
-            return "Normal weight"
-        elif bmi < 30:
-            return "Overweight"
-        else:
-            return "Obese"
 
     @property
     def estimated_delivery_date(self):

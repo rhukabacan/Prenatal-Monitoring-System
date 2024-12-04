@@ -148,6 +148,30 @@
     .text-muted {
         font-size: 0.85rem;
     }
+
+    /* Alert Styling */
+    .alert-warning {
+        background: rgba(255, 193, 7, 0.1);
+        border: none;
+        border-radius: 15px;
+    }
+
+    .alert-icon {
+        color: #ffc107;
+    }
+
+    .alert .btn-warning {
+        background: #ffc107;
+        border: none;
+        color: #000;
+        transition: all 0.3s ease;
+    }
+
+    .alert .btn-warning:hover {
+        background: #ffca2c;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);
+    }
 </style>
 {% endblock %}
 
@@ -161,6 +185,18 @@
                 </h4>
             </div>
             <div class="card-body p-4">
+
+                {% if not has_vital_signs %}
+                <!-- Vital Signs Alert -->
+                <div class="alert alert-warning text-dark mb-4 text-center">
+                            <h5 class="alert-heading mb-2"><i class="fas fa-exclamation-triangle fa-2x text-warning me-1"></i>Vital Signs Required!</h5>
+                            <p class="mb-2">Before requesting your first checkup, please update your vital signs information.</p>
+                            <a href="{% url 'patient_management:vital_signs' %}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-heartbeat me-2"></i>Update Vital Signs
+                            </a>
+                </div>
+                {% endif %}
+
                 <form method="POST">
                     {% csrf_token %}
 
@@ -191,68 +227,17 @@
                             </div>
                         </div>
 
+                        {% if checkup.estimated_delivery_date %}
                         <div class="alert alert-danger mt-3">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-calendar-check me-3 fa-2x"></i>
                                 <div>
                                     <h6 class="mb-1">Estimated Delivery Date</h6>
-                                    <strong>{{ initial_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                    <strong>{{ checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Vital Signs Information -->
-                    <div class="form-section">
-                        <h5 class="section-header">
-                            <i class="fas fa-heartbeat me-2"></i>Vital Signs
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="mb-3">
-                                    <label for="weight" class="form-label">
-                                        <i class="fas fa-weight me-2"></i>Weight (kg)
-                                    </label>
-                                    <input type="number" step="0.1" class="form-control" id="weight"
-                                           name="weight" value="{{ initial_checkup.weight|default:'' }}" required min="30" max="200">
-                                    <small class="text-muted">Enter weight in kilograms</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="mb-3">
-                                    <label for="height" class="form-label">
-                                        <i class="fas fa-ruler-vertical me-2"></i>Height (cm)
-                                    </label>
-                                    <input type="number" step="0.1" class="form-control" id="height"
-                                           name="height" value="{{ initial_checkup.height|default:'' }}" required min="100" max="250">
-                                    <small class="text-muted">Enter height in centimeters</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="mb-3">
-                                    <label for="blood_pressure" class="form-label">
-                                        <i class="fas fa-heartbeat me-2"></i>Blood Pressure
-                                    </label>
-                                    <input type="text" class="form-control" id="blood_pressure"
-                                           name="blood_pressure" value="{{ initial_checkup.blood_pressure|default:'' }}" placeholder="120/80" required
-                                           pattern="\d{2,3}\/\d{2,3}">
-                                    <small class="text-muted">Format: systolic/diastolic</small>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-calculator me-2"></i>BMI <span class="text-muted fw-normal fst-italic">(Auto-calculated)</span>
-                                    </label>
-                                    <div class="form-control bg-light" style="cursor: default;">
-                                        {{ initial_checkup.get_bmi|floatformat:1 }}
-                                    </div>
-                                    <small class="text-muted">
-                                        BMI Category: {{ initial_checkup.get_bmi_category }}
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
+                        {% endif %}
                     </div>
 
                     {% if not has_previous_checkup %}

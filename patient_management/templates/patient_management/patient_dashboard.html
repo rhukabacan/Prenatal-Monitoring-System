@@ -456,20 +456,6 @@
                                     <p class="mb-0">{{ latest_checkup.notes|default:"No notes available"|linebreaks }}</p>
                                 </div>
                             </div>
-
-                            <!-- Recommendations -->
-                            {% if latest_checkup.recommendations %}
-                            <div class="col-12">
-                                <div class="detail-item">
-                                    <label>Recommendations</label>
-                                    <ul class="mb-0 ps-3">
-                                        {% for recommendation in latest_checkup.recommendations %}
-                                        <li>{{ recommendation }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                     {% else %}

@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from rhu_management.models import Patient, PregnancyHistory, PrenatalCheckup, EmergencyAlert, \
-    Barangay
+    Barangay, VitalSigns
 
 
 def patient_required(view_func):
@@ -98,7 +98,7 @@ def patient_dashboard(request):
             'date': checkup.checkup_date,
             'status': checkup.status,
             'status_class': status_class,
-            'description': f"Checkup - Weight: {checkup.weight}kg, BP: {checkup.blood_pressure}"
+            'description': "Checkup"
         })
 
     # Quick stats
@@ -462,10 +462,12 @@ def request_checkup(request):
     patient = request.user.patient
 
     # Get the initial checkup data
-    initial_checkup = PrenatalCheckup.objects.filter(
-        patient=patient,
-        is_initial_record=True
+    checkup = PrenatalCheckup.objects.filter(
+        patient=patient
     ).first()
+
+    # Check if patient has vital signs
+    has_vital_signs = VitalSigns.objects.filter(patient=patient).exists()
 
     if request.method == 'POST':
         try:
@@ -474,44 +476,37 @@ def request_checkup(request):
                 '%Y-%m-%d %H:%M'
             )
 
+            # Get the last menstrual period from form
+            new_lmp = request.POST.get('last_menstrual_period')
+            
+            # Get previous or first checkup's LMP
+            previous_lmp = None
+            if checkup:
+                previous_lmp = checkup.last_menstrual_period
+            else:
+                first_checkup = PrenatalCheckup.objects.filter(
+                    patient=patient
+                ).order_by('created_at').first()
+                if first_checkup:
+                    previous_lmp = first_checkup.last_menstrual_period
+
             checkup_data = {
                 'patient': patient,
                 'checkup_date': requested_date,
                 'notes': request.POST.get('notes'),
-                'status': 'REQUESTED'
+                'status': 'REQUESTED',
+                'last_menstrual_period': (
+                    datetime.strptime(new_lmp, '%Y-%m-%d').date()
+                    if new_lmp
+                    else previous_lmp
+                )
             }
 
-            if not initial_checkup:
-                # This is the first checkup
-                checkup_data.update({
-                    'is_initial_record': True,
-                    'weight': float(request.POST.get('weight')),
-                    'height': float(request.POST.get('height')),
-                    'blood_pressure': request.POST.get('blood_pressure'),
-                    'last_menstrual_period': datetime.strptime(
-                        request.POST.get('last_menstrual_period'),
-                        '%Y-%m-%d'
-                    ).date(),
-                    'initial_weight': float(request.POST.get('weight')),
-                    'initial_height': float(request.POST.get('height')),
-                    'initial_blood_pressure': request.POST.get('blood_pressure'),
-                    'initial_last_menstrual_period': datetime.strptime(
-                        request.POST.get('last_menstrual_period'),
-                        '%Y-%m-%d'
-                    ).date()
-                })
-            else:
-                # Copy values from initial checkup
-                checkup_data.update({
-                    'weight': initial_checkup.weight,
-                    'height': initial_checkup.height,
-                    'blood_pressure': initial_checkup.blood_pressure,
-                    'last_menstrual_period': initial_checkup.last_menstrual_period,
-                    'initial_weight': initial_checkup.initial_weight,
-                    'initial_height': initial_checkup.initial_height,
-                    'initial_blood_pressure': initial_checkup.initial_blood_pressure,
-                    'initial_last_menstrual_period': initial_checkup.initial_last_menstrual_period
-                })
+            if not checkup:
+                # Check if vital signs exist before creating first checkup
+                if not has_vital_signs:
+                    messages.warning(request, 'Please update your vital signs first before requesting a checkup.')
+                    return redirect('patient_management:vital_signs')
 
             PrenatalCheckup.objects.create(**checkup_data)
             messages.success(request, 'Checkup request submitted successfully!')
@@ -523,8 +518,9 @@ def request_checkup(request):
             messages.error(request, str(e))
 
     return render(request, 'patient_management/checkup_request.html', {
-        'has_previous_checkup': bool(initial_checkup),
-        'initial_checkup': initial_checkup,
+        'has_previous_checkup': bool(checkup),
+        'checkup': checkup,
+        'has_vital_signs': has_vital_signs,
         'title': 'Request Checkup'
     })
 
@@ -702,42 +698,61 @@ def vital_signs(request):
     """Display vital signs monitoring page"""
     patient = request.user.patient
     
-    # Get latest checkup and history
-    latest_checkup = PrenatalCheckup.objects.filter(
+    # Get latest vital signs
+    latest_vitals = VitalSigns.objects.filter(
         patient=patient
-    ).order_by('-checkup_date').first()
+    ).order_by('-recorded_at').first()
     
-    checkups = list(PrenatalCheckup.objects.filter(
+    # Get vital signs history
+    vital_signs_history = VitalSigns.objects.filter(
         patient=patient
-    ).order_by('-checkup_date')[:10])  # Last 10 records
+    ).order_by('-recorded_at')[:10]
     
     # Process checkups to include changes and status
     processed_checkups = []
-    for i, checkup in enumerate(checkups):
+    previous_vitals = None
+    
+    for vitals in vital_signs_history:
         checkup_data = {
-            'date': checkup.checkup_date,
-            'weight': checkup.weight,
-            'blood_pressure': checkup.blood_pressure,
-            'bmi': checkup.get_bmi(),
-            'notes': checkup.notes,
+            'date': vitals.recorded_at,
+            'weight': vitals.weight,
+            'height': vitals.height,
+            'blood_pressure': vitals.blood_pressure,
+            'age_of_gestation': vitals.age_of_gestation,
+            'nutritional_status': vitals.get_nutritional_status_display,
+            'birth_plan_status': vitals.get_birth_plan_status_display,
+            'dental_checkup_status': vitals.get_dental_checkup_status_display,
+            'dental_checkup_date': vitals.dental_checkup_date,
+            'hemoglobin_count': vitals.hemoglobin_count,
+            'urinalysis_date': vitals.urinalysis_date,
+            'cbc_date': vitals.cbc_date,
+            'stool_exam_date': vitals.stool_exam_date,
+            'syphilis_test_date': vitals.syphilis_test_date,
+            'syphilis_result': vitals.syphilis_result,
+            'hiv_test_date': vitals.hiv_test_date,
+            'hiv_result': vitals.hiv_result,
+            'hepatitis_b_test_date': vitals.hepatitis_b_test_date,
+            'hepatitis_b_result': vitals.hepatitis_b_result,
+            'tetanus_vaccine_date': vitals.tetanus_vaccine_date,
+            'syphilis_treatment': vitals.syphilis_treatment,
+            'arv_treatment': vitals.arv_treatment,
+            'bacteriuria_treatment': vitals.bacteriuria_treatment,
+            'anemia_treatment': vitals.anemia_treatment,
             'weight_change': None,
             'weight_change_type': None,
             'bp_status': None,
-            'bmi_category': None
         }
         
         # Calculate weight change from previous record
-        if i < len(checkups) - 1:
-            prev_weight = checkups[i + 1].weight
-            if checkup.weight and prev_weight:
-                weight_diff = float(checkup.weight) - float(prev_weight)
-                checkup_data['weight_change'] = abs(weight_diff)
-                checkup_data['weight_change_type'] = 'increase' if weight_diff > 0 else 'decrease'
+        if previous_vitals and vitals.weight and previous_vitals.weight:
+            weight_diff = float(vitals.weight) - float(previous_vitals.weight)
+            checkup_data['weight_change'] = abs(weight_diff)
+            checkup_data['weight_change_type'] = 'increase' if weight_diff > 0 else 'decrease'
         
         # Determine blood pressure status
-        if checkup.blood_pressure:
+        if vitals.blood_pressure:
             try:
-                systolic = int(checkup.blood_pressure.split('/')[0])
+                systolic = int(vitals.blood_pressure.split('/')[0])
                 if systolic < 120:
                     checkup_data['bp_status'] = {'text': 'Normal', 'class': 'text-success'}
                 elif systolic < 130:
@@ -747,74 +762,73 @@ def vital_signs(request):
             except (ValueError, IndexError):
                 pass
         
-        # Determine BMI category
-        if checkup.get_bmi():
-            bmi = float(checkup.get_bmi())
-            if bmi < 18.5:
-                checkup_data['bmi_category'] = {'text': 'Underweight', 'class': 'text-warning'}
-            elif bmi < 25:
-                checkup_data['bmi_category'] = {'text': 'Normal', 'class': 'text-success'}
-            elif bmi < 30:
-                checkup_data['bmi_category'] = {'text': 'Overweight', 'class': 'text-warning'}
-            else:
-                checkup_data['bmi_category'] = {'text': 'Obese', 'class': 'text-danger'}
-        
         processed_checkups.append(checkup_data)
+        previous_vitals = vitals
     
-    # Calculate overall weight difference for the latest checkup card
-    weight_difference = None
-    weight_change_type = None
-    if latest_checkup and latest_checkup.weight and latest_checkup.initial_weight:
-        weight_diff = float(latest_checkup.weight) - float(latest_checkup.initial_weight)
-        weight_difference = abs(weight_diff)
-        weight_change_type = 'increase' if weight_diff > 0 else 'decrease'
-    
+    # Add treatments data for the template
+    treatments = [
+        (latest_vitals.syphilis_treatment, {'name': 'capsules', 'bg': 'bg-info'}, 'Syphilis Treatment'),
+        (latest_vitals.arv_treatment, {'name': 'pills', 'bg': 'bg-warning'}, 'ARV Treatment'),
+        (latest_vitals.bacteriuria_treatment, {'name': 'prescription', 'bg': 'bg-success'}, 'Bacteriuria Treatment'),
+        (latest_vitals.anemia_treatment, {'name': 'tablets', 'bg': 'bg-danger'}, 'Anemia Treatment'),
+    ] if latest_vitals else []
+
     return render(request, 'patient_management/vital_signs.html', {
         'title': 'Vital Signs Monitoring',
-        'latest_checkup': latest_checkup,
+        'latest_checkup': latest_vitals,
+        'latest_vitals': latest_vitals,
         'checkups': processed_checkups,
-        'weight_difference': f"{weight_difference:.1f}" if weight_difference is not None else None,
-        'weight_change_type': weight_change_type,
+        'treatments': treatments,
+        'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
+        'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
+        'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
     })
 
-@login_required(login_url='patient_management:login')
-@patient_required
 @require_POST
 def update_vital_signs(request):
     """Handle vital signs update"""
     try:
         patient = request.user.patient
         
-        # Get the latest checkup
-        latest_checkup = PrenatalCheckup.objects.filter(
+        # Create new vital signs record
+        vital_signs = VitalSigns(
             patient=patient
-        ).order_by('-checkup_date').first()
+        )
         
-        if not latest_checkup:
-            messages.error(request, 'No checkup record found to update.')
-            return redirect('patient_management:vital_signs')
+        # Update basic measurements
+        vital_signs.weight = request.POST.get('weight')
+        vital_signs.height = request.POST.get('height')
+        vital_signs.blood_pressure = request.POST.get('blood_pressure')
+        vital_signs.age_of_gestation = request.POST.get('age_of_gestation')
         
-        # Update the vital signs
-        latest_checkup.weight = request.POST.get('weight')
-        latest_checkup.blood_pressure = request.POST.get('blood_pressure')
+        # Update status and planning
+        vital_signs.nutritional_status = request.POST.get('nutritional_status')
+        vital_signs.birth_plan_status = request.POST.get('birth_plan_status')
+        vital_signs.dental_checkup_status = request.POST.get('dental_checkup_status')
+        vital_signs.dental_checkup_date = request.POST.get('dental_checkup_date') or None
         
-        # If this is the first update to vital signs, set initial values
-        if latest_checkup.is_initial_record and not latest_checkup.initial_weight:
-            latest_checkup.initial_weight = latest_checkup.weight
-            latest_checkup.initial_blood_pressure = latest_checkup.blood_pressure
+        # Update laboratory tests
+        vital_signs.hemoglobin_count = request.POST.get('hemoglobin_count')
+        vital_signs.urinalysis_date = request.POST.get('urinalysis_date') or None
+        vital_signs.cbc_date = request.POST.get('cbc_date') or None
+        vital_signs.stool_exam_date = request.POST.get('stool_exam_date') or None
         
-        # Add notes if provided
-        notes = request.POST.get('notes')
-        if notes:
-            # Append new notes with timestamp
-            current_time = timezone.now().strftime('%Y-%m-%d %H:%M')
-            new_note = f"[{current_time}] Vital signs update: {notes}"
-            if latest_checkup.notes:
-                latest_checkup.notes = f"{latest_checkup.notes}\n{new_note}"
-            else:
-                latest_checkup.notes = new_note
+        # Update STI tests
+        vital_signs.syphilis_test_date = request.POST.get('syphilis_test_date') or None
+        vital_signs.syphilis_result = request.POST.get('syphilis_result')
+        vital_signs.hiv_test_date = request.POST.get('hiv_test_date') or None
+        vital_signs.hiv_result = request.POST.get('hiv_result')
+        vital_signs.hepatitis_b_test_date = request.POST.get('hepatitis_b_test_date') or None
+        vital_signs.hepatitis_b_result = request.POST.get('hepatitis_b_result')
         
-        latest_checkup.save()
+        # Update treatments
+        vital_signs.tetanus_vaccine_date = request.POST.get('tetanus_vaccine_date') or None
+        vital_signs.syphilis_treatment = request.POST.get('syphilis_treatment')
+        vital_signs.arv_treatment = request.POST.get('arv_treatment')
+        vital_signs.bacteriuria_treatment = request.POST.get('bacteriuria_treatment')
+        vital_signs.anemia_treatment = request.POST.get('anemia_treatment')
+        
+        vital_signs.save()
         messages.success(request, 'Vital signs updated successfully!')
         
     except Exception as e:

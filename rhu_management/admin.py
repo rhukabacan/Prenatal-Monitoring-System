@@ -6,6 +6,7 @@ from rhu_management.models import *
 admin.site.register(Barangay)
 admin.site.register(Patient)
 admin.site.register(PregnancyHistory)
+admin.site.register(VitalSigns)
 admin.site.register(PrenatalCheckup)
 admin.site.register(EmergencyAlert)
 admin.site.register(RHUReport)
