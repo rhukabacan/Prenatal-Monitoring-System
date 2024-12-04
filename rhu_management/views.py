@@ -1954,11 +1954,11 @@ def export_report(report):
 
         # Update report with just the filename (not the path)
         report.file_path = filename
-            report.save(update_fields=['file_path'])
-            
+        report.save(update_fields=['file_path'])
+
         # Return the full filepath
         return filepath  # Return full path instead of relative path
-            
+
     except Exception as e:
         print(f"Error generating PDF: {str(e)}")
         raise
@@ -1969,7 +1969,7 @@ def view_report(request, report_id):
     """View report PDF in browser"""
     try:
         report = RHUReport.objects.get(id=report_id)
-        
+
         # Generate the report if it doesn't exist or regenerate if needed
         try:
             # Use /tmp directory for Lambda environment
