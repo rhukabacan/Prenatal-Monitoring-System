@@ -1952,12 +1952,12 @@ def export_report(report):
         # Build the PDF
         doc.build(elements)
 
-        # Update report with relative file path
-        relative_path = os.path.join('reports', filename)
-        report.file_path = relative_path
+        # Update report with just the filename (not the path)
+        report.file_path = filename
         report.save(update_fields=['file_path'])
 
-        return relative_path
+        # Return the full filepath
+        return filepath  # Return full path instead of relative path
 
     except Exception as e:
         print(f"Error generating PDF: {str(e)}")
