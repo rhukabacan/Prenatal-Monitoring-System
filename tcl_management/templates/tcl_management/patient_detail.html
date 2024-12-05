@@ -88,7 +88,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% if patient.last_checkup %}
+                    {% if latest_vitals %}
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <div class="vital-sign-card">
@@ -97,7 +97,7 @@
                                     </div>
                                     <div class="vital-info">
                                         <h6>Weight</h6>
-                                        <h4>{{ patient.last_checkup.weight }} kg</h4>
+                                        <h4>{{ latest_vitals.weight|default:"N/A" }} kg</h4>
                                     </div>
                                 </div>
                             </div>
@@ -108,7 +108,7 @@
                                     </div>
                                     <div class="vital-info">
                                         <h6>Blood Pressure</h6>
-                                        <h4>{{ patient.last_checkup.blood_pressure }}</h4>
+                                        <h4>{{ latest_vitals.blood_pressure|default:"N/A" }}</h4>
                                     </div>
                                 </div>
                             </div>
@@ -170,12 +170,20 @@
                                                     <small class="text-muted">{{ checkup.checkup_date|date:"g:i A" }}</small>
                                                 </div>
                                             </td>
-                                            <td>{{ checkup.weight }} kg</td>
-                                            <td>{{ checkup.blood_pressure }}</td>
+                                            <td>{{ checkup.vitals.weight|default:"N/A" }} kg</td>
+                                            <td>{{ checkup.vitals.blood_pressure|default:"N/A" }}</td>
                                             <td>
-                                                <span class="badge bg-{{ checkup.status|lower }}">
-                                                    {{ checkup.get_status_display }}
-                                                </span>
+                                                {% if checkup.status == 'SCHEDULED' %}
+                                                    <span class="badge bg-primary">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'COMPLETED' %}
+                                                    <span class="badge bg-success">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'MISSED' %}
+                                                    <span class="badge bg-danger">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'CANCELLED' %}
+                                                    <span class="badge bg-warning">{{ checkup.get_status_display }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ checkup.get_status_display }}</span>
+                                                {% endif %}
                                             </td>
                                             <td>
                                                 <a href="{% url 'tcl_management:checkup_detail' checkup.id %}" 
@@ -323,11 +331,6 @@
         padding: 0.5rem 0.8rem;
         font-weight: 500;
     }
-
-    .badge.bg-scheduled { background-color: var(--primary-color); }
-    .badge.bg-completed { background-color: var(--success); }
-    .badge.bg-cancelled { background-color: var(--danger); }
-    .badge.bg-missed { background-color: var(--warning); }
 </style>
 {% endblock %}
 {% endblock %}

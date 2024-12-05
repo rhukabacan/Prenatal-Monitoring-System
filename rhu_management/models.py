@@ -222,6 +222,7 @@ class PrenatalCheckup(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SCHEDULED')
     last_menstrual_period = models.DateField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+    is_initial_record = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

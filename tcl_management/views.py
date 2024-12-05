@@ -6,11 +6,11 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, Exists, OuterRef
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
-from rhu_management.models import Patient, PrenatalCheckup, EmergencyAlert, Barangay
+from rhu_management.models import Patient, PrenatalCheckup, EmergencyAlert, Barangay, VitalSigns
 
 
 def tcl_required(view_func):
@@ -194,7 +194,7 @@ def dashboard(request):
             alert_time__gte=now - timedelta(hours=24)
         ).count(),
         'high_risk_cases': patients.filter(
-            prenatalcheckup__blood_pressure__contains='HIGH'
+            vitalsigns__blood_pressure__contains='HIGH'
         ).distinct().count(),
         'critical_cases': emergencies.filter(
             status='ACTIVE',
@@ -335,27 +335,45 @@ def patient_detail(request, patient_id):
         barangay=request.user.barangay
     )
 
-    # Get upcoming checkups - we'll get next 5 scheduled checkups
+    # Get latest vital signs
+    latest_vitals = VitalSigns.objects.filter(
+        patient=patient
+    ).order_by('-recorded_at').first()
+
+    # Get latest checkups with vital signs
+    checkups = PrenatalCheckup.objects.filter(
+        patient=patient
+    ).order_by('-checkup_date')[:5]
+    
+    # Get vital signs for each checkup
+    for checkup in checkups:
+        checkup.vitals = VitalSigns.objects.filter(
+            patient=patient,
+            recorded_at__date=checkup.checkup_date.date()
+        ).first()
+
+    # Get upcoming checkups
     upcoming_checkups = PrenatalCheckup.objects.filter(
         patient=patient,
         status='SCHEDULED',
         checkup_date__gt=timezone.now()
-    ).order_by('checkup_date')[:5]  # Limit to next 5 checkups
+    ).order_by('checkup_date')[:5]
 
     # Calculate pregnancy week if applicable
     weeks_pregnant = None
     progress_percentage = None
-    if patient.last_checkup and patient.last_checkup.last_menstrual_period:  # Add check for latest_checkup
+    if patient.last_checkup and patient.last_checkup.last_menstrual_period:
         days_pregnant = (timezone.now().date() - patient.last_checkup.last_menstrual_period).days
         weeks_pregnant = min(days_pregnant // 7, 42)  # Cap at 42 weeks
         progress_percentage = min((weeks_pregnant / 42) * 100, 100)  # Cap at 100%
 
     context = {
         'patient': patient,
+        'latest_vitals': latest_vitals,
         'upcoming_checkups': upcoming_checkups,
         'weeks_pregnant': weeks_pregnant,
         'progress_percentage': progress_percentage,
-        'checkups': PrenatalCheckup.objects.filter(patient=patient).order_by('-checkup_date')[:5],
+        'checkups': checkups,
         'title': f'Patient Details - {patient.user.get_full_name()}'
     }
 
@@ -603,11 +621,17 @@ def checkup_report(request):
         patient__barangay=tcl
     )
 
+    # Get high blood pressure cases by joining with VitalSigns
+    high_bp_cases = VitalSigns.objects.filter(
+        patient__barangay=tcl,
+        blood_pressure__contains='HIGH'
+    ).count()
+
     # Calculate statistics
     stats = {
         'total_checkups': checkups.count(),
         'this_month': checkups.filter(checkup_date__month=today.month).count(),
-        'high_bp_cases': checkups.filter(blood_pressure__contains='HIGH').count(),
+        'high_bp_cases': high_bp_cases,  # Use the new query result
         'completed': checkups.filter(status='COMPLETED').count(),
         'scheduled': checkups.filter(status='SCHEDULED').count(),
         'missed': checkups.filter(status='MISSED').count(),

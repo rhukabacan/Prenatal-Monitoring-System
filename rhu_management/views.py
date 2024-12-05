@@ -793,14 +793,12 @@ def checkup_create(request, patient_id):
         patient=patient
     ).order_by('-checkup_date').first()
 
-    # Get latest vital signs
-    latest_vitals = VitalSigns.objects.filter(
-        patient=patient
-    ).order_by('-recorded_at').first()
-
     if request.method == 'POST':
         try:
             with transaction.atomic():
+                # Determine if this is the initial record
+                is_initial = not previous_checkup
+
                 # Determine last menstrual period
                 last_menstrual_period = request.POST.get('last_menstrual_period')
                 if not last_menstrual_period and previous_checkup:
@@ -819,7 +817,8 @@ def checkup_create(request, patient_id):
                     ),
                     last_menstrual_period=last_menstrual_period,
                     notes=request.POST.get('notes', ''),
-                    status='SCHEDULED'
+                    status='SCHEDULED',
+                    is_initial_record=is_initial  # Set the is_initial_record field
                 )
 
                 # Create vital signs record
@@ -896,7 +895,7 @@ def checkup_create(request, patient_id):
     context = {
         'patient': patient,
         'previous_checkup': previous_checkup,
-        'latest_vitals': latest_vitals,
+        'latest_vitals': VitalSigns.objects.filter(patient=patient).order_by('-recorded_at').first(),
         'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
         'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
         'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
@@ -2234,7 +2233,7 @@ def get_status_distribution(alerts):
     status_counts = alerts.values('status').annotate(
         count=Count('id')
     ).order_by('status')
-    
+
     print("Raw Status Counts:", status_counts)
 
     # Convert to a dictionary for easier access
