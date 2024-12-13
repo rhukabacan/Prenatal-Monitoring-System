@@ -17,6 +17,9 @@ from django.views.decorators.http import require_POST
 from rhu_management.models import Patient, PregnancyHistory, PrenatalCheckup, EmergencyAlert, \
     Barangay, VitalSigns
 
+import requests
+from django.conf import settings
+
 
 def patient_required(view_func):
     @wraps(view_func)
@@ -601,20 +604,47 @@ def emergency_alert(request):
         location = data.get('location', '')
         coordinates = data.get('coordinates', '')
 
+        patient = request.user.patient
+
         # Create emergency alert
         alert = EmergencyAlert.objects.create(
-            patient=request.user.patient,
+            patient=patient,
             location=location,
             status='ACTIVE'
         )
 
-        # TODO: Send notifications to healthcare providers
-        # This would involve sending SMS/calling the assigned healthcare provider
-        # Implementation depends on your notification service
+        # Send SMS to RHU
+        message = f"EMERGENCY ALERT: Patient {patient.user.first_name} {patient.user.last_name} needs immediate assistance."
+        if location:
+            message += f"\nLocation: {location}"
+        if coordinates:
+            message += f"\nCoordinates: {coordinates}"
+        message += f"\nContact: {patient.contact_number}"
+        message += f"\nBarangay: {patient.barangay.barangay_name}"
+
+        # Send SMS using Semaphore API
+        url = "https://api.semaphore.co/api/v4/messages"
+        payload = {
+            "apikey": settings.SEMAPHORE_API_KEY,
+            "number": settings.RHU_CONTACT_NUMBER,
+            "message": message,
+            "sendername": settings.SEMAPHORE_SENDER_NAME
+        }
+        
+        response = requests.post(url, data=payload)
+        response.raise_for_status()  # Raise an exception for bad status codes
 
         return JsonResponse({
             'success': True,
             'message': 'Emergency alert has been sent. Help is on the way.',
+            'alert_id': alert.id
+        })
+    except requests.exceptions.RequestException as e:
+        # Log the error but still return success since the alert was created
+        print(f"SMS sending failed: {str(e)}")
+        return JsonResponse({
+            'success': True,
+            'message': 'Emergency alert has been recorded but there was an issue sending the SMS notification.',
             'alert_id': alert.id
         })
     except Exception as e:
@@ -774,7 +804,8 @@ def vital_signs(request):
         'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
     })
 
-@require_POST
+@login_required(login_url='patient_management:login')
+@patient_required
 def update_vital_signs(request):
     """Handle vital signs update"""
     try:
