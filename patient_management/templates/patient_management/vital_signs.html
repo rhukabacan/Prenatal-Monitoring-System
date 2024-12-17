@@ -942,6 +942,7 @@
                                             <th>Height</th>
                                             <th>Blood Pressure</th>
                                             <th>Age of Gestation</th>
+                                            <th>Status</th>
                                             <th>Changes</th>
                                         </tr>
                                     </thead>
@@ -983,6 +984,19 @@
                                                     <small class="text-info d-block">
                                                         <i class="fas fa-clock"></i> Updated
                                                     </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if checkup.status == 'SCHEDULED' %}
+                                                    <span class="badge bg-primary">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'COMPLETED' %}
+                                                    <span class="badge bg-success">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'REQUESTED' %}
+                                                    <span class="badge bg-info">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'CANCELLED' %}
+                                                    <span class="badge bg-danger">{{ checkup.get_status_display }}</span>
+                                                {% elif checkup.status == 'MISSED' %}
+                                                    <span class="badge bg-warning">{{ checkup.get_status_display }}</span>
                                                 {% endif %}
                                             </td>
                                             <td>
