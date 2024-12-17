@@ -111,7 +111,7 @@
                 </div>
             </div>
 
-            {% if vital_signs %}
+            {% if checkup %}
             <!-- Vital Signs -->
             <div class="card shadow mb-4">
                 <div class="card-header">
@@ -131,7 +131,13 @@
                                     <i class="fas fa-weight text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Weight</small>
-                                        <strong>{{ vital_signs.weight|default:"--" }} kg</strong>
+                                        <strong>{{ checkup.weight|default:"--" }} kg</strong>
+                                        {% if changes.weight %}
+                                            <small class="ms-2 {% if changes.weight.increased %}text-success{% else %}text-danger{% endif %}">
+                                                ({{ changes.weight.diff }} kg)
+                                                <i class="fas fa-{% if changes.weight.increased %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -140,7 +146,13 @@
                                     <i class="fas fa-ruler-vertical text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Height</small>
-                                        <strong>{{ vital_signs.height|default:"--" }} cm</strong>
+                                        <strong>{{ checkup.height|default:"--" }} cm</strong>
+                                        {% if changes.height %}
+                                            <small class="ms-2 {% if changes.height.increased %}text-success{% else %}text-danger{% endif %}">
+                                                ({{ changes.height.diff }} cm)
+                                                <i class="fas fa-{% if changes.height.increased %}arrow-up{% else %}arrow-down{% endif %}"></i>
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -149,7 +161,12 @@
                                     <i class="fas fa-heart text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Blood Pressure</small>
-                                        <strong>{{ vital_signs.blood_pressure|default:"--" }}</strong>
+                                        <strong>{{ checkup.blood_pressure|default:"--" }}</strong>
+                                        {% if changes.blood_pressure %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -158,7 +175,12 @@
                                     <i class="fas fa-calendar-week text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Age of Gestation</small>
-                                        <strong>{{ vital_signs.age_of_gestation|default:"--" }} weeks</strong>
+                                        <strong>{{ checkup.age_of_gestation|default:"--" }} weeks</strong>
+                                        {% if changes.age_of_gestation %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -176,7 +198,12 @@
                                     <i class="fas fa-utensils text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Nutritional Status</small>
-                                        <strong>{{ vital_signs.get_nutritional_status_display|default:"--" }}</strong>
+                                        <strong>{{ checkup.get_nutritional_status_display|default:"--" }}</strong>
+                                        {% if changes.nutritional_status %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Status Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -185,7 +212,12 @@
                                     <i class="fas fa-baby-carriage text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Birth Plan Status</small>
-                                        <strong>{{ vital_signs.get_birth_plan_status_display|default:"--" }}</strong>
+                                        <strong>{{ checkup.get_birth_plan_status_display|default:"--" }}</strong>
+                                        {% if changes.birth_plan_status %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Status Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -194,7 +226,12 @@
                                     <i class="fas fa-tooth text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Dental Checkup Status</small>
-                                        <strong>{{ vital_signs.get_dental_checkup_status_display|default:"--" }}</strong>
+                                        <strong>{{ checkup.get_dental_checkup_status_display|default:"--" }}</strong>
+                                        {% if changes.dental_checkup_status %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Status Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -203,7 +240,12 @@
                                     <i class="fas fa-calendar-check text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Dental Checkup Date</small>
-                                        <strong>{{ vital_signs.dental_checkup_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.dental_checkup_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.dental_checkup_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -221,16 +263,26 @@
                                     <i class="fas fa-tint text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Hemoglobin Count</small>
-                                        <strong>{{ vital_signs.hemoglobin_count|default:"--" }}</strong>
+                                        <strong>{{ checkup.hemoglobin_count|default:"--" }}</strong>
+                                        {% if changes.hemoglobin_count %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="fas fa-flask text-info me-3"></i>
+                                    <i class="fas fa-calendar-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Urinalysis Date</small>
-                                        <strong>{{ vital_signs.urinalysis_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.urinalysis_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.urinalysis_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -239,7 +291,12 @@
                                     <i class="fas fa-vial text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">CBC Date</small>
-                                        <strong>{{ vital_signs.cbc_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.cbc_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.cbc_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -248,7 +305,12 @@
                                     <i class="fas fa-microscope text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Stool Exam Date</small>
-                                        <strong>{{ vital_signs.stool_exam_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.stool_exam_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.stool_exam_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -267,7 +329,12 @@
                                     <i class="fas fa-calendar-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Syphilis Test Date</small>
-                                        <strong>{{ vital_signs.syphilis_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.syphilis_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.syphilis_test_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -276,7 +343,12 @@
                                     <i class="fas fa-file-medical-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Syphilis Result</small>
-                                        <strong>{{ vital_signs.syphilis_result|default:"--" }}</strong>
+                                        <strong>{{ checkup.syphilis_result|default:"--" }}</strong>
+                                        {% if changes.syphilis_result %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -286,7 +358,12 @@
                                     <i class="fas fa-calendar-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">HIV Test Date</small>
-                                        <strong>{{ vital_signs.hiv_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.hiv_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.hiv_test_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -295,7 +372,12 @@
                                     <i class="fas fa-file-medical-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">HIV Result</small>
-                                        <strong>{{ vital_signs.hiv_result|default:"--" }}</strong>
+                                        <strong>{{ checkup.hiv_result|default:"--" }}</strong>
+                                        {% if changes.hiv_result %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -305,7 +387,12 @@
                                     <i class="fas fa-calendar-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Hepatitis B Test Date</small>
-                                        <strong>{{ vital_signs.hepatitis_b_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.hepatitis_b_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.hepatitis_b_test_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -314,7 +401,12 @@
                                     <i class="fas fa-file-medical-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Hepatitis B Result</small>
-                                        <strong>{{ vital_signs.hepatitis_b_result|default:"--" }}</strong>
+                                        <strong>{{ checkup.hepatitis_b_result|default:"--" }}</strong>
+                                        {% if changes.hepatitis_b_result %}
+                                            <small class="ms-2 text-warning">
+                                                <i class="fas fa-exchange-alt"></i> Changed
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -332,7 +424,12 @@
                                     <i class="fas fa-syringe text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Tetanus Vaccine Date</small>
-                                        <strong>{{ vital_signs.tetanus_vaccine_date|date:"M d, Y"|default:"--" }}</strong>
+                                        <strong>{{ checkup.tetanus_vaccine_date|date:"M d, Y"|default:"--" }}</strong>
+                                        {% if changes.tetanus_vaccine_date %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-calendar-plus"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -341,7 +438,12 @@
                                     <i class="fas fa-prescription-bottle-alt text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Syphilis Treatment</small>
-                                        <strong>{{ vital_signs.syphilis_treatment|default:"--" }}</strong>
+                                        <strong>{{ checkup.syphilis_treatment|default:"--" }}</strong>
+                                        {% if changes.syphilis_treatment %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-pen"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -350,7 +452,12 @@
                                     <i class="fas fa-capsules text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">ARV Treatment</small>
-                                        <strong>{{ vital_signs.arv_treatment|default:"--" }}</strong>
+                                        <strong>{{ checkup.arv_treatment|default:"--" }}</strong>
+                                        {% if changes.arv_treatment %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-pen"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -359,7 +466,12 @@
                                     <i class="fas fa-prescription text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Bacteriuria Treatment</small>
-                                        <strong>{{ vital_signs.bacteriuria_treatment|default:"--" }}</strong>
+                                        <strong>{{ checkup.bacteriuria_treatment|default:"--" }}</strong>
+                                        {% if changes.bacteriuria_treatment %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-pen"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -368,7 +480,12 @@
                                     <i class="fas fa-tablets text-info me-3"></i>
                                     <div>
                                         <small class="text-muted d-block">Anemia Treatment</small>
-                                        <strong>{{ vital_signs.anemia_treatment|default:"--" }}</strong>
+                                        <strong>{{ checkup.anemia_treatment|default:"--" }}</strong>
+                                        {% if changes.anemia_treatment %}
+                                            <small class="ms-2 text-info">
+                                                <i class="fas fa-pen"></i> Updated
+                                            </small>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>

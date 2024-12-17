@@ -10,7 +10,7 @@ from django.db.models import Q, Avg, Exists, OuterRef
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
-from rhu_management.models import Patient, PrenatalCheckup, EmergencyAlert, Barangay, VitalSigns
+from rhu_management.models import Patient, PrenatalCheckup, EmergencyAlert, Barangay
 
 
 def tcl_required(view_func):
@@ -45,7 +45,6 @@ def tcl_login(request):
         if user is not None:
             if hasattr(user, 'barangay'):
                 login(request, user)
-                messages.success(request, f'Welcome back, {user.get_full_name()}!')
                 return redirect('tcl_management:dashboard')
             else:
                 messages.error(request, 'This account is not registered as a TCL.')
@@ -194,7 +193,7 @@ def dashboard(request):
             alert_time__gte=now - timedelta(hours=24)
         ).count(),
         'high_risk_cases': patients.filter(
-            vitalsigns__blood_pressure__contains='HIGH'
+            prenatalcheckup__blood_pressure__contains='HIGH'
         ).distinct().count(),
         'critical_cases': emergencies.filter(
             status='ACTIVE',
@@ -336,9 +335,9 @@ def patient_detail(request, patient_id):
     )
 
     # Get latest vital signs
-    latest_vitals = VitalSigns.objects.filter(
+    latest_vitals = PrenatalCheckup.objects.filter(
         patient=patient
-    ).order_by('-recorded_at').first()
+    ).order_by('-checkup_date').first()
 
     # Get latest checkups with vital signs
     checkups = PrenatalCheckup.objects.filter(
@@ -347,9 +346,9 @@ def patient_detail(request, patient_id):
     
     # Get vital signs for each checkup
     for checkup in checkups:
-        checkup.vitals = VitalSigns.objects.filter(
+        checkup.vitals = PrenatalCheckup.objects.filter(
             patient=patient,
-            recorded_at__date=checkup.checkup_date.date()
+            checkup_date__date=checkup.checkup_date.date()
         ).first()
 
     # Get upcoming checkups
@@ -621,9 +620,8 @@ def checkup_report(request):
         patient__barangay=tcl
     )
 
-    # Get high blood pressure cases by joining with VitalSigns
-    high_bp_cases = VitalSigns.objects.filter(
-        patient__barangay=tcl,
+    # Get high blood pressure cases directly from PrenatalCheckup
+    high_bp_cases = checkups.filter(
         blood_pressure__contains='HIGH'
     ).count()
 

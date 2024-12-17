@@ -347,9 +347,11 @@
                     <div>
                         <h4 class="text-white mb-1">Vital Signs Monitoring</h4>
                     </div>
+                    {% if latest_checkup %}
                     <button class="update-btn" data-bs-toggle="modal" data-bs-target="#updateVitalSignsModal">
                         <i class="fas fa-plus me-2"></i>Update Vital Signs
                     </button>
+                    {% endif %}
                 </div>
 
                 <!-- Card Body -->
@@ -364,32 +366,24 @@
                                     </div>
                                     <div class="quick-stat-info">
                                         <h6 class="text-primary">Last Updated</h6>
-                                        <h4>{{ latest_vitals.recorded_at|date:"M d, Y"|default:"--" }}</h4>
+                                        <h4>{{ latest_checkup.checkup_date|date:"M d, Y"|default:"--" }}</h4>
                                         <span class="stat-subtext">
-                                            {{ latest_vitals.recorded_at|time:"g:i A" }}
+                                            {{ latest_checkup.checkup_date|time:"g:i A" }}
                                         </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="quick-stat-card bg-success bg-opacity-10 rounded p-3">
+                            <div class="quick-stat-card bg-danger bg-opacity-10 rounded p-3">
                                 <div class="d-flex align-items-start">
-                                    <div class="stat-icon bg-success text-white me-3">
-                                        <i class="fas fa-check-circle"></i>
+                                    <div class="stat-icon bg-danger text-white me-3">
+                                        <i class="fas fa-heartbeat"></i>
                                     </div>
                                     <div class="quick-stat-info">
-                                        <h6 class="text-success">Birth Plan</h6>
-                                        <h4>{{ latest_vitals.get_birth_plan_status_display|default:"Not Set" }}</h4>
-                                        {% if latest_vitals.birth_plan_status == 'COMPLETED' %}
-                                            <div class="quick-stat-trend bg-success bg-opacity-25 text-success">
-                                                <i class="fas fa-check me-1"></i>Completed
-                                            </div>
-                                        {% elif latest_vitals.birth_plan_status == 'IN_PROGRESS' %}
-                                            <div class="quick-stat-trend bg-warning bg-opacity-25 text-warning">
-                                                <i class="fas fa-clock me-1"></i>In Progress
-                                            </div>
-                                        {% endif %}
+                                        <h6 class="text-danger">Blood Pressure</h6>
+                                        <h4>{{ latest_checkup.blood_pressure|default:"Not Set" }}</h4>
+                                        <span class="stat-subtext">Last checked: {{ latest_checkup.checkup_date|date:"M d, Y" }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -402,11 +396,11 @@
                                     </div>
                                     <div class="quick-stat-info">
                                         <h6 class="text-warning">Gestation</h6>
-                                        <h4>{{ latest_vitals.age_of_gestation|default:"0" }} weeks</h4>
+                                        <h4>{{ latest_checkup.age_of_gestation|default:"0" }} weeks</h4>
                                         <span class="stat-subtext">
-                                            {% if latest_vitals.age_of_gestation <= 13 %}
+                                            {% if latest_checkup.age_of_gestation <= 13 %}
                                                 First Trimester
-                                            {% elif latest_vitals.age_of_gestation <= 26 %}
+                                            {% elif latest_checkup.age_of_gestation <= 26 %}
                                                 Second Trimester
                                             {% else %}
                                                 Third Trimester
@@ -424,10 +418,10 @@
                                     </div>
                                     <div class="quick-stat-info">
                                         <h6 class="text-info">Dental</h6>
-                                        <h4>{{ latest_vitals.get_dental_checkup_status_display|default:"Not Set" }}</h4>
-                                        {% if latest_vitals.dental_checkup_date %}
+                                        <h4>{{ latest_checkup.get_dental_checkup_status_display|default:"Not Set" }}</h4>
+                                        {% if latest_checkup.dental_checkup_date %}
                                             <span class="stat-subtext">
-                                                Last check: {{ latest_vitals.dental_checkup_date|date:"M d, Y" }}
+                                                Last check: {{ latest_checkup.dental_checkup_date|date:"M d, Y" }}
                                             </span>
                                         {% endif %}
                                     </div>
@@ -476,12 +470,12 @@
                                         <div class="vital-info">
                                             <h6>Weight</h6>
                                             <div class="d-flex align-items-baseline">
-                                                <h4 class="mb-0">{{ latest_vitals.weight|default:"--" }} <small>kg</small></h4>
-                                                {% if weight_difference %}
-                                                    <span class="value-change value-{{ weight_change_type }}">
-                                                        <i class="fas fa-arrow-{% if weight_change_type == 'increase' %}up{% else %}down{% endif %} me-1"></i>
-                                                        {{ weight_difference }} kg
-                                                    </span>
+                                                <h4 class="mb-0">{{ latest_checkup.weight|default:"--" }} <small>kg</small></h4>
+                                                {% if changes.weight %}
+                                                    <small class="ms-2 {% if changes.weight.increased %}text-success{% else %}text-danger{% endif %}">
+                                                        ({{ changes.weight.diff }} kg)
+                                                        <i class="fas fa-arrow-{% if changes.weight.increased %}up{% else %}down{% endif %}"></i>
+                                                    </small>
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -496,7 +490,15 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Height</h6>
-                                            <h4>{{ latest_vitals.height|default:"--" }} <small>cm</small></h4>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.height|default:"--" }} <small>cm</small></h4>
+                                                {% if changes.height %}
+                                                    <small class="ms-2 {% if changes.height.increased %}text-success{% else %}text-danger{% endif %}">
+                                                        ({{ changes.height.diff }} cm)
+                                                        <i class="fas fa-arrow-{% if changes.height.increased %}up{% else %}down{% endif %}"></i>
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -509,7 +511,14 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Blood Pressure</h6>
-                                            <h4>{{ latest_vitals.blood_pressure|default:"--" }}</h4>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.blood_pressure|default:"--" }}</h4>
+                                                {% if changes.blood_pressure_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -522,7 +531,14 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Age of Gestation</h6>
-                                            <h4>{{ latest_vitals.age_of_gestation|default:"--" }} <small>weeks</small></h4>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.age_of_gestation|default:"--" }} <small>weeks</small></h4>
+                                                {% if changes.age_of_gestation_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-clock"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -539,7 +555,14 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Nutritional Status</h6>
-                                            <h4>{{ latest_vitals.get_nutritional_status_display|default:"--" }}</h4>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.get_nutritional_status_display|default:"--" }}</h4>
+                                                {% if changes.nutritional_status_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Status Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -552,7 +575,14 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Birth Plan</h6>
-                                            <h4>{{ latest_vitals.get_birth_plan_status_display|default:"--" }}</h4>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.get_birth_plan_status_display|default:"--" }}</h4>
+                                                {% if changes.birth_plan_status_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Status Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -565,9 +595,23 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Dental Checkup</h6>
-                                            <h4>{{ latest_vitals.get_dental_checkup_status_display|default:"--" }}</h4>
-                                            {% if latest_vitals.dental_checkup_date %}
-                                            <small class="text-muted">{{ latest_vitals.dental_checkup_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.get_dental_checkup_status_display|default:"--" }}</h4>
+                                                {% if changes.dental_checkup_status_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Status Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.dental_checkup_date %}
+                                                <small class="text-muted">
+                                                    {{ latest_checkup.dental_checkup_date|date:"M d, Y" }}
+                                                    {% if changes.dental_checkup_date_changed %}
+                                                        <span class="ms-2 text-info">
+                                                            <i class="fas fa-calendar-plus"></i> Date Updated
+                                                        </span>
+                                                    {% endif %}
+                                                </small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -588,7 +632,14 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Hemoglobin Count</h6>
-                                            <h4>{{ latest_vitals.hemoglobin_count|default:"--" }}</h4>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.hemoglobin_count|default:"--" }}</h4>
+                                                {% if changes.hemoglobin_count_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -601,9 +652,16 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Urinalysis</h6>
-                                            <h4>{% if latest_vitals.urinalysis_date %}Done{% else %}Pending{% endif %}</h4>
-                                            {% if latest_vitals.urinalysis_date %}
-                                            <small class="text-muted">{{ latest_vitals.urinalysis_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.urinalysis_date %}Done{% else %}Pending{% endif %}</h4>
+                                                {% if changes.urinalysis_date_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-calendar-plus"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.urinalysis_date %}
+                                                <small class="text-muted">{{ latest_checkup.urinalysis_date|date:"M d, Y" }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -617,9 +675,16 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Complete Blood Count</h6>
-                                            <h4>{% if latest_vitals.cbc_date %}Done{% else %}Pending{% endif %}</h4>
-                                            {% if latest_vitals.cbc_date %}
-                                            <small class="text-muted">{{ latest_vitals.cbc_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.cbc_date %}Done{% else %}Pending{% endif %}</h4>
+                                                {% if changes.cbc_date_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-calendar-plus"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.cbc_date %}
+                                                <small class="text-muted">{{ latest_checkup.cbc_date|date:"M d, Y" }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -633,9 +698,16 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Stool Examination</h6>
-                                            <h4>{% if latest_vitals.stool_exam_date %}Done{% else %}Pending{% endif %}</h4>
-                                            {% if latest_vitals.stool_exam_date %}
-                                            <small class="text-muted">{{ latest_vitals.stool_exam_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.stool_exam_date %}Done{% else %}Pending{% endif %}</h4>
+                                                {% if changes.stool_exam_date_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-calendar-plus"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.stool_exam_date %}
+                                                <small class="text-muted">{{ latest_checkup.stool_exam_date|date:"M d, Y" }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -653,9 +725,23 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Syphilis Test</h6>
-                                            <h4>{{ latest_vitals.syphilis_result|default:"Not Tested" }}</h4>
-                                            {% if latest_vitals.syphilis_test_date %}
-                                            <small class="text-muted">{{ latest_vitals.syphilis_test_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.syphilis_result|default:"Not Tested" }}</h4>
+                                                {% if changes.syphilis_result_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Result Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.syphilis_test_date %}
+                                                <small class="text-muted">
+                                                    {{ latest_checkup.syphilis_test_date|date:"M d, Y" }}
+                                                    {% if changes.syphilis_test_date_changed %}
+                                                        <span class="ms-2 text-info">
+                                                            <i class="fas fa-calendar-plus"></i> Date Updated
+                                                        </span>
+                                                    {% endif %}
+                                                </small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -669,9 +755,23 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>HIV Test</h6>
-                                            <h4>{{ latest_vitals.hiv_result|default:"Not Tested" }}</h4>
-                                            {% if latest_vitals.hiv_test_date %}
-                                            <small class="text-muted">{{ latest_vitals.hiv_test_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.hiv_result|default:"Not Tested" }}</h4>
+                                                {% if changes.hiv_result_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Result Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.hiv_test_date %}
+                                                <small class="text-muted">
+                                                    {{ latest_checkup.hiv_test_date|date:"M d, Y" }}
+                                                    {% if changes.hiv_test_date_changed %}
+                                                        <span class="ms-2 text-info">
+                                                            <i class="fas fa-calendar-plus"></i> Date Updated
+                                                        </span>
+                                                    {% endif %}
+                                                </small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -685,9 +785,23 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Hepatitis B Test</h6>
-                                            <h4>{{ latest_vitals.hepatitis_b_result|default:"Not Tested" }}</h4>
-                                            {% if latest_vitals.hepatitis_b_test_date %}
-                                            <small class="text-muted">{{ latest_vitals.hepatitis_b_test_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{{ latest_checkup.hepatitis_b_result|default:"Not Tested" }}</h4>
+                                                {% if changes.hepatitis_b_result_changed %}
+                                                    <small class="ms-2 text-warning">
+                                                        <i class="fas fa-exchange-alt"></i> Result Changed
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.hepatitis_b_test_date %}
+                                                <small class="text-muted">
+                                                    {{ latest_checkup.hepatitis_b_test_date|date:"M d, Y" }}
+                                                    {% if changes.hepatitis_b_test_date_changed %}
+                                                        <span class="ms-2 text-info">
+                                                            <i class="fas fa-calendar-plus"></i> Date Updated
+                                                        </span>
+                                                    {% endif %}
+                                                </small>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -708,37 +822,117 @@
                                         </div>
                                         <div class="vital-info">
                                             <h6>Tetanus Vaccine</h6>
-                                            <h4>{% if latest_vitals.tetanus_vaccine_date %}Given{% else %}Pending{% endif %}</h4>
-                                            {% if latest_vitals.tetanus_vaccine_date %}
-                                            <small class="text-muted">{{ latest_vitals.tetanus_vaccine_date|date:"M d, Y" }}</small>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.tetanus_vaccine_date %}Given{% else %}Pending{% endif %}</h4>
+                                                {% if changes.tetanus_vaccine_date_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-calendar-plus"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.tetanus_vaccine_date %}
+                                                <small class="text-muted">{{ latest_checkup.tetanus_vaccine_date|date:"M d, Y" }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Treatment Cards -->
-                                {% for treatment_type, icon, title in treatments %}
+                                <!-- Syphilis Treatment -->
                                 <div class="col-md-6 col-lg-3">
                                     <div class="vital-sign-card">
-                                        <div class="vital-icon {{ icon.bg }}">
-                                            <i class="fas fa-{{ icon.name }}"></i>
+                                        <div class="vital-icon bg-info">
+                                            <i class="fas fa-capsules"></i>
                                         </div>
                                         <div class="vital-info">
-                                            <h6>{{ title }}</h6>
-                                            <h4>{% if treatment_type %}Active{% else %}None{% endif %}</h4>
-                                            {% if treatment_type %}
-                                            <small class="text-muted">{{ treatment_type }}</small>
+                                            <h6>Syphilis Treatment</h6>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.syphilis_treatment %}Active{% else %}None{% endif %}</h4>
+                                                {% if changes.syphilis_treatment_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-pen"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.syphilis_treatment %}
+                                                <small class="text-muted">{{ latest_checkup.syphilis_treatment }}</small>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </div>
-                                {% endfor %}
+
+                                <!-- ARV Treatment -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="vital-sign-card">
+                                        <div class="vital-icon bg-warning">
+                                            <i class="fas fa-pills"></i>
+                                        </div>
+                                        <div class="vital-info">
+                                            <h6>ARV Treatment</h6>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.arv_treatment %}Active{% else %}None{% endif %}</h4>
+                                                {% if changes.arv_treatment_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-pen"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.arv_treatment %}
+                                                <small class="text-muted">{{ latest_checkup.arv_treatment }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bacteriuria Treatment -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="vital-sign-card">
+                                        <div class="vital-icon bg-success">
+                                            <i class="fas fa-prescription"></i>
+                                        </div>
+                                        <div class="vital-info">
+                                            <h6>Bacteriuria Treatment</h6>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.bacteriuria_treatment %}Active{% else %}None{% endif %}</h4>
+                                                {% if changes.bacteriuria_treatment_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-pen"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.bacteriuria_treatment %}
+                                                <small class="text-muted">{{ latest_checkup.bacteriuria_treatment }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Anemia Treatment -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="vital-sign-card">
+                                        <div class="vital-icon bg-danger">
+                                            <i class="fas fa-tablets"></i>
+                                        </div>
+                                        <div class="vital-info">
+                                            <h6>Anemia Treatment</h6>
+                                            <div class="d-flex align-items-baseline">
+                                                <h4 class="mb-0">{% if latest_checkup.anemia_treatment %}Active{% else %}None{% endif %}</h4>
+                                                {% if changes.anemia_treatment_changed %}
+                                                    <small class="ms-2 text-info">
+                                                        <i class="fas fa-pen"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                            {% if latest_checkup.anemia_treatment %}
+                                                <small class="text-muted">{{ latest_checkup.anemia_treatment }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- History Tab -->
                         <div class="tab-pane fade" id="history">
-                            <!-- Vital Signs History -->
                             <div class="table-responsive">
                                 <table class="table">
                                     <thead>
@@ -748,97 +942,155 @@
                                             <th>Height</th>
                                             <th>Blood Pressure</th>
                                             <th>Age of Gestation</th>
-                                            <th>Nutritional Status</th>
-                                            <th>Birth Plan</th>
-                                            <th>Dental Checkup</th>
-                                            <th>Lab Tests</th>
-                                            <th>STI Tests</th>
-                                            <th>Treatments</th>
+                                            <th>Changes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for checkup in checkups %}
-                                            <tr>
-                                                <td>{{ checkup.date|date:"M d, Y" }}</td>
-                                                <td>
-                                                    {{ checkup.weight }} kg
-                                                    {% if checkup.weight_change %}
-                                                        <small class="text-{{ checkup.weight_change_type|yesno:'success,danger' }} d-block">
-                                                            <i class="fas fa-arrow-{{ checkup.weight_change_type|yesno:'up,down' }}"></i>
-                                                            {% if checkup.weight_change_type == 'increase' %}+{% endif %}
-                                                            {{ checkup.weight_change|floatformat:1 }}
-                                                        </small>
+                                        <tr>
+                                            <td>{{ checkup.checkup_date|date:"M d, Y" }}</td>
+                                            <td>
+                                                {{ checkup.weight|default:"--" }} kg
+                                                {% if checkup.weight_change %}
+                                                    <small class="text-{{ checkup.weight_change_type|yesno:'success,danger' }} d-block">
+                                                        <i class="fas fa-arrow-{{ checkup.weight_change_type|yesno:'up,down' }}"></i>
+                                                        {% if checkup.weight_change_type == 'increase' %}+{% endif %}
+                                                        {{ checkup.weight_change|floatformat:1 }} kg
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ checkup.height|default:"--" }} cm
+                                                {% if checkup.height_change %}
+                                                    <small class="text-{{ checkup.height_change_type|yesno:'success,danger' }} d-block">
+                                                        <i class="fas fa-arrow-{{ checkup.height_change_type|yesno:'up,down' }}"></i>
+                                                        {% if checkup.height_change_type == 'increase' %}+{% endif %}
+                                                        {{ checkup.height_change|floatformat:1 }} cm
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ checkup.blood_pressure|default:"--" }}
+                                                {% if checkup.blood_pressure_changed %}
+                                                    <small class="text-warning d-block">
+                                                        <i class="fas fa-exchange-alt"></i> Changed
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ checkup.age_of_gestation|default:"--" }} weeks
+                                                {% if checkup.age_of_gestation_changed %}
+                                                    <small class="text-info d-block">
+                                                        <i class="fas fa-clock"></i> Updated
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    <!-- Basic Measurements -->
+                                                    {% if checkup.weight_change or checkup.height_change or checkup.blood_pressure_changed or checkup.age_of_gestation_changed %}
+                                                        <div class="text-primary mb-1">
+                                                            <i class="fas fa-ruler-combined"></i> Measurements:
+                                                            {% if checkup.weight_change %}
+                                                                <span class="badge bg-light text-dark">Weight</span>
+                                                            {% endif %}
+                                                            {% if checkup.height_change %}
+                                                                <span class="badge bg-light text-dark">Height</span>
+                                                            {% endif %}
+                                                            {% if checkup.blood_pressure_changed %}
+                                                                <span class="badge bg-light text-dark">Blood Pressure</span>
+                                                            {% endif %}
+                                                            {% if checkup.age_of_gestation_changed %}
+                                                                <span class="badge bg-light text-dark">Gestation Age</span>
+                                                            {% endif %}
+                                                        </div>
                                                     {% endif %}
-                                                </td>
-                                                <td>{{ checkup.height|default:"--" }} cm</td>
-                                                <td>
-                                                    {{ checkup.blood_pressure }}
-                                                    {% if checkup.bp_status %}
-                                                        <small class="{{ checkup.bp_status.class }} d-block">
-                                                            {{ checkup.bp_status.text }}
-                                                        </small>
+
+                                                    <!-- Status Changes -->
+                                                    {% if checkup.nutritional_status_changed or checkup.birth_plan_status_changed or checkup.dental_checkup_status_changed or checkup.dental_checkup_date_changed %}
+                                                        <div class="text-warning mb-1">
+                                                            <i class="fas fa-exchange-alt"></i> Status Changes:
+                                                            {% if checkup.nutritional_status_changed %}
+                                                                <span class="badge bg-light text-dark">Nutritional</span>
+                                                            {% endif %}
+                                                            {% if checkup.birth_plan_status_changed %}
+                                                                <span class="badge bg-light text-dark">Birth Plan</span>
+                                                            {% endif %}
+                                                            {% if checkup.dental_checkup_status_changed %}
+                                                                <span class="badge bg-light text-dark">Dental Status</span>
+                                                            {% endif %}
+                                                            {% if checkup.dental_checkup_date_changed %}
+                                                                <span class="badge bg-light text-dark">Dental Date</span>
+                                                            {% endif %}
+                                                        </div>
                                                     {% endif %}
-                                                </td>
-                                                <td>{{ checkup.age_of_gestation|default:"--" }} weeks</td>
-                                                <td>{{ checkup.nutritional_status|default:"--" }}</td>
-                                                <td>{{ checkup.birth_plan_status|default:"--" }}</td>
-                                                <td>
-                                                    {{ checkup.dental_checkup_status|default:"--" }}
-                                                    {% if checkup.dental_checkup_date %}
-                                                    <small class="text-muted d-block">
-                                                        {{ checkup.dental_checkup_date|date:"M d, Y" }}
-                                                    </small>
+
+                                                    <!-- Lab Tests -->
+                                                    {% if checkup.hemoglobin_count_changed or checkup.urinalysis_date_changed or checkup.cbc_date_changed or checkup.stool_exam_date_changed %}
+                                                        <div class="text-info mb-1">
+                                                            <i class="fas fa-flask"></i> Lab Tests:
+                                                            {% if checkup.hemoglobin_count_changed %}
+                                                                <span class="badge bg-light text-dark">Hemoglobin</span>
+                                                            {% endif %}
+                                                            {% if checkup.urinalysis_date_changed %}
+                                                                <span class="badge bg-light text-dark">Urinalysis</span>
+                                                            {% endif %}
+                                                            {% if checkup.cbc_date_changed %}
+                                                                <span class="badge bg-light text-dark">CBC</span>
+                                                            {% endif %}
+                                                            {% if checkup.stool_exam_date_changed %}
+                                                                <span class="badge bg-light text-dark">Stool Exam</span>
+                                                            {% endif %}
+                                                        </div>
                                                     {% endif %}
-                                                </td>
-                                                <td>
-                                                    <small>
-                                                        {% if checkup.hemoglobin_count %}
-                                                        <div>Hemoglobin: {{ checkup.hemoglobin_count }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.urinalysis_date %}
-                                                        <div>Urinalysis: {{ checkup.urinalysis_date|date:"M d, Y" }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.cbc_date %}
-                                                        <div>CBC: {{ checkup.cbc_date|date:"M d, Y" }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.stool_exam_date %}
-                                                        <div>Stool: {{ checkup.stool_exam_date|date:"M d, Y" }}</div>
-                                                        {% endif %}
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <small>
-                                                        {% if checkup.syphilis_test_date %}
-                                                        <div>Syphilis: {{ checkup.syphilis_result }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.hiv_test_date %}
-                                                        <div>HIV: {{ checkup.hiv_result }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.hepatitis_b_test_date %}
-                                                        <div>HepB: {{ checkup.hepatitis_b_result }}</div>
-                                                        {% endif %}
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <small>
-                                                        {% if checkup.tetanus_vaccine_date %}
-                                                        <div>Tetanus: {{ checkup.tetanus_vaccine_date|date:"M d, Y" }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.syphilis_treatment %}
-                                                        <div>Syphilis: {{ checkup.syphilis_treatment }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.arv_treatment %}
-                                                        <div>ARV: {{ checkup.arv_treatment }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.bacteriuria_treatment %}
-                                                        <div>Bacteriuria: {{ checkup.bacteriuria_treatment }}</div>
-                                                        {% endif %}
-                                                        {% if checkup.anemia_treatment %}
-                                                        <div>Anemia: {{ checkup.anemia_treatment }}</div>
-                                                        {% endif %}
-                                                    </small>
-                                                </td>
-                                            </tr>
+
+                                                    <!-- STI Tests -->
+                                                    {% if checkup.syphilis_result_changed or checkup.hiv_result_changed or checkup.hepatitis_b_result_changed or checkup.syphilis_test_date_changed or checkup.hiv_test_date_changed or checkup.hepatitis_b_test_date_changed %}
+                                                        <div class="text-danger mb-1">
+                                                            <i class="fas fa-file-medical"></i> Test Results:
+                                                            {% if checkup.syphilis_result_changed or checkup.syphilis_test_date_changed %}
+                                                                <span class="badge bg-light text-dark">Syphilis</span>
+                                                            {% endif %}
+                                                            {% if checkup.hiv_result_changed or checkup.hiv_test_date_changed %}
+                                                                <span class="badge bg-light text-dark">HIV</span>
+                                                            {% endif %}
+                                                            {% if checkup.hepatitis_b_result_changed or checkup.hepatitis_b_test_date_changed %}
+                                                                <span class="badge bg-light text-dark">Hepatitis B</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
+
+                                                    <!-- Treatments -->
+                                                    {% if checkup.tetanus_vaccine_date_changed or checkup.syphilis_treatment_changed or checkup.arv_treatment_changed or checkup.bacteriuria_treatment_changed or checkup.anemia_treatment_changed %}
+                                                        <div class="text-success mb-1">
+                                                            <i class="fas fa-pills"></i> Treatments:
+                                                            {% if checkup.tetanus_vaccine_date_changed %}
+                                                                <span class="badge bg-light text-dark">Tetanus</span>
+                                                            {% endif %}
+                                                            {% if checkup.syphilis_treatment_changed %}
+                                                                <span class="badge bg-light text-dark">Syphilis</span>
+                                                            {% endif %}
+                                                            {% if checkup.arv_treatment_changed %}
+                                                                <span class="badge bg-light text-dark">ARV</span>
+                                                            {% endif %}
+                                                            {% if checkup.bacteriuria_treatment_changed %}
+                                                                <span class="badge bg-light text-dark">Bacteriuria</span>
+                                                            {% endif %}
+                                                            {% if checkup.anemia_treatment_changed %}
+                                                                <span class="badge bg-light text-dark">Anemia</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
+
+                                                    <!-- No Changes -->
+                                                    {% if not checkup.weight_change and not checkup.height_change and not checkup.blood_pressure_changed and not checkup.age_of_gestation_changed and not checkup.nutritional_status_changed and not checkup.birth_plan_status_changed and not checkup.dental_checkup_status_changed and not checkup.dental_checkup_date_changed and not checkup.hemoglobin_count_changed and not checkup.urinalysis_date_changed and not checkup.cbc_date_changed and not checkup.stool_exam_date_changed and not checkup.syphilis_result_changed and not checkup.syphilis_test_date_changed and not checkup.hiv_result_changed and not checkup.hiv_test_date_changed and not checkup.hepatitis_b_result_changed and not checkup.hepatitis_b_test_date_changed and not checkup.tetanus_vaccine_date_changed and not checkup.syphilis_treatment_changed and not checkup.arv_treatment_changed and not checkup.bacteriuria_treatment_changed and not checkup.anemia_treatment_changed %}
+                                                        <div class="text-muted">
+                                                            <i class="fas fa-minus"></i> No Changes
+                                                        </div>
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                        </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -874,7 +1126,7 @@
                             <div class="input-group">
                                 <input type="number" step="0.1" class="form-control" name="weight"
                                        placeholder="Enter weight" required
-                                       value="{{ latest_vitals.weight|default:'' }}">
+                                       value="{{ latest_checkup.weight|default:'' }}">
                                 <span class="input-group-text">kg</span>
                             </div>
                         </div>
@@ -883,7 +1135,7 @@
                             <div class="input-group">
                                 <input type="number" step="0.1" class="form-control" name="height"
                                        placeholder="Enter height" required
-                                       value="{{ latest_vitals.height|default:'' }}">
+                                       value="{{ latest_checkup.height|default:'' }}">
                                 <span class="input-group-text">cm</span>
                             </div>
                         </div>
@@ -892,7 +1144,7 @@
                             <div class="input-group">
                                 <input type="text" class="form-control" name="blood_pressure"
                                        placeholder="e.g., 120/80" pattern="\d{2,3}\/\d{2,3}" required
-                                       value="{{ latest_vitals.blood_pressure|default:'' }}">
+                                       value="{{ latest_checkup.blood_pressure|default:'' }}">
                                 <span class="input-group-text">mmHg</span>
                             </div>
                         </div>
@@ -900,7 +1152,7 @@
                             <label class="form-label">Age of Gestation (weeks)</label>
                             <input type="number" class="form-control" name="age_of_gestation"
                                    placeholder="Enter weeks" min="1" max="42" required
-                                   value="{{ latest_vitals.age_of_gestation|default:'' }}">
+                                   value="{{ latest_checkup.age_of_gestation|default:'' }}">
                         </div>
                     </div>
 
@@ -914,7 +1166,7 @@
                             <select class="form-select" name="nutritional_status" required>
                                 <option value="">Select status</option>
                                 {% for value, label in nutritional_status_choices %}
-                                    <option value="{{ value }}" {% if latest_vitals.nutritional_status == value %}selected{% endif %}>
+                                    <option value="{{ value }}" {% if latest_checkup.nutritional_status == value %}selected{% endif %}>
                                         {{ label }}
                                     </option>
                                 {% endfor %}
@@ -925,7 +1177,7 @@
                             <select class="form-select" name="birth_plan_status" required>
                                 <option value="">Select status</option>
                                 {% for value, label in birth_plan_choices %}
-                                    <option value="{{ value }}" {% if latest_vitals.birth_plan_status == value %}selected{% endif %}>
+                                    <option value="{{ value }}" {% if latest_checkup.birth_plan_status == value %}selected{% endif %}>
                                         {{ label }}
                                     </option>
                                 {% endfor %}
@@ -936,7 +1188,7 @@
                             <select class="form-select" name="dental_checkup_status" required>
                                 <option value="">Select status</option>
                                 {% for value, label in dental_checkup_choices %}
-                                    <option value="{{ value }}" {% if latest_vitals.dental_checkup_status == value %}selected{% endif %}>
+                                    <option value="{{ value }}" {% if latest_checkup.dental_checkup_status == value %}selected{% endif %}>
                                         {{ label }}
                                     </option>
                                 {% endfor %}
@@ -945,7 +1197,7 @@
                         <div class="col-md-6">
                             <label class="form-label">Dental Checkup Date</label>
                             <input type="date" class="form-control" name="dental_checkup_date"
-                                   value="{{ latest_vitals.dental_checkup_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.dental_checkup_date|date:'Y-m-d'|default:'' }}">
                         </div>
                     </div>
 
@@ -957,22 +1209,22 @@
                         <div class="col-md-6">
                             <label class="form-label">Hemoglobin Count</label>
                             <input type="number" step="0.1" class="form-control" name="hemoglobin_count"
-                                   placeholder="Enter count" value="{{ latest_vitals.hemoglobin_count|default:'' }}">
+                                   placeholder="Enter count" value="{{ latest_checkup.hemoglobin_count|default:'' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Urinalysis Date</label>
                             <input type="date" class="form-control" name="urinalysis_date"
-                                   value="{{ latest_vitals.urinalysis_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.urinalysis_date|date:'Y-m-d'|default:'' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">CBC Date</label>
                             <input type="date" class="form-control" name="cbc_date"
-                                   value="{{ latest_vitals.cbc_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.cbc_date|date:'Y-m-d'|default:'' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Stool Examination Date</label>
                             <input type="date" class="form-control" name="stool_exam_date"
-                                   value="{{ latest_vitals.stool_exam_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.stool_exam_date|date:'Y-m-d'|default:'' }}">
                         </div>
                     </div>
 
@@ -985,36 +1237,36 @@
                         <div class="col-md-4">
                             <label class="form-label">Syphilis Test Date</label>
                             <input type="date" class="form-control" name="syphilis_test_date"
-                                   value="{{ latest_vitals.syphilis_test_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.syphilis_test_date|date:'Y-m-d'|default:'' }}">
                         </div>
                         <div class="col-md-8">
                             <label class="form-label">Syphilis Result</label>
                             <input type="text" class="form-control" name="syphilis_result"
-                                   value="{{ latest_vitals.syphilis_result|default:'' }}">
+                                   value="{{ latest_checkup.syphilis_result|default:'' }}">
                         </div>
 
                         <!-- HIV -->
                         <div class="col-md-4">
                             <label class="form-label">HIV Test Date</label>
                             <input type="date" class="form-control" name="hiv_test_date"
-                                   value="{{ latest_vitals.hiv_test_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.hiv_test_date|date:'Y-m-d'|default:'' }}">
                         </div>
                         <div class="col-md-8">
                             <label class="form-label">HIV Result</label>
                             <input type="text" class="form-control" name="hiv_result"
-                                   value="{{ latest_vitals.hiv_result|default:'' }}">
+                                   value="{{ latest_checkup.hiv_result|default:'' }}">
                         </div>
 
                         <!-- Hepatitis B -->
                         <div class="col-md-4">
                             <label class="form-label">Hepatitis B Test Date</label>
                             <input type="date" class="form-control" name="hepatitis_b_test_date"
-                                   value="{{ latest_vitals.hepatitis_b_test_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.hepatitis_b_test_date|date:'Y-m-d'|default:'' }}">
                         </div>
                         <div class="col-md-8">
                             <label class="form-label">Hepatitis B Result</label>
                             <input type="text" class="form-control" name="hepatitis_b_result"
-                                   value="{{ latest_vitals.hepatitis_b_result|default:'' }}">
+                                   value="{{ latest_checkup.hepatitis_b_result|default:'' }}">
                         </div>
                     </div>
 
@@ -1026,23 +1278,23 @@
                         <div class="col-md-6">
                             <label class="form-label">Tetanus Vaccine Date</label>
                             <input type="date" class="form-control" name="tetanus_vaccine_date"
-                                   value="{{ latest_vitals.tetanus_vaccine_date|date:'Y-m-d'|default:'' }}">
+                                   value="{{ latest_checkup.tetanus_vaccine_date|date:'Y-m-d'|default:'' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Syphilis Treatment</label>
-                            <textarea class="form-control" name="syphilis_treatment" rows="2">{{ latest_vitals.syphilis_treatment|default:'' }}</textarea>
+                            <textarea class="form-control" name="syphilis_treatment" rows="2">{{ latest_checkup.syphilis_treatment|default:'' }}</textarea>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">ARV Treatment</label>
-                            <textarea class="form-control" name="arv_treatment" rows="2">{{ latest_vitals.arv_treatment|default:'' }}</textarea>
+                            <textarea class="form-control" name="arv_treatment" rows="2">{{ latest_checkup.arv_treatment|default:'' }}</textarea>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Bacteriuria Treatment</label>
-                            <textarea class="form-control" name="bacteriuria_treatment" rows="2">{{ latest_vitals.bacteriuria_treatment|default:'' }}</textarea>
+                            <textarea class="form-control" name="bacteriuria_treatment" rows="2">{{ latest_checkup.bacteriuria_treatment|default:'' }}</textarea>
                         </div>
                         <div class="col-md-12">
                             <label class="form-label">Anemia Treatment</label>
-                            <textarea class="form-control" name="anemia_treatment" rows="2">{{ latest_vitals.anemia_treatment|default:'' }}</textarea>
+                            <textarea class="form-control" name="anemia_treatment" rows="2">{{ latest_checkup.anemia_treatment|default:'' }}</textarea>
                         </div>
                     </div>
                 </div>

@@ -186,22 +186,26 @@
                                     </div>
                                 </div>
                                 <div class="card-body">
-                                    {% if current_pregnancy %}
-                                        <div class="progress mb-3" style="height: 20px;">
-                                            <div class="progress-bar bg-info" role="progressbar"
-                                                 style="width: {{ progress_percentage }}%"
-                                                 aria-valuenow="{{ current_week }}"
-                                                 aria-valuemin="0" aria-valuemax="42">
-                                                Week {{ current_week }} of 42
+                                    {% if current_pregnancy and latest_checkup %}
+                                        {% if current_week and progress_percentage %}
+                                            <div class="progress mb-3" style="height: 20px;">
+                                                <div class="progress-bar bg-info" role="progressbar"
+                                                     style="width: {{ progress_percentage }}%"
+                                                     aria-valuenow="{{ current_week }}"
+                                                     aria-valuemin="0" aria-valuemax="42">
+                                                    Week {{ current_week }} of 42
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-calendar-alt text-info me-3"></i>
-                                            <div>
-                                                <small class="text-muted d-block">Due Date</small>
-                                                <strong>{{ latest_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                        {% endif %}
+                                        {% if latest_checkup.estimated_delivery_date %}
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-calendar-alt text-info me-3"></i>
+                                                <div>
+                                                    <small class="text-muted d-block">Due Date</small>
+                                                    <strong>{{ latest_checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                                </div>
                                             </div>
-                                        </div>
+                                        {% endif %}
                                     {% else %}
                                         <div class="text-center py-4">
                                             <div class="bg-light rounded-circle p-3 d-inline-block mb-3">

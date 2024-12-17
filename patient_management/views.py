@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from rhu_management.models import Patient, PregnancyHistory, PrenatalCheckup, EmergencyAlert, \
-    Barangay, VitalSigns
+    Barangay
 
 import requests
 from django.conf import settings
@@ -718,91 +718,132 @@ def vital_signs(request):
     """Display vital signs monitoring page"""
     patient = request.user.patient
     
-    # Get latest vital signs
-    latest_vitals = VitalSigns.objects.filter(
+    # Get latest checkup with vital signs
+    latest_checkup = PrenatalCheckup.objects.filter(
         patient=patient
-    ).order_by('-recorded_at').first()
+    ).order_by('-checkup_date').first()
     
-    # Get vital signs history
-    vital_signs_history = VitalSigns.objects.filter(
-        patient=patient
-    ).order_by('-recorded_at')[:10]
-    
-    # Process checkups to include changes and status
-    processed_checkups = []
-    previous_vitals = None
-    
-    for vitals in vital_signs_history:
-        checkup_data = {
-            'date': vitals.recorded_at,
-            'weight': vitals.weight,
-            'height': vitals.height,
-            'blood_pressure': vitals.blood_pressure,
-            'age_of_gestation': vitals.age_of_gestation,
-            'nutritional_status': vitals.get_nutritional_status_display,
-            'birth_plan_status': vitals.get_birth_plan_status_display,
-            'dental_checkup_status': vitals.get_dental_checkup_status_display,
-            'dental_checkup_date': vitals.dental_checkup_date,
-            'hemoglobin_count': vitals.hemoglobin_count,
-            'urinalysis_date': vitals.urinalysis_date,
-            'cbc_date': vitals.cbc_date,
-            'stool_exam_date': vitals.stool_exam_date,
-            'syphilis_test_date': vitals.syphilis_test_date,
-            'syphilis_result': vitals.syphilis_result,
-            'hiv_test_date': vitals.hiv_test_date,
-            'hiv_result': vitals.hiv_result,
-            'hepatitis_b_test_date': vitals.hepatitis_b_test_date,
-            'hepatitis_b_result': vitals.hepatitis_b_result,
-            'tetanus_vaccine_date': vitals.tetanus_vaccine_date,
-            'syphilis_treatment': vitals.syphilis_treatment,
-            'arv_treatment': vitals.arv_treatment,
-            'bacteriuria_treatment': vitals.bacteriuria_treatment,
-            'anemia_treatment': vitals.anemia_treatment,
-            'weight_change': None,
-            'weight_change_type': None,
-            'bp_status': None,
-        }
-        
-        # Calculate weight change from previous record
-        if previous_vitals and vitals.weight and previous_vitals.weight:
-            weight_diff = float(vitals.weight) - float(previous_vitals.weight)
-            checkup_data['weight_change'] = abs(weight_diff)
-            checkup_data['weight_change_type'] = 'increase' if weight_diff > 0 else 'decrease'
-        
-        # Determine blood pressure status
-        if vitals.blood_pressure:
-            try:
-                systolic = int(vitals.blood_pressure.split('/')[0])
-                if systolic < 120:
-                    checkup_data['bp_status'] = {'text': 'Normal', 'class': 'text-success'}
-                elif systolic < 130:
-                    checkup_data['bp_status'] = {'text': 'Elevated', 'class': 'text-warning'}
-                else:
-                    checkup_data['bp_status'] = {'text': 'High', 'class': 'text-danger'}
-            except (ValueError, IndexError):
-                pass
-        
-        processed_checkups.append(checkup_data)
-        previous_vitals = vitals
-    
-    # Add treatments data for the template
-    treatments = [
-        (latest_vitals.syphilis_treatment, {'name': 'capsules', 'bg': 'bg-info'}, 'Syphilis Treatment'),
-        (latest_vitals.arv_treatment, {'name': 'pills', 'bg': 'bg-warning'}, 'ARV Treatment'),
-        (latest_vitals.bacteriuria_treatment, {'name': 'prescription', 'bg': 'bg-success'}, 'Bacteriuria Treatment'),
-        (latest_vitals.anemia_treatment, {'name': 'tablets', 'bg': 'bg-danger'}, 'Anemia Treatment'),
-    ] if latest_vitals else []
+    # Get previous checkup for comparison with latest
+    previous_checkup = None
+    if latest_checkup:
+        previous_checkup = PrenatalCheckup.objects.filter(
+            patient=patient,
+            checkup_date__lt=latest_checkup.checkup_date
+        ).order_by('-checkup_date').first()
 
-    return render(request, 'patient_management/vital_signs.html', {
+    # Calculate changes for latest checkup
+    changes = {}
+    if previous_checkup:
+        # Calculate all changes between latest and previous checkup
+        calculate_changes(latest_checkup, previous_checkup, changes)
+
+    # Get checkup history and calculate changes for each
+    checkups = list(PrenatalCheckup.objects.filter(
+        patient=patient
+    ).order_by('-checkup_date')[:10])
+
+    # Calculate changes for each checkup in history
+    for i, checkup in enumerate(checkups[:-1]):  # Skip last checkup as it has no previous
+        next_checkup = checkups[i + 1]  # Get next checkup (chronologically previous)
+        checkup.weight_change = None
+        checkup.weight_change_type = None
+        
+        # Calculate weight change
+        if checkup.weight and next_checkup.weight:
+            weight_diff = float(checkup.weight) - float(next_checkup.weight)
+            checkup.weight_change = abs(weight_diff)
+            checkup.weight_change_type = 'increase' if weight_diff > 0 else 'decrease'
+        
+        # Calculate height change
+        if checkup.height and next_checkup.height:
+            height_diff = float(checkup.height) - float(next_checkup.height)
+            checkup.height_change = abs(height_diff)
+            checkup.height_change_type = 'increase' if height_diff > 0 else 'decrease'
+        
+        # Status changes
+        checkup.blood_pressure_changed = checkup.blood_pressure != next_checkup.blood_pressure
+        checkup.age_of_gestation_changed = checkup.age_of_gestation != next_checkup.age_of_gestation
+        checkup.nutritional_status_changed = checkup.nutritional_status != next_checkup.nutritional_status
+        checkup.birth_plan_status_changed = checkup.birth_plan_status != next_checkup.birth_plan_status
+        checkup.dental_checkup_status_changed = checkup.dental_checkup_status != next_checkup.dental_checkup_status
+        
+        # Lab test changes
+        checkup.hemoglobin_count_changed = checkup.hemoglobin_count != next_checkup.hemoglobin_count
+        checkup.urinalysis_date_changed = checkup.urinalysis_date != next_checkup.urinalysis_date
+        checkup.cbc_date_changed = checkup.cbc_date != next_checkup.cbc_date
+        checkup.stool_exam_date_changed = checkup.stool_exam_date != next_checkup.stool_exam_date
+        
+        # STI test changes
+        checkup.syphilis_test_date_changed = checkup.syphilis_test_date != next_checkup.syphilis_test_date
+        checkup.syphilis_result_changed = checkup.syphilis_result != next_checkup.syphilis_result
+        checkup.hiv_test_date_changed = checkup.hiv_test_date != next_checkup.hiv_test_date
+        checkup.hiv_result_changed = checkup.hiv_result != next_checkup.hiv_result
+        checkup.hepatitis_b_test_date_changed = checkup.hepatitis_b_test_date != next_checkup.hepatitis_b_test_date
+        checkup.hepatitis_b_result_changed = checkup.hepatitis_b_result != next_checkup.hepatitis_b_result
+        
+        # Treatment changes
+        checkup.tetanus_vaccine_date_changed = checkup.tetanus_vaccine_date != next_checkup.tetanus_vaccine_date
+        checkup.syphilis_treatment_changed = checkup.syphilis_treatment != next_checkup.syphilis_treatment
+        checkup.arv_treatment_changed = checkup.arv_treatment != next_checkup.arv_treatment
+        checkup.bacteriuria_treatment_changed = checkup.bacteriuria_treatment != next_checkup.bacteriuria_treatment
+        checkup.anemia_treatment_changed = checkup.anemia_treatment != next_checkup.anemia_treatment
+
+    context = {
         'title': 'Vital Signs Monitoring',
-        'latest_checkup': latest_vitals,
-        'latest_vitals': latest_vitals,
-        'checkups': processed_checkups,
-        'treatments': treatments,
-        'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
-        'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
-        'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
-    })
+        'latest_checkup': latest_checkup,
+        'changes': changes,
+        'checkups': checkups,
+        'birth_plan_choices': PrenatalCheckup.BIRTH_PLAN_STATUS,
+        'dental_checkup_choices': PrenatalCheckup.DENTAL_CHECKUP_STATUS,
+        'nutritional_status_choices': PrenatalCheckup.NUTRITIONAL_STATUS_CHOICES,
+    }
+
+    return render(request, 'patient_management/vital_signs.html', context)
+
+def calculate_changes(current, previous, changes):
+    """Helper function to calculate changes between two checkups"""
+    if current.weight and previous.weight:
+        weight_diff = float(current.weight) - float(previous.weight)
+        changes['weight'] = {
+            'diff': round(weight_diff, 2),
+            'increased': weight_diff > 0
+        }
+
+    if current.height and previous.height:
+        height_diff = float(current.height) - float(previous.height)
+        changes['height'] = {
+            'diff': round(height_diff, 2),
+            'increased': height_diff > 0
+        }
+
+    # Status changes
+    changes['blood_pressure_changed'] = current.blood_pressure != previous.blood_pressure
+    changes['age_of_gestation_changed'] = current.age_of_gestation != previous.age_of_gestation
+    changes['nutritional_status_changed'] = current.nutritional_status != previous.nutritional_status
+    changes['birth_plan_status_changed'] = current.birth_plan_status != previous.birth_plan_status
+    changes['dental_checkup_status_changed'] = current.dental_checkup_status != previous.dental_checkup_status
+    changes['dental_checkup_date_changed'] = current.dental_checkup_date != previous.dental_checkup_date
+
+    # Lab test changes
+    changes['hemoglobin_count_changed'] = current.hemoglobin_count != previous.hemoglobin_count
+    changes['urinalysis_date_changed'] = current.urinalysis_date != previous.urinalysis_date
+    changes['cbc_date_changed'] = current.cbc_date != previous.cbc_date
+    changes['stool_exam_date_changed'] = current.stool_exam_date != previous.stool_exam_date
+
+    # STI test changes
+    changes['syphilis_test_date_changed'] = current.syphilis_test_date != previous.syphilis_test_date
+    changes['syphilis_result_changed'] = current.syphilis_result != previous.syphilis_result
+    changes['hiv_test_date_changed'] = current.hiv_test_date != previous.hiv_test_date
+    changes['hiv_result_changed'] = current.hiv_result != previous.hiv_result
+    changes['hepatitis_b_test_date_changed'] = current.hepatitis_b_test_date != previous.hepatitis_b_test_date
+    changes['hepatitis_b_result_changed'] = current.hepatitis_b_result != previous.hepatitis_b_result
+
+    # Treatment changes
+    changes['tetanus_vaccine_date_changed'] = current.tetanus_vaccine_date != previous.tetanus_vaccine_date
+    changes['syphilis_treatment_changed'] = current.syphilis_treatment != previous.syphilis_treatment
+    changes['arv_treatment_changed'] = current.arv_treatment != previous.arv_treatment
+    changes['bacteriuria_treatment_changed'] = current.bacteriuria_treatment != previous.bacteriuria_treatment
+    changes['anemia_treatment_changed'] = current.anemia_treatment != previous.anemia_treatment
 
 @login_required(login_url='patient_management:login')
 @patient_required
@@ -811,45 +852,51 @@ def update_vital_signs(request):
     try:
         patient = request.user.patient
         
-        # Create new vital signs record
-        vital_signs = VitalSigns(
+        # Get the latest checkup
+        latest_checkup = PrenatalCheckup.objects.filter(
             patient=patient
-        )
+        ).order_by('-checkup_date').first()
         
-        # Update basic measurements
-        vital_signs.weight = request.POST.get('weight')
-        vital_signs.height = request.POST.get('height')
-        vital_signs.blood_pressure = request.POST.get('blood_pressure')
-        vital_signs.age_of_gestation = request.POST.get('age_of_gestation')
+        if not latest_checkup:
+            messages.error(request, 'No checkup record found to update.')
+            return redirect('patient_management:vital_signs')
+
+        # Update the latest checkup with new vital signs data
+        latest_checkup.weight = request.POST.get('weight')
+        latest_checkup.height = request.POST.get('height')
+        latest_checkup.blood_pressure = request.POST.get('blood_pressure')
+        latest_checkup.age_of_gestation = request.POST.get('age_of_gestation')
         
-        # Update status and planning
-        vital_signs.nutritional_status = request.POST.get('nutritional_status')
-        vital_signs.birth_plan_status = request.POST.get('birth_plan_status')
-        vital_signs.dental_checkup_status = request.POST.get('dental_checkup_status')
-        vital_signs.dental_checkup_date = request.POST.get('dental_checkup_date') or None
+        # Status & Planning
+        latest_checkup.nutritional_status = request.POST.get('nutritional_status')
+        latest_checkup.birth_plan_status = request.POST.get('birth_plan_status')
+        latest_checkup.dental_checkup_status = request.POST.get('dental_checkup_status')
+        latest_checkup.dental_checkup_date = request.POST.get('dental_checkup_date') or None
         
-        # Update laboratory tests
-        vital_signs.hemoglobin_count = request.POST.get('hemoglobin_count')
-        vital_signs.urinalysis_date = request.POST.get('urinalysis_date') or None
-        vital_signs.cbc_date = request.POST.get('cbc_date') or None
-        vital_signs.stool_exam_date = request.POST.get('stool_exam_date') or None
+        # Laboratory Tests
+        latest_checkup.hemoglobin_count = request.POST.get('hemoglobin_count')
+        latest_checkup.urinalysis_date = request.POST.get('urinalysis_date') or None
+        latest_checkup.cbc_date = request.POST.get('cbc_date') or None
+        latest_checkup.stool_exam_date = request.POST.get('stool_exam_date') or None
         
-        # Update STI tests
-        vital_signs.syphilis_test_date = request.POST.get('syphilis_test_date') or None
-        vital_signs.syphilis_result = request.POST.get('syphilis_result')
-        vital_signs.hiv_test_date = request.POST.get('hiv_test_date') or None
-        vital_signs.hiv_result = request.POST.get('hiv_result')
-        vital_signs.hepatitis_b_test_date = request.POST.get('hepatitis_b_test_date') or None
-        vital_signs.hepatitis_b_result = request.POST.get('hepatitis_b_result')
+        # STI Tests
+        latest_checkup.syphilis_test_date = request.POST.get('syphilis_test_date') or None
+        latest_checkup.syphilis_result = request.POST.get('syphilis_result')
+        latest_checkup.hiv_test_date = request.POST.get('hiv_test_date') or None
+        latest_checkup.hiv_result = request.POST.get('hiv_result')
+        latest_checkup.hepatitis_b_test_date = request.POST.get('hepatitis_b_test_date') or None
+        latest_checkup.hepatitis_b_result = request.POST.get('hepatitis_b_result')
         
-        # Update treatments
-        vital_signs.tetanus_vaccine_date = request.POST.get('tetanus_vaccine_date') or None
-        vital_signs.syphilis_treatment = request.POST.get('syphilis_treatment')
-        vital_signs.arv_treatment = request.POST.get('arv_treatment')
-        vital_signs.bacteriuria_treatment = request.POST.get('bacteriuria_treatment')
-        vital_signs.anemia_treatment = request.POST.get('anemia_treatment')
+        # Treatments
+        latest_checkup.tetanus_vaccine_date = request.POST.get('tetanus_vaccine_date') or None
+        latest_checkup.syphilis_treatment = request.POST.get('syphilis_treatment')
+        latest_checkup.arv_treatment = request.POST.get('arv_treatment')
+        latest_checkup.bacteriuria_treatment = request.POST.get('bacteriuria_treatment')
+        latest_checkup.anemia_treatment = request.POST.get('anemia_treatment')
         
-        vital_signs.save()
+        # Save the changes
+        latest_checkup.save()
+        
         messages.success(request, 'Vital signs updated successfully!')
         
     except Exception as e:

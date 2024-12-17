@@ -90,14 +90,28 @@ WSGI_APPLICATION = 'prenatal_monitoring.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'railway',
+#         'USER': 'postgres',
+#         'PASSWORD': 'HeOAJcLuckfwQOwPZNmwDfxJGkpMzfrM',
+#         'HOST': 'junction.proxy.rlwy.net',
+#         'PORT': '41476',
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'railway',
-        'USER': 'postgres',
-        'PASSWORD': 'HeOAJcLuckfwQOwPZNmwDfxJGkpMzfrM',
-        'HOST': 'junction.proxy.rlwy.net',
-        'PORT': '41476',
+        'NAME': 'neondb',
+        'USER': 'neondb_owner',
+        'PASSWORD': 'il0NEovdC8pA',
+        'HOST': 'ep-green-unit-a1uvefyy-pooler.ap-southeast-1.aws.neon.tech',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        }
     }
 }
 

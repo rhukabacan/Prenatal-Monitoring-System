@@ -25,7 +25,7 @@ from django.views.decorators.http import require_GET
 from .tasks import check_active_emergencies
 import requests
 
-from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory, VitalSigns
+from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory
 
 
 def superuser_required(view_func):
@@ -452,24 +452,27 @@ def patient_detail(request, patient_id):
 
     # Find the first checkup that hasn't passed its estimated delivery date
     latest_checkup = None
-    today = timezone.now().date()
-    for checkup in latest_checkups:
-        if checkup.estimated_delivery_date >= today:
-            latest_checkup = checkup
-            break
-
     current_week = None
     progress_percentage = None
-    if latest_checkup and latest_checkup.last_menstrual_period:
-        days_pregnant = max((timezone.now().date() - latest_checkup.last_menstrual_period).days, 0)
-        current_week = min(days_pregnant // 7, 42)
-        progress_percentage = min((current_week / 42) * 100, 100)
+    current_pregnancy = False
+    today = timezone.now().date()
+
+    for checkup in latest_checkups:
+        if checkup.estimated_delivery_date and checkup.estimated_delivery_date >= today:
+            latest_checkup = checkup
+            current_pregnancy = True
+            if checkup.last_menstrual_period:
+                days_pregnant = max((today - checkup.last_menstrual_period).days, 0)
+                current_week = min(days_pregnant // 7, 42)
+                progress_percentage = min((current_week / 42) * 100, 100)
+            break
 
     context = {
         'patient': patient,
         'latest_checkup': latest_checkup,
         'current_week': current_week,
         'progress_percentage': progress_percentage,
+        'current_pregnancy': current_pregnancy,
         'checkups': PrenatalCheckup.objects.filter(patient=patient).order_by('-checkup_date')[:5],
         'upcoming_checkups': PrenatalCheckup.objects.filter(
             patient=patient,
@@ -729,7 +732,7 @@ def checkup_list(request):
         id=Subquery(
             latest_checkups.values('id')[:1]
         )
-    ).order_by('-checkup_date')
+    ).order_by('-checkup_date')  # Move order_by here after the filter
 
     # Apply filters
     if patient_filter:
@@ -808,7 +811,7 @@ def checkup_create(request, patient_id):
                 if isinstance(last_menstrual_period, str):
                     last_menstrual_period = datetime.strptime(last_menstrual_period, '%Y-%m-%d').date()
 
-                # Create checkup record
+                # Create checkup record with vital signs data
                 checkup = PrenatalCheckup.objects.create(
                     patient=patient,
                     checkup_date=datetime.combine(
@@ -818,12 +821,8 @@ def checkup_create(request, patient_id):
                     last_menstrual_period=last_menstrual_period,
                     notes=request.POST.get('notes', ''),
                     status='SCHEDULED',
-                    is_initial_record=is_initial  # Set the is_initial_record field
-                )
-
-                # Create vital signs record
-                vital_signs = VitalSigns.objects.create(
-                    patient=patient,
+                    is_initial_record=is_initial,
+                    
                     # Basic Measurements
                     weight=request.POST.get('weight'),
                     height=request.POST.get('height'),
@@ -895,10 +894,10 @@ def checkup_create(request, patient_id):
     context = {
         'patient': patient,
         'previous_checkup': previous_checkup,
-        'latest_vitals': VitalSigns.objects.filter(patient=patient).order_by('-recorded_at').first(),
-        'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
-        'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
-        'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
+        'latest_vitals': PrenatalCheckup.objects.filter(patient=patient).order_by('-checkup_date').first(),  # Changed from recorded_at to checkup_date
+        'birth_plan_choices': PrenatalCheckup.BIRTH_PLAN_STATUS,
+        'dental_checkup_choices': PrenatalCheckup.DENTAL_CHECKUP_STATUS,
+        'nutritional_status_choices': PrenatalCheckup.NUTRITIONAL_STATUS_CHOICES,
         'title': f'New Checkup - {patient.user.get_full_name()}'
     }
 
@@ -911,11 +910,6 @@ def checkup_detail(request, checkup_id):
     """Display detailed checkup information"""
     checkup = get_object_or_404(PrenatalCheckup, id=checkup_id)
 
-    # Get vital signs for this checkup
-    vital_signs = VitalSigns.objects.filter(
-        patient=checkup.patient,
-    ).latest('recorded_at')
-
     # Calculate pregnancy week and progress
     weeks_pregnant = None
     progress_percentage = None
@@ -924,12 +918,95 @@ def checkup_detail(request, checkup_id):
         weeks_pregnant = min(days_pregnant // 7, 42)
         progress_percentage = min((weeks_pregnant / 42) * 100, 100)
 
-    # Get previous and next checkups
+    # Get previous checkup and calculate changes
     previous_checkup = PrenatalCheckup.objects.filter(
         patient=checkup.patient,
         checkup_date__lt=checkup.checkup_date
     ).order_by('-checkup_date').first()
 
+    # Calculate changes if previous checkup exists
+    changes = {}
+    if previous_checkup:
+        # Weight change
+        if checkup.weight and previous_checkup.weight:
+            weight_diff = float(checkup.weight) - float(previous_checkup.weight)
+            changes['weight'] = {
+                'diff': round(weight_diff, 2),
+                'increased': weight_diff > 0
+            }
+
+        # Blood pressure change
+        if checkup.blood_pressure != previous_checkup.blood_pressure:
+            changes['blood_pressure'] = True
+
+        # Status changes
+        if checkup.nutritional_status != previous_checkup.nutritional_status:
+            changes['nutritional_status'] = True
+            
+        if checkup.birth_plan_status != previous_checkup.birth_plan_status:
+            changes['birth_plan_status'] = True
+            
+        if checkup.dental_checkup_status != previous_checkup.dental_checkup_status:
+            changes['dental_checkup_status'] = True
+
+        # Treatment changes
+        if checkup.syphilis_treatment != previous_checkup.syphilis_treatment:
+            changes['syphilis_treatment'] = True
+            
+        if checkup.arv_treatment != previous_checkup.arv_treatment:
+            changes['arv_treatment'] = True
+            
+        if checkup.bacteriuria_treatment != previous_checkup.bacteriuria_treatment:
+            changes['bacteriuria_treatment'] = True
+            
+        if checkup.anemia_treatment != previous_checkup.anemia_treatment:
+            changes['anemia_treatment'] = True
+
+        # Height change
+        if checkup.height and previous_checkup.height:
+            height_diff = float(checkup.height) - float(previous_checkup.height)
+            changes['height'] = {
+                'diff': round(height_diff, 2),
+                'increased': height_diff > 0
+            }
+
+        # Age of gestation change
+        if checkup.age_of_gestation != previous_checkup.age_of_gestation:
+            changes['age_of_gestation'] = True
+
+        # Laboratory test changes
+        if checkup.hemoglobin_count != previous_checkup.hemoglobin_count:
+            changes['hemoglobin_count'] = True
+        if checkup.urinalysis_date != previous_checkup.urinalysis_date:
+            changes['urinalysis_date'] = True
+        if checkup.cbc_date != previous_checkup.cbc_date:
+            changes['cbc_date'] = True
+        if checkup.stool_exam_date != previous_checkup.stool_exam_date:
+            changes['stool_exam_date'] = True
+
+        # STI test changes
+        if checkup.syphilis_test_date != previous_checkup.syphilis_test_date:
+            changes['syphilis_test_date'] = True
+        if checkup.syphilis_result != previous_checkup.syphilis_result:
+            changes['syphilis_result'] = True
+        if checkup.hiv_test_date != previous_checkup.hiv_test_date:
+            changes['hiv_test_date'] = True
+        if checkup.hiv_result != previous_checkup.hiv_result:
+            changes['hiv_result'] = True
+        if checkup.hepatitis_b_test_date != previous_checkup.hepatitis_b_test_date:
+            changes['hepatitis_b_test_date'] = True
+        if checkup.hepatitis_b_result != previous_checkup.hepatitis_b_result:
+            changes['hepatitis_b_result'] = True
+
+        # Vaccine changes
+        if checkup.tetanus_vaccine_date != previous_checkup.tetanus_vaccine_date:
+            changes['tetanus_vaccine_date'] = True
+
+        # Dental checkup date change
+        if checkup.dental_checkup_date != previous_checkup.dental_checkup_date:
+            changes['dental_checkup_date'] = True
+
+    # Get next checkup
     next_checkup = PrenatalCheckup.objects.filter(
         patient=checkup.patient,
         checkup_date__gt=checkup.checkup_date
@@ -937,11 +1014,11 @@ def checkup_detail(request, checkup_id):
 
     context = {
         'checkup': checkup,
-        'vital_signs': vital_signs,  # Add vital signs to context
         'weeks_pregnant': weeks_pregnant,
         'progress_percentage': progress_percentage,
         'previous_checkup': previous_checkup,
         'next_checkup': next_checkup,
+        'changes': changes,
         'title': f'Checkup Details - {checkup.patient.user.get_full_name()}'
     }
 
@@ -953,12 +1030,6 @@ def checkup_detail(request, checkup_id):
 def checkup_update(request, checkup_id):
     """Update existing checkup record"""
     checkup = get_object_or_404(PrenatalCheckup, id=checkup_id)
-    
-    try:
-        vital_signs = VitalSigns.objects.filter(patient=checkup.patient).latest('recorded_at')
-    except VitalSigns.DoesNotExist:
-        # Create new vital signs if none exist
-        vital_signs = VitalSigns(patient=checkup.patient)
 
     if request.method == 'POST':
         try:
@@ -969,42 +1040,41 @@ def checkup_update(request, checkup_id):
                 checkup.checkup_date = datetime.combine(checkup_date, checkup_time)
                 checkup.status = request.POST.get('status')
                 checkup.notes = request.POST.get('notes', '')
-                checkup.save()
-
-                # Update vital signs
-                vital_signs.weight = request.POST.get('weight')
-                vital_signs.height = request.POST.get('height')
-                vital_signs.blood_pressure = request.POST.get('blood_pressure')
-                vital_signs.age_of_gestation = request.POST.get('age_of_gestation')
+                
+                # Update vital signs data
+                checkup.weight = request.POST.get('weight')
+                checkup.height = request.POST.get('height')
+                checkup.blood_pressure = request.POST.get('blood_pressure')
+                checkup.age_of_gestation = request.POST.get('age_of_gestation')
                 
                 # Status & Planning
-                vital_signs.nutritional_status = request.POST.get('nutritional_status')
-                vital_signs.birth_plan_status = request.POST.get('birth_plan_status')
-                vital_signs.dental_checkup_status = request.POST.get('dental_checkup_status')
-                vital_signs.dental_checkup_date = request.POST.get('dental_checkup_date') or None
+                checkup.nutritional_status = request.POST.get('nutritional_status')
+                checkup.birth_plan_status = request.POST.get('birth_plan_status')
+                checkup.dental_checkup_status = request.POST.get('dental_checkup_status')
+                checkup.dental_checkup_date = request.POST.get('dental_checkup_date') or None
                 
                 # Laboratory Tests
-                vital_signs.hemoglobin_count = request.POST.get('hemoglobin_count')
-                vital_signs.urinalysis_date = request.POST.get('urinalysis_date') or None
-                vital_signs.cbc_date = request.POST.get('cbc_date') or None
-                vital_signs.stool_exam_date = request.POST.get('stool_exam_date') or None
+                checkup.hemoglobin_count = request.POST.get('hemoglobin_count')
+                checkup.urinalysis_date = request.POST.get('urinalysis_date') or None
+                checkup.cbc_date = request.POST.get('cbc_date') or None
+                checkup.stool_exam_date = request.POST.get('stool_exam_date') or None
                 
                 # STI Tests
-                vital_signs.syphilis_test_date = request.POST.get('syphilis_test_date') or None
-                vital_signs.syphilis_result = request.POST.get('syphilis_result')
-                vital_signs.hiv_test_date = request.POST.get('hiv_test_date') or None
-                vital_signs.hiv_result = request.POST.get('hiv_result')
-                vital_signs.hepatitis_b_test_date = request.POST.get('hepatitis_b_test_date') or None
-                vital_signs.hepatitis_b_result = request.POST.get('hepatitis_b_result')
+                checkup.syphilis_test_date = request.POST.get('syphilis_test_date') or None
+                checkup.syphilis_result = request.POST.get('syphilis_result')
+                checkup.hiv_test_date = request.POST.get('hiv_test_date') or None
+                checkup.hiv_result = request.POST.get('hiv_result')
+                checkup.hepatitis_b_test_date = request.POST.get('hepatitis_b_test_date') or None
+                checkup.hepatitis_b_result = request.POST.get('hepatitis_b_result')
                 
                 # Treatments
-                vital_signs.tetanus_vaccine_date = request.POST.get('tetanus_vaccine_date') or None
-                vital_signs.syphilis_treatment = request.POST.get('syphilis_treatment')
-                vital_signs.arv_treatment = request.POST.get('arv_treatment')
-                vital_signs.bacteriuria_treatment = request.POST.get('bacteriuria_treatment')
-                vital_signs.anemia_treatment = request.POST.get('anemia_treatment')
+                checkup.tetanus_vaccine_date = request.POST.get('tetanus_vaccine_date') or None
+                checkup.syphilis_treatment = request.POST.get('syphilis_treatment')
+                checkup.arv_treatment = request.POST.get('arv_treatment')
+                checkup.bacteriuria_treatment = request.POST.get('bacteriuria_treatment')
+                checkup.anemia_treatment = request.POST.get('anemia_treatment')
                 
-                vital_signs.save()
+                checkup.save()
 
                 messages.success(request, 'Checkup record updated successfully!')
                 return redirect('rhu_management:checkup_detail', checkup_id=checkup.id)
@@ -1014,11 +1084,10 @@ def checkup_update(request, checkup_id):
 
     context = {
         'checkup': checkup,
-        'vital_signs': vital_signs,
         'status_choices': PrenatalCheckup.STATUS_CHOICES,
-        'birth_plan_choices': VitalSigns.BIRTH_PLAN_STATUS,
-        'dental_checkup_choices': VitalSigns.DENTAL_CHECKUP_STATUS,
-        'nutritional_status_choices': VitalSigns.NUTRITIONAL_STATUS_CHOICES,
+        'birth_plan_choices': PrenatalCheckup.BIRTH_PLAN_STATUS,
+        'dental_checkup_choices': PrenatalCheckup.DENTAL_CHECKUP_STATUS,
+        'nutritional_status_choices': PrenatalCheckup.NUTRITIONAL_STATUS_CHOICES,
         'title': f'Edit Checkup - {checkup.patient.user.get_full_name()}'
     }
 
@@ -1912,7 +1981,7 @@ def export_report(report):
                         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                         ('FONTSIZE', (0, 0), (-1, 0), 12),
                         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                        ('TOPPADDING', (0, 0), (-1, 0), 12),
+                        ('TOPPADDING', (0, 0), (-1, 0)),
 
                         # Data rows
                         ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
@@ -2169,7 +2238,6 @@ def get_location_distribution(barangay=None):
         ).annotate(
             count=Count('id')
         ).order_by('-count')[:10]
-
     # Format the results to combine sitio and barangay name
     distribution = []
     for item in query:
@@ -2180,6 +2248,7 @@ def get_location_distribution(barangay=None):
         })
 
     return distribution
+
 
 
 def get_weekly_checkup_distribution(checkups):

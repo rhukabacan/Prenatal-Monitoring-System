@@ -80,7 +80,7 @@
                                                 <i class="fas fa-weight me-2"></i>Weight (kg)
                                             </label>
                                             <input type="number" step="0.1" class="form-control" id="weight"
-                                                   name="weight" value="{{ vital_signs.weight }}" min="30" max="200" required>
+                                                   name="weight" value="{{ checkup.weight }}" min="30" max="200" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -89,7 +89,7 @@
                                                 <i class="fas fa-ruler-vertical me-2"></i>Height (cm)
                                             </label>
                                             <input type="number" step="0.1" class="form-control" id="height"
-                                                   name="height" value="{{ vital_signs.height }}" min="100" max="250" required>
+                                                   name="height" value="{{ checkup.height }}" min="100" max="250" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -98,7 +98,7 @@
                                                 <i class="fas fa-heart me-2"></i>Blood Pressure
                                             </label>
                                             <input type="text" class="form-control" id="blood_pressure"
-                                                   name="blood_pressure" value="{{ vital_signs.blood_pressure }}"
+                                                   name="blood_pressure" value="{{ checkup.blood_pressure }}"
                                                    placeholder="120/80" pattern="\d{2,3}\/\d{2,3}" required>
                                         </div>
                                     </div>
@@ -108,7 +108,7 @@
                                                 <i class="fas fa-calendar-week me-2"></i>Age of Gestation (weeks)
                                             </label>
                                             <input type="number" class="form-control" id="age_of_gestation"
-                                                   name="age_of_gestation" value="{{ vital_signs.age_of_gestation }}"
+                                                   name="age_of_gestation" value="{{ checkup.age_of_gestation }}"
                                                    min="1" max="42" required>
                                         </div>
                                     </div>
@@ -127,7 +127,7 @@
                                             <select class="form-select" id="nutritional_status" name="nutritional_status" required>
                                                 <option value="">Select status</option>
                                                 {% for value, label in nutritional_status_choices %}
-                                                    <option value="{{ value }}" {% if vital_signs.nutritional_status == value %}selected{% endif %}>
+                                                    <option value="{{ value }}" {% if checkup.nutritional_status == value %}selected{% endif %}>
                                                         {{ label }}
                                                     </option>
                                                 {% endfor %}
@@ -142,7 +142,7 @@
                                             <select class="form-select" id="birth_plan_status" name="birth_plan_status" required>
                                                 <option value="">Select status</option>
                                                 {% for value, label in birth_plan_choices %}
-                                                    <option value="{{ value }}" {% if vital_signs.birth_plan_status == value %}selected{% endif %}>
+                                                    <option value="{{ value }}" {% if checkup.birth_plan_status == value %}selected{% endif %}>
                                                         {{ label }}
                                                     </option>
                                                 {% endfor %}
@@ -157,7 +157,7 @@
                                             <select class="form-select" id="dental_checkup_status" name="dental_checkup_status" required>
                                                 <option value="">Select status</option>
                                                 {% for value, label in dental_checkup_choices %}
-                                                    <option value="{{ value }}" {% if vital_signs.dental_checkup_status == value %}selected{% endif %}>
+                                                    <option value="{{ value }}" {% if checkup.dental_checkup_status == value %}selected{% endif %}>
                                                         {{ label }}
                                                     </option>
                                                 {% endfor %}
@@ -170,7 +170,7 @@
                                                 <i class="fas fa-calendar-check me-2"></i>Dental Checkup Date
                                             </label>
                                             <input type="date" class="form-control" id="dental_checkup_date"
-                                                   name="dental_checkup_date" value="{{ vital_signs.dental_checkup_date|date:'Y-m-d'|default:'' }}">
+                                                   name="dental_checkup_date" value="{{ checkup.dental_checkup_date|date:'Y-m-d'|default:'' }}">
                                         </div>
                                     </div>
                                 </div>
@@ -186,7 +186,7 @@
                                                 <i class="fas fa-tint me-2"></i>Hemoglobin Count
                                             </label>
                                             <input type="number" step="0.1" class="form-control" id="hemoglobin_count"
-                                                   name="hemoglobin_count" value="{{ vital_signs.hemoglobin_count }}">
+                                                   name="hemoglobin_count" value="{{ checkup.hemoglobin_count }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -195,7 +195,7 @@
                                                 <i class="fas fa-flask me-2"></i>Urinalysis Date
                                             </label>
                                             <input type="date" class="form-control" id="urinalysis_date"
-                                                   name="urinalysis_date" value="{{ vital_signs.urinalysis_date|date:'Y-m-d' }}">
+                                                   name="urinalysis_date" value="{{ checkup.urinalysis_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -204,7 +204,7 @@
                                                 <i class="fas fa-vial me-2"></i>CBC Date
                                             </label>
                                             <input type="date" class="form-control" id="cbc_date"
-                                                   name="cbc_date" value="{{ vital_signs.cbc_date|date:'Y-m-d' }}">
+                                                   name="cbc_date" value="{{ checkup.cbc_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -213,7 +213,7 @@
                                                 <i class="fas fa-microscope me-2"></i>Stool Examination Date
                                             </label>
                                             <input type="date" class="form-control" id="stool_exam_date"
-                                                   name="stool_exam_date" value="{{ vital_signs.stool_exam_date|date:'Y-m-d' }}">
+                                                   name="stool_exam_date" value="{{ checkup.stool_exam_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                 </div>
@@ -230,7 +230,7 @@
                                                 <i class="fas fa-calendar-alt me-2"></i>Syphilis Test Date
                                             </label>
                                             <input type="date" class="form-control" id="syphilis_test_date"
-                                                   name="syphilis_test_date" value="{{ vital_signs.syphilis_test_date|date:'Y-m-d' }}">
+                                                   name="syphilis_test_date" value="{{ checkup.syphilis_test_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -239,7 +239,7 @@
                                                 <i class="fas fa-file-medical-alt me-2"></i>Syphilis Result
                                             </label>
                                             <input type="text" class="form-control" id="syphilis_result"
-                                                   name="syphilis_result" value="{{ vital_signs.syphilis_result|default:'' }}">
+                                                   name="syphilis_result" value="{{ checkup.syphilis_result|default:'' }}">
                                         </div>
                                     </div>
                                     <!-- HIV -->
@@ -249,7 +249,7 @@
                                                 <i class="fas fa-calendar-alt me-2"></i>HIV Test Date
                                             </label>
                                             <input type="date" class="form-control" id="hiv_test_date"
-                                                   name="hiv_test_date" value="{{ vital_signs.hiv_test_date|date:'Y-m-d' }}">
+                                                   name="hiv_test_date" value="{{ checkup.hiv_test_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -258,7 +258,7 @@
                                                 <i class="fas fa-file-medical-alt me-2"></i>HIV Result
                                             </label>
                                             <input type="text" class="form-control" id="hiv_result"
-                                                   name="hiv_result" value="{{ vital_signs.hiv_result }}">
+                                                   name="hiv_result" value="{{ checkup.hiv_result }}">
                                         </div>
                                     </div>
                                     <!-- Hepatitis B -->
@@ -268,7 +268,7 @@
                                                 <i class="fas fa-calendar-alt me-2"></i>Hepatitis B Test Date
                                             </label>
                                             <input type="date" class="form-control" id="hepatitis_b_test_date"
-                                                   name="hepatitis_b_test_date" value="{{ vital_signs.hepatitis_b_test_date|date:'Y-m-d' }}">
+                                                   name="hepatitis_b_test_date" value="{{ checkup.hepatitis_b_test_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -277,7 +277,7 @@
                                                 <i class="fas fa-file-medical-alt me-2"></i>Hepatitis B Result
                                             </label>
                                             <input type="text" class="form-control" id="hepatitis_b_result"
-                                                   name="hepatitis_b_result" value="{{ vital_signs.hepatitis_b_result }}">
+                                                   name="hepatitis_b_result" value="{{ checkup.hepatitis_b_result }}">
                                         </div>
                                     </div>
                                 </div>
@@ -293,7 +293,7 @@
                                                 <i class="fas fa-syringe me-2"></i>Tetanus Vaccine Date
                                             </label>
                                             <input type="date" class="form-control" id="tetanus_vaccine_date"
-                                                   name="tetanus_vaccine_date" value="{{ vital_signs.tetanus_vaccine_date|date:'Y-m-d' }}">
+                                                   name="tetanus_vaccine_date" value="{{ checkup.tetanus_vaccine_date|date:'Y-m-d' }}">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -301,7 +301,7 @@
                                             <label for="syphilis_treatment" class="form-label">
                                                 <i class="fas fa-prescription-bottle-alt me-2"></i>Syphilis Treatment
                                             </label>
-                                            <textarea class="form-control" id="syphilis_treatment" name="syphilis_treatment" rows="2">{{ vital_signs.syphilis_treatment|default:'' }}</textarea>
+                                            <textarea class="form-control" id="syphilis_treatment" name="syphilis_treatment" rows="2">{{ checkup.syphilis_treatment|default:'' }}</textarea>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -309,7 +309,7 @@
                                             <label for="arv_treatment" class="form-label">
                                                 <i class="fas fa-capsules me-2"></i>ARV Treatment
                                             </label>
-                                            <textarea class="form-control" id="arv_treatment" name="arv_treatment" rows="2">{{ vital_signs.arv_treatment }}</textarea>
+                                            <textarea class="form-control" id="arv_treatment" name="arv_treatment" rows="2">{{ checkup.arv_treatment }}</textarea>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -317,7 +317,7 @@
                                             <label for="bacteriuria_treatment" class="form-label">
                                                 <i class="fas fa-prescription me-2"></i>Bacteriuria Treatment
                                             </label>
-                                            <textarea class="form-control" id="bacteriuria_treatment" name="bacteriuria_treatment" rows="2">{{ vital_signs.bacteriuria_treatment }}</textarea>
+                                            <textarea class="form-control" id="bacteriuria_treatment" name="bacteriuria_treatment" rows="2">{{ checkup.bacteriuria_treatment }}</textarea>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -325,7 +325,7 @@
                                             <label for="anemia_treatment" class="form-label">
                                                 <i class="fas fa-tablets me-2"></i>Anemia Treatment
                                             </label>
-                                            <textarea class="form-control" id="anemia_treatment" name="anemia_treatment" rows="2">{{ vital_signs.anemia_treatment }}</textarea>
+                                            <textarea class="form-control" id="anemia_treatment" name="anemia_treatment" rows="2">{{ checkup.anemia_treatment }}</textarea>
                                         </div>
                                     </div>
                                 </div>

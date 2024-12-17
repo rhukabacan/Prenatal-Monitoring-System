@@ -121,9 +121,15 @@ class PregnancyHistory(models.Model):
         return f"Pregnancy History - {self.patient} ({self.delivery_date})"
 
 
-class VitalSigns(models.Model):
-    """Model for tracking patient vital signs and medical tests"""
-    
+class PrenatalCheckup(models.Model):
+    STATUS_CHOICES = [
+        ('SCHEDULED', 'Scheduled'),
+        ('COMPLETED', 'Completed'),
+        ('REQUESTED', 'Requested'),
+        ('CANCELLED', 'Cancelled'),
+        ('MISSED', 'Missed')
+    ]
+
     NUTRITIONAL_STATUS_CHOICES = [
         ('NORMAL', 'Normal'),
         ('UNDERWEIGHT', 'Underweight'),
@@ -143,9 +149,13 @@ class VitalSigns(models.Model):
     ]
 
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    recorded_at = models.DateTimeField(auto_now_add=True)
-    
-    # Basic Measurements
+    checkup_date = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SCHEDULED')
+    last_menstrual_period = models.DateField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    is_initial_record = models.BooleanField(default=False)
+
+    # Basic Measurements (from VitalSigns)
     weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     height = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     age_of_gestation = models.PositiveIntegerField(null=True, blank=True)  # in weeks
@@ -197,32 +207,6 @@ class VitalSigns(models.Model):
     bacteriuria_treatment = models.TextField(null=True, blank=True)
     anemia_treatment = models.TextField(null=True, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Vital Signs for {self.patient}"
-
-    class Meta:
-        verbose_name_plural = "Vital Signs"
-        ordering = ['-recorded_at']
-
-
-class PrenatalCheckup(models.Model):
-    STATUS_CHOICES = [
-        ('SCHEDULED', 'Scheduled'),
-        ('COMPLETED', 'Completed'),
-        ('REQUESTED', 'Requested'),
-        ('CANCELLED', 'Cancelled'),
-        ('MISSED', 'Missed')
-    ]
-
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    checkup_date = models.DateTimeField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SCHEDULED')
-    last_menstrual_period = models.DateField(null=True, blank=True)
-    notes = models.TextField(null=True, blank=True)
-    is_initial_record = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
