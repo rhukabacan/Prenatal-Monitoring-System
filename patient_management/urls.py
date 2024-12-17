@@ -20,7 +20,7 @@ urlpatterns = [
     path('checkups/', views.checkup_list, name='checkup_list'),
     path('checkups/<int:checkup_id>/', views.checkup_detail,
          name='checkup_detail'),
-    path('checkups/request/', views.request_checkup, name='request_checkup'),
+    # path('checkups/request/', views.request_checkup, name='request_checkup'),
 
     # Pregnancy History
     path('pregnancy-history/', views.pregnancy_history_list,
