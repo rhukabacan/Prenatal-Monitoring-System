@@ -606,48 +606,124 @@ def emergency_alert(request):
 
         patient = request.user.patient
 
-        # Create emergency alert
+        # Create emergency alert first to ensure it's recorded
         alert = EmergencyAlert.objects.create(
             patient=patient,
             location=location,
             status='ACTIVE'
         )
 
-        # Send SMS to RHU
-        message = f"EMERGENCY ALERT: Patient {patient.user.first_name} {patient.user.last_name} needs immediate assistance."
-        if location:
-            message += f"\nLocation: {location}"
-        if coordinates:
-            message += f"\nCoordinates: {coordinates}"
-        message += f"\nContact: {patient.contact_number}"
-        message += f"\nBarangay: {patient.barangay.barangay_name}"
+        try:
+            # Get the latest checkup for vital signs info
+            latest_checkup = PrenatalCheckup.objects.filter(
+                patient=patient
+            ).order_by('-checkup_date').first()
 
-        # Send SMS using Semaphore API
-        url = "https://api.semaphore.co/api/v4/messages"
-        payload = {
-            "apikey": settings.SEMAPHORE_API_KEY,
-            "number": settings.RHU_CONTACT_NUMBER,
-            "message": message,
-            "sendername": settings.SEMAPHORE_SENDER_NAME
-        }
-        
-        response = requests.post(url, data=payload)
-        response.raise_for_status()  # Raise an exception for bad status codes
+            # Prepare base message with more relevant details
+            message = (
+                f"!!! EMERGENCY ALERT !!!\n\n"
+                f"PATIENT DETAILS:\n"
+                f"Name: {patient.user.first_name} {patient.user.last_name}\n"
+                f"Age: {patient.age} years old\n"
+                f"Contact: {patient.contact_number}\n"
+            )
 
-        return JsonResponse({
-            'success': True,
-            'message': 'Emergency alert has been sent. Help is on the way.',
-            'alert_id': alert.id
-        })
-    except requests.exceptions.RequestException as e:
-        # Log the error but still return success since the alert was created
-        print(f"SMS sending failed: {str(e)}")
-        return JsonResponse({
-            'success': True,
-            'message': 'Emergency alert has been recorded but there was an issue sending the SMS notification.',
-            'alert_id': alert.id
-        })
+            # Add pregnancy and vital signs section if available
+            if latest_checkup:
+                message += f"\nMEDICAL INFO:\n"
+                if latest_checkup.age_of_gestation:
+                    message += f"Pregnancy: {latest_checkup.age_of_gestation} weeks\n"
+                if latest_checkup.blood_pressure:
+                    message += f"Blood Pressure: {latest_checkup.blood_pressure}\n"
+                if latest_checkup.weight:
+                    message += f"Weight: {latest_checkup.weight} kg\n"
+
+            # Add location section
+            message += (
+                f"\nLOCATION:\n"
+                f"Barangay: {patient.barangay.barangay_name}\n"
+                f"Sitio: {patient.sitio}\n"
+            )
+
+            if location:
+                message += f"Address: {location}\n"
+            if coordinates:
+                message += f"GPS: {coordinates}\n"
+
+            # Add emergency contact section
+            message += (
+                f"\nEMERGENCY CONTACT:\n"
+                f"Name: {patient.emergency_contact_name}\n"
+                f"Number: {patient.emergency_contact_number}\n\n"
+                f"PLEASE RESPOND IMMEDIATELY!"
+            )
+
+            # Verify TCL contact number exists
+            if not hasattr(patient.barangay, 'contact_number') or not patient.barangay.contact_number:
+                # Continue with just RHU notification
+                tcl_number = None
+            else:
+                tcl_number = patient.barangay.contact_number
+
+            # Prepare payloads
+            url = "https://api.semaphore.co/api/v4/messages"
+            responses = []
+
+            # Send to RHU
+            try:
+                rhu_payload = {
+                    "apikey": settings.SEMAPHORE_API_KEY,
+                    "number": settings.RHU_CONTACT_NUMBER,
+                    "message": message,
+                    "sendername": settings.SEMAPHORE_SENDER_NAME
+                }
+                rhu_response = requests.post(url, data=rhu_payload)
+                responses.append(('RHU', rhu_response))
+            except Exception as e:
+                print(f"Error sending RHU SMS: {str(e)}")
+
+            # Send to TCL if number exists
+            if tcl_number:
+                try:
+                    tcl_payload = {
+                        "apikey": settings.SEMAPHORE_API_KEY,
+                        "number": tcl_number,
+                        "message": message,
+                        "sendername": settings.SEMAPHORE_SENDER_NAME
+                    }
+                    tcl_response = requests.post(url, data=tcl_payload)
+                    responses.append(('TCL', tcl_response))
+                except Exception as e:
+                    print(f"Error sending TCL SMS: {str(e)}")
+
+            # Check responses
+            failed_requests = [(recipient, r) for recipient, r in responses if not r.ok]
+            if failed_requests:
+                failed_details = [f"{recipient}: {r.status_code} - {r.text}" 
+                                for recipient, r in failed_requests]
+                print(f"SMS sending failures: {failed_details}")
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Emergency alert has been recorded but there were issues sending some notifications.',
+                    'alert_id': alert.id
+                })
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Emergency alert has been sent. Help is on the way.',
+                'alert_id': alert.id
+            })
+
+        except Exception as e:
+            print(f"Error in SMS sending process: {str(e)}")
+            return JsonResponse({
+                'success': True,
+                'message': 'Emergency alert has been recorded but there was an issue sending notifications.',
+                'alert_id': alert.id
+            })
+
     except Exception as e:
+        print(f"Critical error in emergency alert: {str(e)}")
         return JsonResponse({
             'success': False,
             'message': 'Failed to send emergency alert. Please call emergency services directly.'
