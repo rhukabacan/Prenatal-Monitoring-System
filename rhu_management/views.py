@@ -1095,14 +1095,16 @@ def checkup_update(request, checkup_id):
     return render(request, 'rhu_management/checkup/edit_checkup.html', context)
 
 
+@cache_page(60 * 5)  # Cache for 5 minutes
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
-@cache_page(60 * 5)  # Cache for 5 minutes
 def emergency_list(request):
     """Display list of all emergency alerts with filters"""
     # Get filter parameters with defaults
-    status_filter = request.GET.get('status', 'ACTIVE')  # Default to showing active alerts
+    status_filter = request.GET.get('status', '')
     barangay_filter = request.GET.get('barangay', '')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
     
     # Base query with select_related and only needed fields
     alerts = EmergencyAlert.objects.select_related(
@@ -1110,32 +1112,44 @@ def emergency_list(request):
         'patient__user',
         'patient__barangay'
     ).only(
-        'id', 'status', 'alert_time', 'response_time', 'resolved_time',
+        'id', 'status', 'alert_time', 'response_time', 'resolved_time', 'location',
         'patient__contact_number', 'patient__sitio',
         'patient__user__first_name', 'patient__user__last_name',
         'patient__barangay__barangay_name'
     )
 
-    # Apply status filter by default to show only active/in-progress
+    # Apply filters
     if status_filter:
-        if status_filter == 'IN_PROGRESS':
-            alerts = alerts.filter(status__in=['RESPONDED', 'EN_ROUTE'])
-        else:
-            alerts = alerts.filter(status=status_filter)
-
-    # Apply barangay filter if provided
+        alerts = alerts.filter(status=status_filter)
     if barangay_filter:
         alerts = alerts.filter(patient__barangay_id=barangay_filter)
+    if date_from:
+        alerts = alerts.filter(alert_time__date__gte=date_from)
+    if date_to:
+        alerts = alerts.filter(alert_time__date__lte=date_to)
 
-    # Get active and in-progress emergencies efficiently
-    active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')[:10]
+    # Get active alerts with pagination
+    active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')
+    active_paginator = Paginator(active_alerts, 6)  # Show 6 active alerts per page
+    active_page = request.GET.get('active_page', 1)
+    active_page_obj = active_paginator.get_page(active_page)
+
+    # Get in-progress alerts with pagination
     in_progress_alerts = alerts.filter(
         status__in=['RESPONDED', 'EN_ROUTE']
-    ).order_by('-alert_time')[:10]
+    ).order_by('-alert_time')
+    in_progress_paginator = Paginator(in_progress_alerts, 10)
+    in_progress_page = request.GET.get('in_progress_page', 1)
+    in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
+
+    # Get recent alerts with pagination
+    recent_alerts = alerts.order_by('-alert_time')
+    recent_paginator = Paginator(recent_alerts, 10)
+    recent_page = request.GET.get('recent_page', 1)
+    recent_page_obj = recent_paginator.get_page(recent_page)
 
     # Use database aggregation for statistics
     from django.db.models import Count
-    from django.utils import timezone
     today = timezone.now().date()
 
     stats = EmergencyAlert.objects.aggregate(
@@ -1147,7 +1161,7 @@ def emergency_list(request):
         ))
     )
 
-    # Calculate average response time more efficiently using database
+    # Calculate average response time efficiently
     avg_response_time = EmergencyAlert.objects.filter(
         status='RESOLVED',
         response_time__isnull=False,
@@ -1166,13 +1180,16 @@ def emergency_list(request):
         stats['average_response_time'] = 0
 
     context = {
-        'active_alerts': active_alerts,
-        'in_progress_alerts': in_progress_alerts,
+        'active_page_obj': active_page_obj,
+        'in_progress_page_obj': in_progress_page_obj,
+        'recent_page_obj': recent_page_obj,
         'stats': stats,
         'status_choices': EmergencyAlert.STATUS_CHOICES,
         'barangays': Barangay.objects.values('id', 'barangay_name'),
         'status_filter': status_filter,
         'barangay_filter': barangay_filter,
+        'date_from': date_from,
+        'date_to': date_to,
         'title': 'Emergency Alerts'
     }
 
@@ -2346,49 +2363,182 @@ def get_status_distribution(alerts):
 @superuser_required
 def rhu_dashboard(request):
     """Display RHU dashboard with overview and quick stats"""
-    # Use select_related and prefetch_related to reduce queries
     today = timezone.now().date()
     
-    # Get base querysets with optimized joins
-    patients = Patient.objects.select_related('user', 'barangay')
-    checkups = PrenatalCheckup.objects.select_related('patient', 'patient__user')
-    alerts = EmergencyAlert.objects.select_related('patient', 'patient__user')
-
-    # Quick Statistics using cached querysets
-    stats = {
-        'total_patients': patients.count(),
-        'new_patients': patients.filter(
+    # Use database aggregation for statistics
+    from django.db.models import Count, Q
+    
+    # Get patient stats
+    patient_stats = Patient.objects.aggregate(
+        total_patients=Count('id'),
+        new_patients=Count('id', filter=Q(
             created_at__gte=today - timedelta(days=30)
-        ).count(),
-        'today_checkups': checkups.filter(
-            checkup_date__date=today
-        ).count(),
-        'upcoming_checkups': checkups.filter(
+        ))
+    )
+    
+    # Get checkup stats
+    checkup_stats = PrenatalCheckup.objects.aggregate(
+        today_checkups=Count('id', filter=Q(
+            checkup_date__date=today,
+            status='SCHEDULED'
+        )),
+        upcoming_checkups=Count('id', filter=Q(
             checkup_date__gt=today,
             status='SCHEDULED'
-        ).count(),
-        'active_emergencies': alerts.filter(status='ACTIVE').count(),
+        )),
+        tomorrow_checkups=Count('id', filter=Q(
+            checkup_date__date=today + timedelta(days=1),
+            status='SCHEDULED'
+        ))
+    )
+    
+    # Get emergency stats
+    emergency_stats = EmergencyAlert.objects.aggregate(
+        active_emergencies=Count('id', filter=Q(status='ACTIVE')),
+        monthly_emergencies=Count('id', filter=Q(
+            alert_time__gte=today - timedelta(days=30)
+        ))
+    )
+    
+    # Combine all stats
+    stats = {
+        **patient_stats,
+        **checkup_stats,
+        **emergency_stats
     }
-
-    # Get upcoming checkups for today and tomorrow
-    upcoming_checkups = checkups.filter(
-        checkup_date__range=[today, today + timedelta(days=1)],
+    
+    # Get upcoming checkups efficiently
+    upcoming_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        checkup_date__date=today,
         status='SCHEDULED'
-    ).order_by('checkup_date')[:5]
-
-    # Get active emergency alerts
-    active_emergencies = alerts.filter(
+    ).order_by(
+        'checkup_date'
+    )[:5]
+    
+    # Get recent activities efficiently
+    recent_activities = []
+    
+    # Recent checkups
+    recent_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        status='COMPLETED'
+    ).order_by('-checkup_date')[:3]
+    
+    for checkup in recent_checkups:
+        recent_activities.append({
+            'type': 'checkup',
+            'time': checkup.checkup_date,
+            'patient': checkup.patient,
+            'description': 'completed a prenatal checkup'
+        })
+    
+    # Recent emergencies
+    recent_emergencies = EmergencyAlert.objects.select_related(
+        'patient__user'
+    ).order_by('-alert_time')[:3]
+    
+    for emergency in recent_emergencies:
+        recent_activities.append({
+            'type': 'emergency',
+            'time': emergency.alert_time,
+            'patient': emergency.patient,
+            'description': 'triggered an emergency alert'
+        })
+    
+    # Sort activities by time
+    recent_activities.sort(key=lambda x: x['time'], reverse=True)
+    recent_activities = recent_activities[:3]
+    
+    # Get pending tasks efficiently
+    pending_tasks = []
+    
+    # Active emergencies as high priority tasks
+    active_emergencies = EmergencyAlert.objects.select_related(
+        'patient__user'
+    ).filter(
         status='ACTIVE'
-    ).order_by('-alert_time')[:5]
-
+    ).order_by('-alert_time')[:3]
+    
+    for emergency in active_emergencies:
+        pending_tasks.append({
+            'type': 'emergency',
+            'priority': 'high',
+            'reference_id': emergency.id,
+            'description': f'Emergency alert from {emergency.patient.user.get_full_name()} needs response'
+        })
+    
+    # Today's checkups as medium priority tasks
+    today_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        checkup_date__date=today,
+        status='SCHEDULED'
+    ).order_by('checkup_date')[:3]
+    
+    for checkup in today_checkups:
+        pending_tasks.append({
+            'type': 'checkup',
+            'priority': 'medium',
+            'reference_id': checkup.id,
+            'description': f'Scheduled checkup for {checkup.patient.user.get_full_name()}'
+        })
+    
+    # Calculate monthly trends efficiently
+    monthly_trends = get_monthly_trends()
+    
     context = {
         'stats': stats,
         'upcoming_checkups': upcoming_checkups,
-        'active_emergencies': active_emergencies,
+        'recent_activities': recent_activities,
+        'pending_tasks': pending_tasks,
+        'monthly_trends': monthly_trends,
         'title': 'RHU Dashboard'
     }
-
+    
     return render(request, 'rhu_management/dashboard.html', context)
+
+def get_monthly_trends():
+    """Calculate monthly trends for the dashboard chart"""
+    now = timezone.now()
+    months = []
+    data = {
+        'patients': [],
+        'checkups': [],
+        'emergencies': []
+    }
+    
+    # Get data for last 6 months using database aggregation
+    for i in range(6):
+        month_start = (now - timedelta(days=30 * i)).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
+        months.append(month_start.strftime('%B %Y'))
+        
+        # Get counts for each type using aggregation
+        patient_count = Patient.objects.filter(
+            created_at__range=(month_start, month_end)
+        ).count()
+        
+        checkup_count = PrenatalCheckup.objects.filter(
+            checkup_date__range=(month_start, month_end)
+        ).count()
+        
+        emergency_count = EmergencyAlert.objects.filter(
+            alert_time__range=(month_start, month_end)
+        ).count()
+        
+        data['patients'].append(patient_count)
+        data['checkups'].append(checkup_count)
+        data['emergencies'].append(emergency_count)
+    
+    return {
+        'months': list(reversed(months)),
+        'datasets': {k: list(reversed(v)) for k, v in data.items()}
+    }
 
 
 def get_recent_activities():
@@ -2478,52 +2628,6 @@ def get_pending_tasks(staff=None):
     tasks.sort(key=lambda x: priority_order[x['priority']])
 
     return tasks[:3]  # Return only top 5 tasks
-
-
-def get_monthly_trends():
-    """Calculate trends for dashboard charts"""
-    now = timezone.now()
-    months = []
-    data = {
-        'patients': [],
-        'checkups': [],
-        'emergencies': []
-    }
-
-    # Get data for last 6 months
-    for i in range(6):
-        month_start = (now - timedelta(days=30 * i)).replace(
-            day=1,
-            hour=0,
-            minute=0,
-            second=0
-        )
-        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-        months.append(month_start.strftime('%B %Y'))
-
-        # Get counts for each type
-        data['patients'].append(
-            Patient.objects.filter(
-                created_at__range=(month_start, month_end)
-            ).count()
-        )
-
-        data['checkups'].append(
-            PrenatalCheckup.objects.filter(
-                checkup_date__range=(month_start, month_end)
-            ).count()
-        )
-
-        data['emergencies'].append(
-            EmergencyAlert.objects.filter(
-                alert_time__range=(month_start, month_end)
-            ).count()
-        )
-
-    return {
-        'months': list(reversed(months)),
-        'datasets': {k: list(reversed(v)) for k, v in data.items()}
-    }
 
 
 def calculate_response_times(alerts):
