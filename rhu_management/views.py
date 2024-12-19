@@ -1104,11 +1104,16 @@ def emergency_list(request):
     status_filter = request.GET.get('status', 'ACTIVE')  # Default to showing active alerts
     barangay_filter = request.GET.get('barangay', '')
     
-    # Base query with select_related to reduce database hits
+    # Base query with select_related and only needed fields
     alerts = EmergencyAlert.objects.select_related(
         'patient',
         'patient__user',
         'patient__barangay'
+    ).only(
+        'id', 'status', 'alert_time', 'response_time', 'resolved_time',
+        'patient__contact_number', 'patient__sitio',
+        'patient__user__first_name', 'patient__user__last_name',
+        'patient__barangay__barangay_name'
     )
 
     # Apply status filter by default to show only active/in-progress
@@ -1128,35 +1133,35 @@ def emergency_list(request):
         status__in=['RESPONDED', 'EN_ROUTE']
     ).order_by('-alert_time')[:10]
 
-    # Calculate statistics using aggregation
-    stats = {
-        'active_alerts': EmergencyAlert.objects.filter(status='ACTIVE').count(),
-        'in_progress': EmergencyAlert.objects.filter(
-            status__in=['RESPONDED', 'EN_ROUTE']
-        ).count(),
-        'resolved_today': EmergencyAlert.objects.filter(
-            status='RESOLVED',
-            resolved_time__date=timezone.now().date()
-        ).count(),
-    }
+    # Use database aggregation for statistics
+    from django.db.models import Count
+    from django.utils import timezone
+    today = timezone.now().date()
 
-    # Calculate average response time more efficiently
-    resolved_alerts = EmergencyAlert.objects.filter(
+    stats = EmergencyAlert.objects.aggregate(
+        active_alerts=Count('id', filter=models.Q(status='ACTIVE')),
+        in_progress=Count('id', filter=models.Q(status__in=['RESPONDED', 'EN_ROUTE'])),
+        resolved_today=Count('id', filter=models.Q(
+            status='RESOLVED',
+            resolved_time__date=today
+        ))
+    )
+
+    # Calculate average response time more efficiently using database
+    avg_response_time = EmergencyAlert.objects.filter(
         status='RESOLVED',
         response_time__isnull=False,
         alert_time__isnull=False
     ).exclude(
         status='CANCELLED'
-    )[:100]  # Limit to last 100 resolved alerts for performance
+    ).order_by('-alert_time')[:100].aggregate(
+        avg_time=models.Avg(
+            models.F('response_time') - models.F('alert_time')
+        )
+    )['avg_time']
 
-    if resolved_alerts:
-        total_response_time = 0
-        count = 0
-        for alert in resolved_alerts:
-            response_time = (alert.response_time - alert.alert_time).total_seconds()
-            total_response_time += response_time
-            count += 1
-        stats['average_response_time'] = (total_response_time / count / 60) if count > 0 else 0
+    if avg_response_time:
+        stats['average_response_time'] = avg_response_time.total_seconds() / 60
     else:
         stats['average_response_time'] = 0
 
@@ -1165,7 +1170,7 @@ def emergency_list(request):
         'in_progress_alerts': in_progress_alerts,
         'stats': stats,
         'status_choices': EmergencyAlert.STATUS_CHOICES,
-        'barangays': Barangay.objects.values('id', 'barangay_name'),  # Only fetch needed fields
+        'barangays': Barangay.objects.values('id', 'barangay_name'),
         'status_filter': status_filter,
         'barangay_filter': barangay_filter,
         'title': 'Emergency Alerts'
