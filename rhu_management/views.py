@@ -3,6 +3,7 @@
 import os
 from datetime import datetime, timedelta
 from functools import wraps
+import time
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,7 +18,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -1823,128 +1824,154 @@ def generate_custom_report(start_date, end_date, metrics):
 
 
 def export_report(report):
-    """Export report to PDF with enhanced formatting"""
+    """Generate and export report as PDF"""
     try:
-        # Use /tmp directory for Lambda environment
+        # Create reports directory if it doesn't exist
         reports_dir = '/tmp/reports' if os.path.exists('/tmp') else os.path.join(settings.MEDIA_ROOT, 'reports')
         os.makedirs(reports_dir, exist_ok=True)
 
         # Generate unique filename
-        filename = f"report_{report.id}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        filename = f'report_{report.id}_{int(time.time())}.pdf'
         filepath = os.path.join(reports_dir, filename)
 
         # Create the PDF document
         doc = SimpleDocTemplate(
             filepath,
-            pagesize=A4,
-            rightMargin=1.5 * cm,
-            leftMargin=1.5 * cm,
-            topMargin=1.5 * cm,
-            bottomMargin=1.5 * cm
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
         )
 
-        # Create custom styles
+        # Styles
         styles = getSampleStyleSheet()
-
-        # Custom Title Style
+        
+        # Custom styles
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
             fontSize=24,
             spaceAfter=30,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor('#2c3e50')
+            alignment=TA_CENTER
         )
-
-        # Custom Heading Style
+        
         heading_style = ParagraphStyle(
             'CustomHeading',
             parent=styles['Heading2'],
             fontSize=16,
-            spaceBefore=15,
-            spaceAfter=10,
-            textColor=colors.HexColor('#34495e')
+            spaceAfter=12,
+            textColor=colors.HexColor('#2c3e50')
         )
-
-        # Custom Normal Style
+        
         normal_style = ParagraphStyle(
             'CustomNormal',
             parent=styles['Normal'],
-            fontSize=11,
-            spaceBefore=6,
-            spaceAfter=6,
+            fontSize=12,
+            spaceAfter=12,
             textColor=colors.HexColor('#2c3e50')
         )
 
-        # Metadata Style
-        metadata_style = ParagraphStyle(
-            'MetadataStyle',
-            parent=styles['Normal'],
-            fontSize=11,
-            textColor=colors.HexColor('#7f8c8d'),
-            alignment=TA_CENTER
-        )
-
+        # Initialize elements list
         elements = []
 
-        # Add Title
-        elements.append(Paragraph(report.title.upper(), title_style))
+        # Add title
+        elements.append(Paragraph(report.title, title_style))
+        elements.append(Spacer(1, 20))
 
-        # Add Metadata
-        metadata = [
-            f"Generated on: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
-        ]
-        for meta in metadata:
-            elements.append(Paragraph(meta, metadata_style))
+        # Add report period
+        period_text = f"Report Period: {report.period_start.strftime('%B %d, %Y')} - {report.period_end.strftime('%B %d, %Y')}"
+        elements.append(Paragraph(period_text, normal_style))
+        elements.append(Spacer(1, 20))
 
-        elements.append(Spacer(1, 30))
-
-        # Add Summary
+        # Add Summary if exists
         if report.summary:
             elements.append(Paragraph("Executive Summary", heading_style))
             summary_paragraphs = report.summary.split('\n')
             for para in summary_paragraphs:
-                if para.strip():  # Only add non-empty paragraphs
+                if para.strip():
                     elements.append(Paragraph(para, normal_style))
             elements.append(Spacer(1, 20))
 
-        # Add Statistics
-        if 'statistics' in report.content:
+        # Add Statistics if they exist
+        if isinstance(report.content, dict) and 'statistics' in report.content:
             elements.append(Paragraph("Key Statistics", heading_style))
-
-            # Create statistics table data
             stats_data = []
-            for key, value in report.content['statistics'].items():
-                if isinstance(value, dict):
-                    for sub_key, sub_value in value.items():
-                        stats_data.append([
-                            Paragraph(f"{key.replace('_', ' ').title()} - {sub_key.replace('_', ' ').title()}",
-                            normal_style),
-                            Paragraph(str(sub_value), normal_style)
-                        ])
-                else:
+            
+            # Format patient statistics
+            if 'patients' in report.content['statistics']:
+                patient_stats = report.content['statistics']['patients']
+                
+                # Add total patients
+                if 'total_patients' in patient_stats:
                     stats_data.append([
-                        Paragraph(key.replace('_', ' ').title(), normal_style),
-                        Paragraph(str(value), normal_style)
+                        Paragraph("Total Patients", normal_style),
+                        Paragraph(str(patient_stats['total_patients']), normal_style)
                     ])
+                
+                # Format age distribution
+                if 'age_distribution' in patient_stats:
+                    age_dist = patient_stats['age_distribution']
+                    age_text = ", ".join([
+                        f"{age_range}: {count}" 
+                        for age_range, count in age_dist.items()
+                    ])
+                    stats_data.append([
+                        Paragraph("Age Distribution", normal_style),
+                        Paragraph(age_text, normal_style)
+                    ])
+                
+                # Format location distribution
+                if 'location_distribution' in patient_stats:
+                    loc_dist = patient_stats['location_distribution']
+                    loc_text = ", ".join([
+                        f"{item['location']}: {item['count']}" 
+                        for item in loc_dist
+                    ])
+                    stats_data.append([
+                        Paragraph("Location Distribution", normal_style),
+                        Paragraph(loc_text, normal_style)
+                    ])
+            
+            # Format checkup statistics
+            if 'checkups' in report.content['statistics']:
+                checkup_stats = report.content['statistics']['checkups']
+                for key, value in checkup_stats.items():
+                    if key != 'weekly_distribution':  # Handle weekly distribution separately
+                        stats_data.append([
+                            Paragraph(key.replace('_', ' ').title(), normal_style),
+                            Paragraph(str(value), normal_style)
+                        ])
+            
+            # Format emergency statistics
+            if 'emergencies' in report.content['statistics']:
+                emergency_stats = report.content['statistics']['emergencies']
+                for key, value in emergency_stats.items():
+                    if key not in ['status_distribution', 'weekly_distribution']:
+                        stats_data.append([
+                            Paragraph(key.replace('_', ' ').title(), normal_style),
+                            Paragraph(str(value), normal_style)
+                        ])
 
-            # Create and style the statistics table
-            stats_table = Table(stats_data, colWidths=[doc.width * 0.7, doc.width * 0.3])
-            stats_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
-                ('FONTSIZE', (0, 0), (-1, -1), 11),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                ('TOPPADDING', (0, 0), (-1, -1), 12),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#ecf0f1')),
-                ('LINEBELOW', (0, -1), (-1, -1), 1, colors.HexColor('#bdc3c7')),
-            ]))
-            elements.append(stats_table)
-            elements.append(Spacer(1, 20))
+            if stats_data:
+                # Create and style the statistics table
+                stats_table = Table(stats_data, colWidths=[doc.width * 0.7, doc.width * 0.3])
+                stats_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+                    ('FONTSIZE', (0, 0), (-1, -1), 11),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                    ('TOPPADDING', (0, 0), (-1, -1), 12),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8f9fa')),
+                    ('ROWBACKGROUNDS', (0, 0), (-1, -1), 
+                     [colors.HexColor('#ffffff'), colors.HexColor('#f8f9fa')]),
+                ]))
+                elements.append(stats_table)
+                elements.append(Spacer(1, 20))
 
-        # Add Breakdown Tables
+        # Add Breakdown Tables if they exist
         breakdown_keys = [
             'daily_breakdown', 'weekly_breakdown',
             'monthly_breakdown', 'quarterly_breakdown',
@@ -1952,107 +1979,83 @@ def export_report(report):
         ]
 
         for key in breakdown_keys:
-            if key in report.content:
-                elements.append(Paragraph(
-                    f"{key.replace('_', ' ').title()} Analysis",
-                    heading_style
-                ))
-
+            if isinstance(report.content, dict) and key in report.content:
                 breakdown_data = report.content[key]
-                if breakdown_data:
-                    # Get all metric keys from the first entry
-                    first_entry = breakdown_data[0]
-                    metric_keys = list(first_entry['metrics'].keys())
+                if breakdown_data and isinstance(breakdown_data, list):
+                    elements.append(Paragraph(
+                        f"{key.replace('_', ' ').title()} Analysis",
+                        heading_style
+                    ))
 
-                    # Define a smaller heading style for tables
-                    table_heading_style = ParagraphStyle(
-                        'TableHeading',
-                        parent=heading_style,
-                        fontSize=11,  # Reduced from 12
-                        spaceAfter=6,  # Reduced padding
-                        spaceBefore=6,
-                    )
+                    # Get metrics from first entry
+                    if breakdown_data[0] and isinstance(breakdown_data[0], dict):
+                        first_entry = breakdown_data[0]
+                        metrics = first_entry.get('metrics', {})
+                        if metrics:
+                            metric_keys = list(metrics.keys())
 
-                    # Update the table header creation
-                    table_data = [[
-                                      Paragraph('Period', table_heading_style)
-                                  ] + [
-                                      Paragraph(k.replace('_', ' ').title(), table_heading_style)
-                                      for k in metric_keys
-                                  ]]
+                            # Create table data
+                            table_data = [[
+                                Paragraph('Period', heading_style)
+                            ] + [
+                                Paragraph(k.replace('_', ' ').title(), heading_style)
+                                for k in metric_keys
+                            ]]
 
-                    # Add table data
-                    for entry in breakdown_data:
-                        period = entry.get('date', entry.get('week', entry.get('month',
-                                                                               entry.get('quarter',
-                                                                                         entry.get('year', '')))))
-                        row = [Paragraph(str(period), normal_style)]
-                        row.extend([
-                            Paragraph(str(entry['metrics'][k]), normal_style)
-                            for k in metric_keys
-                        ])
-                        table_data.append(row)
+                            # Add rows
+                            for entry in breakdown_data:
+                                if isinstance(entry, dict):
+                                    period = entry.get('date', entry.get('week', entry.get('month',
+                                        entry.get('quarter', entry.get('year', '')))))
+                                    metrics = entry.get('metrics', {})
+                                    
+                                    row = [Paragraph(str(period), normal_style)]
+                                    row.extend([
+                                        Paragraph(str(metrics.get(k, '')), normal_style)
+                                        for k in metric_keys
+                                    ])
+                                    table_data.append(row)
 
-                    # Calculate column widths
-                    col_widths = [doc.width / (len(metric_keys) + 1)] * (len(metric_keys) + 1)
-
-                    # Create and style the table
-                    breakdown_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-                    breakdown_table.setStyle(TableStyle([
-                        # Header style
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ecf0f1')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
-                        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 12),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                        ('TOPPADDING', (0, 0), (-1, 0)),
-
-                        # Data rows
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#ffffff')),
-                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#2c3e50')),
-                        ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Left align first column
-                        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),  # Center align other columns
-                        ('FONTSIZE', (0, 1), (-1, -1), 10),
-
-                        # Grid
-                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
-
-                        # Alternate row colors
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1),
-                        [colors.HexColor('#ffffff'), colors.HexColor('#f9f9f9')]),
-
-                        # Padding
-                        ('TOPPADDING', (0, 1), (-1, -1), 8),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-                    ]))
-                    elements.append(breakdown_table)
-                    elements.append(Spacer(1, 20))
+                            if len(table_data) > 1:  # Only create table if we have data rows
+                                # Calculate column widths
+                                col_widths = [doc.width / len(table_data[0])] * len(table_data[0])
+                                
+                                # Create and style the table
+                                breakdown_table = Table(table_data, colWidths=col_widths)
+                                breakdown_table.setStyle(TableStyle([
+                                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ecf0f1')),
+                                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7')),
+                                    ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                                     [colors.HexColor('#ffffff'), colors.HexColor('#f9f9f9')]),
+                                ]))
+                                elements.append(breakdown_table)
+                                elements.append(Spacer(1, 20))
 
         # Add footer
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=8,
-            textColor=colors.HexColor('#95a5a6'),
-            alignment=TA_CENTER
-        )
-        elements.append(Paragraph(
-            f"Generated by RHU Management System • Report ID: {report.id}",
-            footer_style
+        footer_text = f"Generated by RHU Management System • Report ID: {report.id}"
+        elements.append(Paragraph(footer_text, 
+            ParagraphStyle('Footer', 
+                parent=styles['Normal'],
+                fontSize=8,
+                textColor=colors.HexColor('#95a5a6'),
+                alignment=TA_CENTER
+            )
         ))
 
         # Build the PDF
         doc.build(elements)
 
-        # Update report with just the filename (not the path)
+        # Update report with filename
         report.file_path = filename
         report.save(update_fields=['file_path'])
 
-        # Return the full filepath
-        return filepath  # Return full path instead of relative path
+        return filepath
 
     except Exception as e:
-        print(f"Error generating PDF: {str(e)}")
+        print(f"Error in export_report: {str(e)}")
         raise
 
 @login_required(login_url='rhu_management:rhu_login')
@@ -2122,29 +2125,146 @@ def download_report(request, report_id):
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
 def analytics_view(request):
-    """Display detailed analytics and visualizations"""
+    """Display analytics dashboard with filters"""
     # Get filter parameters
     time_range = request.GET.get('range', '30')  # Default to 30 days
-    metric_type = request.GET.get('metric', 'all')
-
+    metric_type = request.GET.get('metric', 'all')  # Default to all metrics
+    
+    # Calculate date range
     end_date = timezone.now()
     start_date = end_date - timedelta(days=int(time_range))
-
-    # Get analytics
-    patient_stats = get_patient_analytics(start_date, end_date)
-    checkup_stats = get_checkup_analytics(start_date, end_date)
-    emergency_stats = get_emergency_analytics(start_date, end_date)
-
+    
     context = {
-        'patient_stats': patient_stats,
-        'checkup_stats': checkup_stats,
-        'emergency_stats': emergency_stats,
         'time_range': time_range,
         'metric_type': metric_type,
-        'title': 'Analytics',
+        'title': 'Analytics Dashboard'
     }
+    
+    try:
+        # Patient Analytics
+        if metric_type in ['all', 'patients']:
+            patients_queryset = Patient.objects.filter(
+                created_at__range=(start_date, end_date)
+            )
+            context['patient_stats'] = {
+                'age_distribution': get_age_distribution(patients_queryset),
+                'location_distribution': get_location_distribution(patients_queryset),
+                'total_patients': patients_queryset.count()
+            }
+        
+        # Checkup Analytics
+        if metric_type in ['all', 'checkups']:
+            checkups_queryset = PrenatalCheckup.objects.filter(
+                checkup_date__range=(start_date, end_date)
+            )
+            context['checkup_stats'] = {
+                'weekly_distribution': get_weekly_checkup_distribution(checkups_queryset),
+                'total_checkups': checkups_queryset.count(),
+                'completed_checkups': checkups_queryset.filter(status='COMPLETED').count(),
+                'scheduled_checkups': checkups_queryset.filter(status='SCHEDULED').count()
+            }
+        
+        # Emergency Analytics
+        if metric_type in ['all', 'emergencies']:
+            alerts_queryset = EmergencyAlert.objects.filter(
+                alert_time__range=(start_date, end_date)
+            )
+            context['emergency_stats'] = {
+                'avg_response_time': calculate_avg_response_time(alerts_queryset),
+                'resolution_rate': calculate_resolution_rate(alerts_queryset),
+                'status_distribution': get_status_distribution(alerts_queryset),
+                'total_alerts': alerts_queryset.count(),
+                'active_alerts': alerts_queryset.filter(status='ACTIVE').count()
+            }
+    
+    except Exception as e:
+        messages.error(request, f'Error generating analytics: {str(e)}')
+        print(f"Analytics Error: {str(e)}")
+    
+    return render(request, 'rhu_management/report_analytics.html', context)
 
-    return render(request, 'rhu_management/report/report_analytics.html', context)
+@login_required(login_url='rhu_management:rhu_login')
+@superuser_required
+def export_analytics(request):
+    """Export analytics data as PDF report"""
+    try:
+        # Get filter parameters
+        time_range = request.GET.get('range', '30')
+        metric_type = request.GET.get('metric', 'all')
+        
+        # Calculate date range
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=int(time_range))
+        
+        # Create report title
+        title = f"Analytics Report - {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"
+        
+        # Initialize report content
+        content = {
+            'statistics': {},
+            'metadata': {
+                'time_range': f'Last {time_range} days',
+                'metric_type': metric_type,
+                'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+        }
+        
+        # Add patient statistics
+        if metric_type in ['all', 'patients']:
+            patients = Patient.objects.filter(created_at__range=(start_date, end_date))
+            content['statistics']['patients'] = {
+                'total_patients': patients.count(),
+                'age_distribution': get_age_distribution(patients),
+                'location_distribution': get_location_distribution(patients)
+            }
+        
+        # Add checkup statistics
+        if metric_type in ['all', 'checkups']:
+            checkups = PrenatalCheckup.objects.filter(
+                checkup_date__range=(start_date, end_date)
+            )
+            content['statistics']['checkups'] = {
+                'total_checkups': checkups.count(),
+                'completed_checkups': checkups.filter(status='COMPLETED').count(),
+                'scheduled_checkups': checkups.filter(status='SCHEDULED').count(),
+                'weekly_distribution': get_weekly_checkup_distribution(checkups)
+            }
+        
+        # Add emergency statistics
+        if metric_type in ['all', 'emergencies']:
+            alerts = EmergencyAlert.objects.filter(
+                alert_time__range=(start_date, end_date)
+            )
+            content['statistics']['emergencies'] = {
+                'total_alerts': alerts.count(),
+                'active_alerts': alerts.filter(status='ACTIVE').count(),
+                'avg_response_time': calculate_avg_response_time(alerts),
+                'resolution_rate': calculate_resolution_rate(alerts),
+                'status_distribution': get_status_distribution(alerts)
+            }
+        
+        # Create and save report
+        report = RHUReport.objects.create(
+            title=title,
+            type='CUSTOM',
+            period_start=start_date,
+            period_end=end_date,
+            content=content,
+            summary=f"Analytics report for {metric_type} metrics over the last {time_range} days."
+        )
+        
+        # Generate PDF
+        filepath = export_report(report)
+        
+        # Serve the file
+        with open(filepath, 'rb') as pdf_file:
+            response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="analytics_report_{timezone.now().strftime("%Y%m%d")}.pdf"'
+            return response
+            
+    except Exception as e:
+        messages.error(request, f'Error exporting analytics: {str(e)}')
+        return redirect('rhu_management:analytics_view')
 
 
 # Analytics Functions
@@ -2214,148 +2334,82 @@ def get_emergency_analytics(start_date, end_date, barangay=None):
     }
 
 
-def get_age_distribution(barangay=None):
-    """Calculate patient age distribution"""
-    today = timezone.now().date()
-    age_groups = {
-        '18-24': (18, 24),
-        '25-29': (25, 29),
-        '30-34': (30, 34),
-        '35+': (35, 150)
+def get_age_distribution(patients_queryset):
+    """Calculate age distribution from a Patient queryset"""
+    age_ranges = {
+        '15-20': (15, 20),
+        '21-25': (21, 25),
+        '26-30': (26, 30),
+        '31-35': (31, 35),
+        '36-40': (36, 40),
+        '41+': (41, 200)
     }
-
-    distribution = {}
-    for group, (min_age, max_age) in age_groups.items():
-        # Calculate date ranges for each age group
-        max_birth_date = today - timedelta(days=(min_age * 365))  # Youngest allowed in group
-        min_birth_date = today - timedelta(days=(max_age * 365 + 365))  # Oldest allowed in group
-
-        if barangay:
-            query = Patient.objects.filter(
-                barangay=barangay,
-                birth_date__gt=min_birth_date,
-                birth_date__lte=max_birth_date
-            )
-        else:
-            query = Patient.objects.filter(
-                birth_date__gt=min_birth_date,
-                birth_date__lte=max_birth_date
-            )
-
-        count = query.count()
-        distribution[group] = count
-
+    
+    distribution = {range_name: 0 for range_name in age_ranges}
+    
+    for patient in patients_queryset:
+        age = patient.age
+        for range_name, (min_age, max_age) in age_ranges.items():
+            if min_age <= age <= max_age:
+                distribution[range_name] += 1
+                break
+    
     return distribution
 
 
-def get_location_distribution(barangay=None):
-    """Get distribution of patients by location"""
-    if barangay:
-        query = Patient.objects.filter(
-            barangay=barangay
-        ).values('sitio', 'barangay__barangay_name').annotate(
-            count=Count('id')
-        ).order_by('-count')[:10]
-    else:
-        query = Patient.objects.values(
-            'sitio', 'barangay__barangay_name'
-        ).annotate(
-            count=Count('id')
-        ).order_by('-count')[:10]
-    # Format the results to combine sitio and barangay name
-    distribution = []
-    for item in query:
-        location = f"{item['sitio']}, {item['barangay__barangay_name']}"
-        distribution.append({
-            'location': location,
-            'count': item['count']
-        })
-
-    return distribution
+def get_location_distribution(patients_queryset):
+    """Get patient distribution by barangay"""
+    return list(patients_queryset.values(
+        'barangay__barangay_name'
+    ).annotate(
+        count=Count('id')
+    ).values(
+        location=models.F('barangay__barangay_name'),
+        count=models.F('count')
+    ).order_by('-count'))
 
 
-
-def get_weekly_checkup_distribution(checkups):
-    """Get distribution of checkups by day of week"""
-    distribution = {}
+def get_weekly_checkup_distribution(checkups_queryset):
+    """Get checkup distribution by day of week"""
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-    for day in range(7):
-        count = checkups.filter(checkup_date__week_day=day + 1).count()
-        distribution[days[day]] = count
-
+    distribution = {day: 0 for day in days}
+    
+    for checkup in checkups_queryset:
+        day = checkup.checkup_date.strftime('%A')
+        distribution[day] += 1
+    
     return distribution
 
 
-def calculate_avg_response_time(alerts):
-    """Calculate average emergency response time in minutes"""
-    responded_alerts = alerts.filter(
+def calculate_avg_response_time(alerts_queryset):
+    """Calculate average response time for emergency alerts"""
+    response_times = []
+    
+    for alert in alerts_queryset.filter(
         response_time__isnull=False,
         alert_time__isnull=False
-    ).exclude(status='CANCELLED')
-
-    if not responded_alerts.exists():
-        return 0
-
-    total_minutes = 0
-    count = 0
-
-    for alert in responded_alerts:
+    ).exclude(status='CANCELLED'):
         response_time = (alert.response_time - alert.alert_time).total_seconds() / 60
-        total_minutes += response_time
-        count += 1
+        response_times.append(response_time)
+    
+    return round(sum(response_times) / len(response_times), 1) if response_times else 0
 
-    return round(total_minutes / count, 1) if count > 0 else 0
 
-
-def calculate_resolution_rate(alerts):
+def calculate_resolution_rate(alerts_queryset):
     """Calculate emergency resolution rate"""
-    total = alerts.exclude(status='CANCELLED').count()
-    if total == 0:
-        return 0
-
-    resolved = alerts.filter(status='RESOLVED').count()
-    return round((resolved / total) * 100, 1)
-
-
-def get_status_distribution(alerts):
-    """Calculate distribution of emergency alert statuses"""
-    # Debug print
-    print("\nStatus Distribution Debug:")
+    total = alerts_queryset.exclude(status='CANCELLED').count()
+    resolved = alerts_queryset.filter(status='RESOLVED').count()
     
-    status_counts = alerts.values('status').annotate(
+    return round((resolved / total) * 100, 1) if total > 0 else 0
+
+
+def get_status_distribution(alerts_queryset):
+    """Get distribution of emergency alert statuses"""
+    return dict(alerts_queryset.values(
+        'status'
+    ).annotate(
         count=Count('id')
-    ).order_by('status')
-
-    print("Raw Status Counts:", status_counts)
-
-    # Convert to a dictionary for easier access
-    distribution = {
-        'ACTIVE': 0,
-        'RESPONDED': 0,
-        'EN_ROUTE': 0,
-        'RESOLVED': 0,
-        'CANCELLED': 0
-    }
-
-    # Update counts from query
-    for status in status_counts:
-        distribution[status['status']] = status['count']
-    
-    print("Distribution before percentages:", distribution)
-
-    # Calculate percentages
-    total = sum(distribution.values())
-    if total > 0:
-        distribution.update({
-            k: {
-                'count': v,
-                'percentage': round((v / total) * 100, 1)
-            } for k, v in distribution.items()
-        })
-    
-    print("Final Distribution:", distribution)
-    return distribution
+    ).values_list('status', 'count'))
 
 
 @cache_page(60 * 5)  # Cache for 5 minutes

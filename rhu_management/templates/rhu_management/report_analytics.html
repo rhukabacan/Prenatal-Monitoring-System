@@ -320,7 +320,7 @@ new Chart(emergencyCtx, {
 // Export Analytics
 function exportAnalytics() {
     const params = new URLSearchParams(window.location.search);
-    window.location.href = `/rhu/reports/analytics/export/?${params.toString()}`;
+    window.location.href = "{% url 'rhu_management:export_analytics' %}?" + params.toString();
 }
 
 // Initialize tooltips

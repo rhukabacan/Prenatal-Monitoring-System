@@ -62,6 +62,7 @@ urlpatterns = [
     # path('reports/download/<int:report_id>/', views.download_report,
     #      name='download_report'),
     path('reports/analytics/', views.analytics_view, name='analytics_view'),
+    path('reports/analytics/export/', views.export_analytics, name='export_analytics'),
 
     # # Staff Management (Admin only)
     # path('staff/', views.staff_list, name='staff_list'),
