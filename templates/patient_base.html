@@ -529,23 +529,86 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 <script>
 let userLocation = null;
+let locationWatchId = null;
 
-if ("geolocation" in navigator) {
-    navigator.geolocation.getCurrentPosition(function(position) {
-        userLocation = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-        };
-        document.getElementById('locationStatus').innerHTML =
-            '<i class="fas fa-check-circle text-success me-1"></i>Location ready';
-    }, function(error) {
-        document.getElementById('locationStatus').innerHTML =
-            '<i class="fas fa-exclamation-circle text-warning me-1"></i>Location unavailable';
-    });
-} else {
-    document.getElementById('locationStatus').innerHTML =
-        '<i class="fas fa-times-circle text-danger me-1"></i>Location not supported';
+function updateLocationStatus(message, icon, colorClass) {
+    document.getElementById('locationStatus').innerHTML = 
+        `<i class="fas ${icon} ${colorClass} me-1"></i>${message}`;
 }
+
+function handleLocationError(error) {
+    let errorMessage;
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            errorMessage = "Location access denied";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location unavailable";
+            break;
+        case error.TIMEOUT:
+            errorMessage = "Location request timed out";
+            break;
+        default:
+            errorMessage = "Location error occurred";
+    }
+    updateLocationStatus(errorMessage, 'fa-exclamation-circle', 'text-danger');
+}
+
+function initializeLocation() {
+    if ("geolocation" in navigator) {
+        // Initial status
+        updateLocationStatus("Getting location...", "fa-location-dot", "text-muted");
+
+        // Options for high accuracy
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        try {
+            // Watch position instead of just getting it once
+            locationWatchId = navigator.geolocation.watchPosition(
+                function(position) {
+                    userLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy // in meters
+                    };
+
+                    // Update status based on accuracy
+                    if (position.coords.accuracy <= 100) { // Within 100 meters
+                        updateLocationStatus("Location accurate", "fa-check-circle", "text-success");
+                    } else {
+                        updateLocationStatus("Location approximate", "fa-info-circle", "text-warning");
+                    }
+
+                    // Optional: Stop watching if we get a very accurate position
+                    if (position.coords.accuracy <= 20) { // Within 20 meters
+                        navigator.geolocation.clearWatch(locationWatchId);
+                    }
+                },
+                handleLocationError,
+                options
+            );
+        } catch (e) {
+            updateLocationStatus("Location error", "fa-exclamation-circle", "text-danger");
+            console.error("Geolocation error:", e);
+        }
+    } else {
+        updateLocationStatus("Location not supported", "fa-times-circle", "text-danger");
+    }
+}
+
+// Initialize location tracking when page loads
+document.addEventListener('DOMContentLoaded', initializeLocation);
+
+// Cleanup on page unload
+window.addEventListener('unload', function() {
+    if (locationWatchId !== null) {
+        navigator.geolocation.clearWatch(locationWatchId);
+    }
+});
 
 function confirmEmergency() {
     const modal = new bootstrap.Modal(document.getElementById('emergencyModal'));
@@ -557,6 +620,13 @@ function triggerEmergency() {
     button.disabled = true;
     button.classList.remove('emergency-pulse');
 
+    // Prepare location data with accuracy information
+    const locationData = userLocation ? {
+        coordinates: `${userLocation.latitude},${userLocation.longitude}`,
+        accuracy: userLocation.accuracy,
+        timestamp: new Date().toISOString()
+    } : null;
+
     fetch("{% url 'patient_management:emergency_alert' %}", {
         method: 'POST',
         headers: {
@@ -564,7 +634,7 @@ function triggerEmergency() {
             'X-CSRFToken': '{{ csrf_token }}'
         },
         body: JSON.stringify({
-            location: userLocation ? `${userLocation.latitude},${userLocation.longitude}` : ''
+            location: locationData
         })
     })
     .then(response => response.json())
@@ -578,6 +648,7 @@ function triggerEmergency() {
         }
     })
     .catch(error => {
+        console.error('Emergency alert error:', error);
         alert('Error triggering emergency alert. Please call emergency services directly.');
         button.disabled = false;
         button.classList.add('emergency-pulse');
