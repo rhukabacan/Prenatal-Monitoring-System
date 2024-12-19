@@ -113,7 +113,8 @@ DATABASES = {
         'PORT': '5432',
         'OPTIONS': {
             'sslmode': 'require',
-        }
+        },
+        'CONN_MAX_AGE': 0,
     }
 }
 
@@ -195,7 +196,7 @@ WHITENOISE_USE_FINDERS = True
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
 

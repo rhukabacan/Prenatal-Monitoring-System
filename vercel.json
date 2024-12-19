@@ -1,7 +1,7 @@
 {
   "builds": [
     {
-      "src": "prenatal_monitoring/wsgi.py",
+      "src": "vercel_app.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
@@ -21,11 +21,12 @@
     },
     {
       "src": "/(.*)",
-      "dest": "prenatal_monitoring/wsgi.py"
+      "dest": "vercel_app.py"
     }
   ],
   "env": {
     "PYTHONUNBUFFERED": "1",
-    "DJANGO_SETTINGS_MODULE": "prenatal_monitoring.settings"
+    "DJANGO_SETTINGS_MODULE": "prenatal_monitoring.settings",
+    "DISABLE_COLLECTSTATIC": "1"
   }
 }

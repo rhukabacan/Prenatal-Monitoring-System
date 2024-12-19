@@ -22,6 +22,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from django.views.decorators.http import require_GET
+from django.views.decorators.cache import cache_page
 from .tasks import check_active_emergencies
 import requests
 
@@ -2334,81 +2335,50 @@ def get_status_distribution(alerts):
     return distribution
 
 
+@cache_page(60 * 5)  # Cache for 5 minutes
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
 def rhu_dashboard(request):
     """Display RHU dashboard with overview and quick stats"""
-    # Get time range
+    # Use select_related and prefetch_related to reduce queries
     today = timezone.now().date()
-    tomorrow = today + timezone.timedelta(days=1)
-    this_month_start = today.replace(day=1)
-    thirty_days_ago = today - timedelta(days=30)
+    
+    # Get base querysets with optimized joins
+    patients = Patient.objects.select_related('user', 'barangay')
+    checkups = PrenatalCheckup.objects.select_related('patient', 'patient__user')
+    alerts = EmergencyAlert.objects.select_related('patient', 'patient__user')
 
-    # Quick Statistics
+    # Quick Statistics using cached querysets
     stats = {
-        # Patient Stats
-        'total_patients': Patient.objects.all().count(),
-        'new_patients': Patient.objects.filter(
-            created_at__gte=thirty_days_ago
+        'total_patients': patients.count(),
+        'new_patients': patients.filter(
+            created_at__gte=today - timedelta(days=30)
         ).count(),
-
-        # Checkup Stats
-        'today_checkups': PrenatalCheckup.objects.filter(
-            checkup_date=today
+        'today_checkups': checkups.filter(
+            checkup_date__date=today
         ).count(),
-        'tomorrow_checkups': PrenatalCheckup.objects.filter(
-            checkup_date=tomorrow
-        ).count(),
-        'monthly_checkups': PrenatalCheckup.objects.filter(
-            checkup_date__gte=this_month_start
-        ).count(),
-        'upcoming_checkups': PrenatalCheckup.objects.filter(
+        'upcoming_checkups': checkups.filter(
             checkup_date__gt=today,
             status='SCHEDULED'
         ).count(),
-
-        # Emergency Stats
-        'active_emergencies': EmergencyAlert.objects.filter(
-            status='ACTIVE'
-        ).count(),
-        'monthly_emergencies': EmergencyAlert.objects.filter(
-            alert_time__gte=this_month_start
-        ).count()
+        'active_emergencies': alerts.filter(status='ACTIVE').count(),
     }
 
     # Get upcoming checkups for today and tomorrow
-    upcoming_checkups = PrenatalCheckup.objects.filter(
+    upcoming_checkups = checkups.filter(
         checkup_date__range=[today, today + timedelta(days=1)],
         status='SCHEDULED'
     ).order_by('checkup_date')[:5]
 
-    # Get recent checkups
-    recent_checkups = PrenatalCheckup.objects.select_related(
-        'patient__user'
-    ).order_by('-checkup_date')[:5]
-
     # Get active emergency alerts
-    active_emergencies = EmergencyAlert.objects.filter(
+    active_emergencies = alerts.filter(
         status='ACTIVE'
-    ).select_related('patient__user').order_by('-alert_time')
-
-    # Get recent activity feed
-    recent_activities = get_recent_activities()
-
-    # Get pending tasks
-    pending_tasks = get_pending_tasks()
-
-    # Monthly trends
-    monthly_trends = get_monthly_trends()
+    ).order_by('-alert_time')[:5]
 
     context = {
         'stats': stats,
         'upcoming_checkups': upcoming_checkups,
-        'recent_checkups': recent_checkups,
         'active_emergencies': active_emergencies,
-        'recent_activities': recent_activities,
-        'pending_tasks': pending_tasks,
-        'monthly_trends': monthly_trends,
         'title': 'RHU Dashboard'
     }
 
