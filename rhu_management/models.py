@@ -96,6 +96,12 @@ class Patient(models.Model):
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['created_at']),
+            models.Index(fields=['barangay']),
+        ]
+
 
 class PregnancyHistory(models.Model):
     """Model for previous pregnancy records"""
@@ -212,6 +218,11 @@ class PrenatalCheckup(models.Model):
 
     class Meta:
         ordering = ['-checkup_date']
+        indexes = [
+            models.Index(fields=['checkup_date']),
+            models.Index(fields=['status']),
+            models.Index(fields=['patient']),
+        ]
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -279,6 +290,11 @@ class EmergencyAlert(models.Model):
 
     class Meta:
         ordering = ['-alert_time']
+        indexes = [
+            models.Index(fields=['alert_time']),
+            models.Index(fields=['status']),
+            models.Index(fields=['patient']),
+        ]
 
     def get_active_duration(self):
         if self.status == 'ACTIVE':

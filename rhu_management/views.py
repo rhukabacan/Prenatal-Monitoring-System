@@ -22,7 +22,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from django.views.decorators.http import require_GET
-from django.views.decorators.cache import cache_page
 from .tasks import check_active_emergencies
 import requests
 
@@ -2335,7 +2334,6 @@ def get_status_distribution(alerts):
     return distribution
 
 
-@cache_page(60 * 15)  # Cache for 15 minutes
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
 def rhu_dashboard(request):

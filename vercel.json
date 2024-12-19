@@ -5,7 +5,8 @@
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
-        "runtime": "python3.9"
+        "runtime": "python3.9",
+        "maxDuration": 60
       }
     },
     {
@@ -23,10 +24,8 @@
       "dest": "prenatal_monitoring/wsgi.py"
     }
   ],
-  "functions": {
-    "prenatal_monitoring/wsgi.py": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
+  "env": {
+    "PYTHONUNBUFFERED": "1",
+    "DJANGO_SETTINGS_MODULE": "prenatal_monitoring.settings"
   }
 }
