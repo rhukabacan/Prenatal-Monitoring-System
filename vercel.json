@@ -22,5 +22,11 @@
       "src": "/(.*)",
       "dest": "prenatal_monitoring/wsgi.py"
     }
-  ]
+  ],
+  "functions": {
+    "prenatal_monitoring/wsgi.py": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
 }

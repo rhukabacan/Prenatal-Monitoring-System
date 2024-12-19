@@ -55,6 +55,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.timeout.RequestTimeoutMiddleware',
 ]
 
 ROOT_URLCONF = 'prenatal_monitoring.urls'
@@ -111,6 +113,10 @@ DATABASES = {
         'PORT': '5432',
         'OPTIONS': {
             'sslmode': 'require',
+        },
+        'CONN_MAX_AGE': 0,  # Close connections after each request
+        'POOL_OPTIONS': {
+            'MAX_CONNS': 20
         }
     }
 }
@@ -188,3 +194,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Optional but recommended settings
 WHITENOISE_MANIFEST_STRICT = False
 WHITENOISE_USE_FINDERS = True
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
+
+REQUEST_TIMEOUT = 55  # seconds
