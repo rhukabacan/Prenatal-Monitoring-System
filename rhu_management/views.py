@@ -1097,76 +1097,77 @@ def checkup_update(request, checkup_id):
 
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
+@cache_page(60 * 5)  # Cache for 5 minutes
 def emergency_list(request):
     """Display list of all emergency alerts with filters"""
-    # Get filter parameters
-    status_filter = request.GET.get('status', '')
+    # Get filter parameters with defaults
+    status_filter = request.GET.get('status', 'ACTIVE')  # Default to showing active alerts
     barangay_filter = request.GET.get('barangay', '')
-    date_from = request.GET.get('date_from')
-    date_to = request.GET.get('date_to')
+    
+    # Base query with select_related to reduce database hits
+    alerts = EmergencyAlert.objects.select_related(
+        'patient',
+        'patient__user',
+        'patient__barangay'
+    )
 
-    # Base query
-    alerts = EmergencyAlert.objects.all()
-
-    # Apply filters
+    # Apply status filter by default to show only active/in-progress
     if status_filter:
-        alerts = alerts.filter(status=status_filter)
+        if status_filter == 'IN_PROGRESS':
+            alerts = alerts.filter(status__in=['RESPONDED', 'EN_ROUTE'])
+        else:
+            alerts = alerts.filter(status=status_filter)
+
+    # Apply barangay filter if provided
     if barangay_filter:
         alerts = alerts.filter(patient__barangay_id=barangay_filter)
-    if date_from:
-        alerts = alerts.filter(alert_time__date__gte=date_from)
-    if date_to:
-        alerts = alerts.filter(alert_time__date__lte=date_to)
 
-    # Get active and in-progress emergencies
-    active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')
+    # Get active and in-progress emergencies efficiently
+    active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')[:10]
     in_progress_alerts = alerts.filter(
         status__in=['RESPONDED', 'EN_ROUTE']
-    ).order_by('-alert_time')
+    ).order_by('-alert_time')[:10]
 
-    # Get recent alerts (last 24 hours)
-    recent_alerts = alerts.filter(
-        alert_time__gte=timezone.now() - timedelta(days=1)
-    ).order_by('-alert_time')
-
-    # Calculate statistics
+    # Calculate statistics using aggregation
     stats = {
-        'active_alerts': active_alerts.count(),
-        'in_progress': in_progress_alerts.count(),
+        'active_alerts': EmergencyAlert.objects.filter(status='ACTIVE').count(),
+        'in_progress': EmergencyAlert.objects.filter(
+            status__in=['RESPONDED', 'EN_ROUTE']
+        ).count(),
         'resolved_today': EmergencyAlert.objects.filter(
             status='RESOLVED',
             resolved_time__date=timezone.now().date()
         ).count(),
-        'average_response_time': calculate_average_response_time()
     }
 
-    # Pagination
-    active_paginator = Paginator(active_alerts, 6)  # Show 6 active alerts per page
-    in_progress_paginator = Paginator(in_progress_alerts, 10)  # Show 10 in-progress alerts per page
-    recent_paginator = Paginator(recent_alerts, 10)  # Show 10 recent alerts per page
+    # Calculate average response time more efficiently
+    resolved_alerts = EmergencyAlert.objects.filter(
+        status='RESOLVED',
+        response_time__isnull=False,
+        alert_time__isnull=False
+    ).exclude(
+        status='CANCELLED'
+    )[:100]  # Limit to last 100 resolved alerts for performance
 
-    # Get page numbers from request
-    active_page = request.GET.get('active_page', 1)
-    in_progress_page = request.GET.get('in_progress_page', 1)
-    recent_page = request.GET.get('recent_page', 1)
-
-    active_page_obj = active_paginator.get_page(active_page)
-    in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
-    recent_page_obj = recent_paginator.get_page(recent_page)
+    if resolved_alerts:
+        total_response_time = 0
+        count = 0
+        for alert in resolved_alerts:
+            response_time = (alert.response_time - alert.alert_time).total_seconds()
+            total_response_time += response_time
+            count += 1
+        stats['average_response_time'] = (total_response_time / count / 60) if count > 0 else 0
+    else:
+        stats['average_response_time'] = 0
 
     context = {
-        'active_page_obj': active_page_obj,
-        'in_progress_page_obj': in_progress_page_obj,
-        'recent_page_obj': recent_page_obj,
-        'status_filter': status_filter,
-        'barangay_filter': barangay_filter,
-        'date_from': date_from,
-        'date_to': date_to,
+        'active_alerts': active_alerts,
+        'in_progress_alerts': in_progress_alerts,
         'stats': stats,
         'status_choices': EmergencyAlert.STATUS_CHOICES,
-        'barangays': Barangay.objects.all(),
-        'in_progress_alerts': in_progress_alerts,
-        'recent_alerts': recent_alerts,
+        'barangays': Barangay.objects.values('id', 'barangay_name'),  # Only fetch needed fields
+        'status_filter': status_filter,
+        'barangay_filter': barangay_filter,
         'title': 'Emergency Alerts'
     }
 
