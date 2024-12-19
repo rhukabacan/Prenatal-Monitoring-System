@@ -169,7 +169,7 @@ def profile_update(request):
 def dashboard(request):
     """Display enhanced TCL dashboard with comprehensive statistics"""
     tcl = request.user.barangay
-    today = timezone.localtime(timezone.now()).date()
+    today = timezone.now().date()
     now = timezone.now()
 
     # Base querysets
@@ -573,7 +573,7 @@ def get_recent_barangay_activities(barangay):
 def patient_report(request):
     """Generate barangay-specific patient statistics"""
     tcl = request.user.barangay
-    today = timezone.localtime(timezone.now()).date()
+    today = timezone.now().date()
 
     # Get patients from barangay
     patients = Patient.objects.filter(barangay=tcl)
@@ -613,7 +613,7 @@ def patient_report(request):
 def checkup_report(request):
     """Generate barangay-specific checkup statistics"""
     tcl = request.user.barangay
-    today = timezone.localtime(timezone.now()).date()
+    today = timezone.now().date()
 
     # Get checkups from barangay
     checkups = PrenatalCheckup.objects.filter(
@@ -673,7 +673,7 @@ def checkup_report(request):
 def emergency_report(request):
     """Generate barangay-specific emergency statistics"""
     tcl = request.user.barangay
-    today = timezone.localtime(timezone.now()).date()
+    today = timezone.now().date()
 
     # Get emergencies from barangay
     emergencies = EmergencyAlert.objects.filter(
