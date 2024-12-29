@@ -19,6 +19,9 @@
             --primary-color: #6c5ce7;
             --secondary-color: #a8a4e9;
             --accent-color: #00cec9;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
             --gradient-start: #6c5ce7;
             --gradient-end: #00cec9;
             --transition-speed: 0.4s;
@@ -234,6 +237,11 @@
             font-size: 0.75rem;
             box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
         }
+
+        .badge.bg-scheduled { background-color: var(--primary-color); }
+        .badge.bg-completed { background-color: var(--success); }
+        .badge.bg-cancelled { background-color: var(--danger); }
+        .badge.bg-missed { background-color: var(--warning); }
 
         /* Mobile Responsiveness */
         @media (max-width: 992px) {

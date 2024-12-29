@@ -1,5 +1,6 @@
 from datetime import timedelta
 from functools import wraps
+import json
 
 from django.contrib import messages
 from django.contrib.auth import login, logout, authenticate
@@ -477,21 +478,40 @@ def emergency_monitor(request):
     """Monitor emergency alerts in the barangay"""
     tcl = request.user.barangay
 
-    # Get all emergencies for the barangay
-    emergencies = EmergencyAlert.objects.filter(
+    # Get all alerts for the barangay
+    alerts = EmergencyAlert.objects.filter(
         patient__barangay=tcl
+    ).select_related(
+        'patient__user',
+        'patient__barangay'
     ).order_by('-alert_time')
 
-    # Get statistics
+    # Parse location data for each alert
+    for alert in alerts:
+        if alert.location:
+            try:
+                location_data = json.loads(alert.location)
+                alert.parsed_location = {
+                    'coordinates': location_data.get('coordinates', ''),
+                    'accuracy': location_data.get('accuracy'),
+                    'altitude': location_data.get('altitude'),
+                    'speed': location_data.get('speed'),
+                    'timestamp': location_data.get('timestamp')
+                }
+            except json.JSONDecodeError:
+                alert.parsed_location = None
+        else:
+            alert.parsed_location = None
+
+    # Calculate statistics
     stats = {
-        'active': emergencies.filter(status='ACTIVE').count(),
-        'responded': emergencies.filter(status='RESPONDED').count(),
-        'resolved': emergencies.filter(status='RESOLVED').count(),
-        'total': emergencies.count()
+        'active': alerts.filter(status='ACTIVE').count(),
+        'responded': alerts.filter(status__in=['RESPONDED', 'EN_ROUTE']).count(),
+        'resolved': alerts.filter(status='RESOLVED').count()
     }
 
     # Pagination
-    paginator = Paginator(emergencies, 10)  # 10 items per page
+    paginator = Paginator(alerts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -499,7 +519,7 @@ def emergency_monitor(request):
         'page_obj': page_obj,
         'stats': stats,
         'tcl': tcl,
-        'title': f'Emergency Monitor - {tcl.barangay_name}'
+        'title': 'Emergency Monitor'
     }
 
     return render(request, 'tcl_management/emergency_monitor.html', context)
@@ -517,6 +537,22 @@ def emergency_detail(request, emergency_id):
         id=emergency_id,
         patient__barangay=tcl
     )
+
+    # Parse location data
+    if alert.location:
+        try:
+            location_data = json.loads(alert.location)
+            alert.parsed_location = {
+                'coordinates': location_data.get('coordinates', ''),
+                'accuracy': location_data.get('accuracy'),
+                'altitude': location_data.get('altitude'),
+                'speed': location_data.get('speed'),
+                'timestamp': location_data.get('timestamp')
+            }
+        except json.JSONDecodeError:
+            alert.parsed_location = None
+    else:
+        alert.parsed_location = None
 
     # Get patient's latest checkup
     latest_checkup = PrenatalCheckup.objects.filter(

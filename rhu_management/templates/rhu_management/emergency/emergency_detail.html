@@ -40,13 +40,15 @@
                                 <strong>Address:</strong><br>
                                 {{ alert.patient.address }}
                             </p>
-                            {% if alert.location %}
+                            {% if alert.parsed_location %}
                                 <p class="mb-2">
                                     <strong>Emergency Location:</strong><br>
-                                    <a href="https://www.google.com/maps?q={{ alert.location }}"
-                                       target="_blank" class="btn btn-sm btn-primary">
+                                    {% if alert.parsed_location.coordinates %}
+                                    <a href="https://www.google.com/maps?q={{ alert.parsed_location.coordinates }}"
+                                       target="_blank" class="badge rounded-pill bg-primary text-decoration-none">
                                         <i class="fas fa-map-marker-alt me-2"></i>View on Map
                                     </a>
+                                    {% endif %}
                                 </p>
                             {% endif %}
                         </div>

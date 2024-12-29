@@ -79,6 +79,6 @@ urlpatterns = [
     #      name='notification_settings'),
     # path('settings/schedule/', views.schedule_settings, name='schedule_settings'),
 
-    path('check-emergency-alerts/', views.check_emergency_alerts, name='check_emergency_alerts'),
+    path('emergency-alert-stream/', views.emergency_alert_stream, name='emergency_alert_stream'),
 
 ]

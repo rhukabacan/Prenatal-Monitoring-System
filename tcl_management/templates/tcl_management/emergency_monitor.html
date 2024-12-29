@@ -127,11 +127,18 @@
                                             <div class="location-info">
                                                 <i class="fas fa-map-marker-alt"></i>
                                                 <span>{{ alert.patient.sitio }}, {{ alert.patient.barangay }}</span>
-                                                {% if alert.location %}
-                                                    <a href="https://www.google.com/maps?q={{ alert.location }}" 
+                                                {% if alert.parsed_location.coordinates %}
+                                                    <a href="https://www.google.com/maps?q={{ alert.parsed_location.coordinates }}" 
                                                        target="_blank" 
                                                        class="map-link">
-                                                        <span class="badge bg-primary">View Map</span>
+                                                        <span class="badge bg-primary">
+                                                            <i class="fas fa-map me-1"></i>View Map
+                                                            {% if alert.parsed_location.accuracy %}
+                                                                <small class="accuracy-badge">
+                                                                    ±{{ alert.parsed_location.accuracy|floatformat:0 }}m
+                                                                </small>
+                                                            {% endif %}
+                                                        </span>
                                                     </a>
                                                 {% endif %}
                                             </div>
@@ -413,6 +420,21 @@
         .action-button {
             padding: 0.5rem 1rem;
         }
+    }
+
+    .accuracy-badge {
+        font-size: 0.7rem;
+        opacity: 0.8;
+        margin-left: 0.25rem;
+    }
+
+    .map-link .badge {
+        transition: all 0.2s ease;
+    }
+
+    .map-link:hover .badge {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 </style>
 {% endblock %}

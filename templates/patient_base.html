@@ -294,6 +294,21 @@
                 padding: 0.75rem;
             }
         }
+
+        /* Add these new styles */
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .loading-state, .normal-state {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .d-none {
+            display: none !important;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -513,23 +528,39 @@
                         <li>Record the emergency event</li>
                     </ul>
                 </div>
+                <!-- Add location details section -->
+                <div id="locationDetails" class="alert alert-info mt-3" style="display: none;">
+                    <h6 class="mb-2"><i class="fas fa-map-marker-alt me-2"></i>Your Location:</h6>
+                    <div id="geocodedAddress" class="mb-2">Getting address...</div>
+                    <div id="coordinatesInfo" class="small text-muted"></div>
+                </div>
             </div>
             <div class="modal-footer justify-content-center border-0 pb-4">
                 <button type="button" class="btn btn-lg btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-2"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-lg btn-danger" onclick="triggerEmergency()">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Trigger Alert
+                <button type="button" class="btn btn-lg btn-danger" id="triggerAlertBtn" onclick="triggerEmergency()">
+                    <span class="normal-state">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Trigger Alert
+                    </span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Sending Alert...
+                    </span>
                 </button>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Add Bootstrap Bundle JS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 <script>
 let userLocation = null;
 let locationWatchId = null;
+const MAX_LOCATION_AGE = 30000; // 30 seconds
+const DESIRED_ACCURACY = 20; // 20 meters
+const ACCURACY_TIMEOUT = 60000; // 1 minute
 
 function updateLocationStatus(message, icon, colorClass) {
     document.getElementById('locationStatus').innerHTML = 
@@ -540,7 +571,7 @@ function handleLocationError(error) {
     let errorMessage;
     switch(error.code) {
         case error.PERMISSION_DENIED:
-            errorMessage = "Location access denied";
+            errorMessage = "Please enable location access";
             break;
         case error.POSITION_UNAVAILABLE:
             errorMessage = "Location unavailable";
@@ -551,57 +582,217 @@ function handleLocationError(error) {
         default:
             errorMessage = "Location error occurred";
     }
-    updateLocationStatus(errorMessage, 'fa-exclamation-circle', 'text-danger');
+    updateLocationStatus(errorMessage, "fa-exclamation-circle", "text-danger");
+    console.error('Location Error:', error.message);
+    
+    // Disable emergency button on location error
+    const emergencyBtn = document.getElementById('emergencyBtn');
+    emergencyBtn.disabled = true;
+    emergencyBtn.style.opacity = '0.5';
+    emergencyBtn.style.cursor = 'not-allowed';
+}
+
+function createGoogleMapsLink(latitude, longitude) {
+    return `https://www.google.com/maps?q=${latitude},${longitude}`;
+}
+
+function updateLocationDetails(position) {
+    const locationDetails = document.getElementById('locationDetails');
+    const geocodedAddress = document.getElementById('geocodedAddress');
+    const coordinatesInfo = document.getElementById('coordinatesInfo');
+    
+    locationDetails.style.display = 'block';
+    
+    // Format coordinates with more precision
+    const latitude = position.coords.latitude.toFixed(6);
+    const longitude = position.coords.longitude.toFixed(6);
+    const accuracy = Math.round(position.coords.accuracy);
+    const gmapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    
+    // Create detailed location information
+    geocodedAddress.innerHTML = `
+        <strong>Location Details:</strong><br>
+        <strong>Accuracy:</strong> ${accuracy} meters<br>
+        ${position.coords.altitude ? `<strong>Altitude:</strong> ${Math.round(position.coords.altitude)}m<br>` : ''}
+        ${position.coords.speed ? `<strong>Speed:</strong> ${Math.round(position.coords.speed * 3.6)}km/h<br>` : ''}
+        <strong>Last Updated:</strong> ${new Date(position.timestamp).toLocaleTimeString()}<br>
+        <a href="${gmapsLink}" target="_blank" class="btn btn-sm btn-primary mt-2">
+            <i class="fas fa-map-marker-alt me-1"></i>View on Google Maps
+        </a>
+    `;
+    
+    coordinatesInfo.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Latitude: ${latitude}</span>
+            <span>Longitude: ${longitude}</span>
+        </div>
+    `;
 }
 
 function initializeLocation() {
     if ("geolocation" in navigator) {
-        // Initial status
-        updateLocationStatus("Getting location...", "fa-location-dot", "text-muted");
+        // Disable emergency button initially
+        const emergencyBtn = document.getElementById('emergencyBtn');
+        emergencyBtn.disabled = true;
+        emergencyBtn.style.opacity = '0.5';
+        emergencyBtn.style.cursor = 'not-allowed';
+        
+        updateLocationStatus("Getting precise location...", "fa-location-dot", "text-muted");
 
-        // Options for high accuracy
+        // Enhanced accuracy options
         const options = {
             enableHighAccuracy: true,
-            timeout: 10000,
+            timeout: ACCURACY_TIMEOUT,
             maximumAge: 0
         };
 
         try {
-            // Watch position instead of just getting it once
-            locationWatchId = navigator.geolocation.watchPosition(
+            // Use multiple location sources if available
+            if ('DeviceOrientationEvent' in window) {
+                window.addEventListener('deviceorientation', function(event) {
+                    // Use compass data to improve accuracy
+                    if (event.alpha !== null) {
+                        // Store compass heading for better location accuracy
+                        window.compassHeading = event.alpha;
+                    }
+                });
+            }
+
+            // Get initial position with high accuracy
+            navigator.geolocation.getCurrentPosition(
                 function(position) {
-                    userLocation = {
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        accuracy: position.coords.accuracy // in meters
-                    };
+                    handlePositionUpdate(position);
+                    
+                    // Enable emergency button once we have initial position
+                    emergencyBtn.disabled = false;
+                    emergencyBtn.style.opacity = '1';
+                    emergencyBtn.style.cursor = 'pointer';
+                    
+                    // Continue watching for better accuracy
+                    locationWatchId = navigator.geolocation.watchPosition(
+                        handlePositionUpdate,
+                        handleLocationError,
+                        options
+                    );
 
-                    // Update status based on accuracy
-                    if (position.coords.accuracy <= 100) { // Within 100 meters
-                        updateLocationStatus("Location accurate", "fa-check-circle", "text-success");
-                    } else {
-                        updateLocationStatus("Location approximate", "fa-info-circle", "text-warning");
-                    }
-
-                    // Optional: Stop watching if we get a very accurate position
-                    if (position.coords.accuracy <= 20) { // Within 20 meters
-                        navigator.geolocation.clearWatch(locationWatchId);
-                    }
+                    // Set timeout for continuous monitoring
+                    setTimeout(() => {
+                        if (locationWatchId !== null) {
+                            navigator.geolocation.clearWatch(locationWatchId);
+                            locationWatchId = null;
+                            if (userLocation && userLocation.accuracy > DESIRED_ACCURACY) {
+                                updateLocationStatus(
+                                    `Best accuracy achieved: ${Math.round(userLocation.accuracy)}m`, 
+                                    "fa-info-circle", 
+                                    "text-warning"
+                                );
+                            }
+                        }
+                    }, ACCURACY_TIMEOUT);
                 },
-                handleLocationError,
-                options
+                function(error) {
+                    handleLocationError(error);
+                    // Keep emergency button disabled on error
+                    emergencyBtn.disabled = true;
+                    emergencyBtn.style.opacity = '0.5';
+                    emergencyBtn.style.cursor = 'not-allowed';
+                },
+                { ...options, timeout: 10000 }
             );
         } catch (e) {
             updateLocationStatus("Location error", "fa-exclamation-circle", "text-danger");
             console.error("Geolocation error:", e);
+            // Keep emergency button disabled on error
+            emergencyBtn.disabled = true;
+            emergencyBtn.style.opacity = '0.5';
+            emergencyBtn.style.cursor = 'not-allowed';
         }
     } else {
         updateLocationStatus("Location not supported", "fa-times-circle", "text-danger");
+        // Keep emergency button disabled if location is not supported
+        const emergencyBtn = document.getElementById('emergencyBtn');
+        emergencyBtn.disabled = true;
+        emergencyBtn.style.opacity = '0.5';
+        emergencyBtn.style.cursor = 'not-allowed';
+    }
+}
+
+function handlePositionUpdate(position) {
+    const accuracy = position.coords.accuracy;
+    const newLocation = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: accuracy,
+        timestamp: position.timestamp,
+        altitude: position.coords.altitude,
+        altitudeAccuracy: position.coords.altitudeAccuracy,
+        heading: position.coords.heading,
+        speed: position.coords.speed
+    };
+
+    // Only update if the new location is more accurate
+    if (!userLocation || newLocation.accuracy < userLocation.accuracy) {
+        userLocation = newLocation;
+        
+        // Enable emergency button if we have a valid location
+        const emergencyBtn = document.getElementById('emergencyBtn');
+        emergencyBtn.disabled = false;
+        emergencyBtn.style.opacity = '1';
+        emergencyBtn.style.cursor = 'pointer';
+        
+        // Update status based on accuracy
+        if (accuracy <= DESIRED_ACCURACY) {
+            updateLocationStatus(
+                `Location accurate (${Math.round(accuracy)}m)`, 
+                "fa-check-circle", 
+                "text-success"
+            );
+            // Stop watching if we achieved desired accuracy
+            if (locationWatchId !== null) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+            }
+            // Update location details in modal
+            updateLocationDetails(position);
+        } else if (accuracy <= 100) {
+            updateLocationStatus(
+                `Location accuracy: ${Math.round(accuracy)}m`, 
+                "fa-info-circle", 
+                "text-warning"
+            );
+            updateLocationDetails(position);
+        } else {
+            updateLocationStatus(
+                `Improving accuracy (${Math.round(accuracy)}m)...`, 
+                "fa-sync", 
+                "text-info"
+            );
+        }
     }
 }
 
 // Initialize location tracking when page loads
-document.addEventListener('DOMContentLoaded', initializeLocation);
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we need to request permissions first
+    if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' })
+            .then(permission => {
+                if (permission.state === "granted") {
+                    initializeLocation();
+                } else if (permission.state === "prompt") {
+                    updateLocationStatus("Please allow location access", "fa-location-dot", "text-warning");
+                    // Wait for user interaction to request location
+                    document.getElementById('emergencyBtn').addEventListener('click', function() {
+                        initializeLocation();
+                    });
+                } else {
+                    updateLocationStatus("Location access denied", "fa-times-circle", "text-danger");
+                }
+            });
+    } else {
+        initializeLocation();
+    }
+});
 
 // Cleanup on page unload
 window.addEventListener('unload', function() {
@@ -613,17 +804,38 @@ window.addEventListener('unload', function() {
 function confirmEmergency() {
     const modal = new bootstrap.Modal(document.getElementById('emergencyModal'));
     modal.show();
+    
+    // If we have a location, show it in the modal
+    if (userLocation) {
+        updateLocationDetails({
+            coords: {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+                accuracy: userLocation.accuracy,
+                altitude: userLocation.altitude,
+                speed: userLocation.speed
+            },
+            timestamp: userLocation.timestamp
+        });
+    }
 }
 
 function triggerEmergency() {
-    const button = document.getElementById('emergencyBtn');
-    button.disabled = true;
-    button.classList.remove('emergency-pulse');
+    const triggerBtn = document.getElementById('triggerAlertBtn');
+    const normalState = triggerBtn.querySelector('.normal-state');
+    const loadingState = triggerBtn.querySelector('.loading-state');
+    
+    // Disable button and show loading state
+    triggerBtn.disabled = true;
+    normalState.classList.add('d-none');
+    loadingState.classList.remove('d-none');
 
-    // Prepare location data with accuracy information
+    // Get location data
     const locationData = userLocation ? {
         coordinates: `${userLocation.latitude},${userLocation.longitude}`,
         accuracy: userLocation.accuracy,
+        altitude: userLocation.altitude,
+        speed: userLocation.speed,
         timestamp: new Date().toISOString()
     } : null;
 
@@ -640,18 +852,27 @@ function triggerEmergency() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.location.href = "{% url 'patient_management:emergency_history' %}";
+            // Instead of using window.location.href, use window.location.replace with cache-busting
+            const timestamp = new Date().getTime();
+            window.location.replace(`{% url 'patient_management:emergency_history' %}?t=${timestamp}`);
         } else {
+            // Reset button state
+            triggerBtn.disabled = false;
+            normalState.classList.remove('d-none');
+            loadingState.classList.add('d-none');
+            
             alert('Error: ' + data.message);
-            button.disabled = false;
-            button.classList.add('emergency-pulse');
         }
     })
     .catch(error => {
         console.error('Emergency alert error:', error);
+        
+        // Reset button state
+        triggerBtn.disabled = false;
+        normalState.classList.remove('d-none');
+        loadingState.classList.add('d-none');
+        
         alert('Error triggering emergency alert. Please call emergency services directly.');
-        button.disabled = false;
-        button.classList.add('emergency-pulse');
     });
 }
 </script>

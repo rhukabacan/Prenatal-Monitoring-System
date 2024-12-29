@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta
 from functools import wraps
 import time
+import json
 
 from django.conf import settings
 from django.contrib import messages
@@ -13,7 +14,7 @@ from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction, models
 from django.db.models import Count, Avg, Q, OuterRef, Subquery
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from reportlab.lib import colors
@@ -24,7 +25,6 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from django.views.decorators.http import require_GET
 from django.views.decorators.cache import cache_page
-from .tasks import check_active_emergencies
 import requests
 
 from .models import Barangay, Patient, PrenatalCheckup, EmergencyAlert, RHUReport, PregnancyHistory
@@ -59,7 +59,7 @@ def rhu_login(request):
             user = authenticate(username=username, password=password)
             if user is not None and user.is_superuser:
                 login(request, user)
-                messages.success(request, f'Welcome back, {user.get_full_name()}!')
+                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                 return redirect('rhu_management:dashboard')
             else:
                 messages.error(request, 'Invalid credentials or insufficient permissions.')
@@ -1107,19 +1107,14 @@ def emergency_list(request):
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     
-    # Base query with select_related and only needed fields
+    # Base query with select_related
     alerts = EmergencyAlert.objects.select_related(
         'patient',
         'patient__user',
         'patient__barangay'
-    ).only(
-        'id', 'status', 'alert_time', 'response_time', 'resolved_time', 'location',
-        'patient__contact_number', 'patient__sitio',
-        'patient__user__first_name', 'patient__user__last_name',
-        'patient__barangay__barangay_name'
     )
 
-    # Apply filters
+    # Apply filters first
     if status_filter:
         alerts = alerts.filter(status=status_filter)
     if barangay_filter:
@@ -1129,24 +1124,48 @@ def emergency_list(request):
     if date_to:
         alerts = alerts.filter(alert_time__date__lte=date_to)
 
-    # Get active alerts with pagination
+    # Create separate querysets for each section
     active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')
-    active_paginator = Paginator(active_alerts, 6)  # Show 6 active alerts per page
-    active_page = request.GET.get('active_page', 1)
-    active_page_obj = active_paginator.get_page(active_page)
-
-    # Get in-progress alerts with pagination
-    in_progress_alerts = alerts.filter(
-        status__in=['RESPONDED', 'EN_ROUTE']
-    ).order_by('-alert_time')
-    in_progress_paginator = Paginator(in_progress_alerts, 10)
-    in_progress_page = request.GET.get('in_progress_page', 1)
-    in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
-
-    # Get recent alerts with pagination
+    in_progress_alerts = alerts.filter(status__in=['RESPONDED', 'EN_ROUTE']).order_by('-alert_time')
     recent_alerts = alerts.order_by('-alert_time')
+
+    # Convert to lists and parse location data
+    def parse_location_data(alert_list):
+        for alert in alert_list:
+            if alert.location:
+                try:
+                    location_data = json.loads(alert.location)
+                    alert.parsed_location = {
+                        'coordinates': location_data.get('coordinates', ''),
+                        'accuracy': location_data.get('accuracy'),
+                        'altitude': location_data.get('altitude'),
+                        'speed': location_data.get('speed'),
+                        'timestamp': location_data.get('timestamp')
+                    }
+                except json.JSONDecodeError:
+                    alert.parsed_location = None
+            else:
+                alert.parsed_location = None
+        return alert_list
+
+    # Convert querysets to lists and parse location data
+    active_alerts = parse_location_data(list(active_alerts))
+    in_progress_alerts = parse_location_data(list(in_progress_alerts))
+    recent_alerts = parse_location_data(list(recent_alerts))
+
+    # Create paginators
+    active_paginator = Paginator(active_alerts, 6)
+    in_progress_paginator = Paginator(in_progress_alerts, 10)
     recent_paginator = Paginator(recent_alerts, 10)
+
+    # Get page numbers
+    active_page = request.GET.get('active_page', 1)
+    in_progress_page = request.GET.get('in_progress_page', 1)
     recent_page = request.GET.get('recent_page', 1)
+
+    # Get page objects
+    active_page_obj = active_paginator.get_page(active_page)
+    in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
     recent_page_obj = recent_paginator.get_page(recent_page)
 
     # Use database aggregation for statistics
@@ -1285,24 +1304,58 @@ def emergency_respond(request, alert_id):
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
 def emergency_detail(request, alert_id):
-    """Display detailed emergency alert information"""
-    alert = get_object_or_404(EmergencyAlert, id=alert_id)
+    """Display detailed information about a specific emergency alert"""
+    alert = get_object_or_404(EmergencyAlert.objects.select_related(
+        'patient',
+        'patient__user',
+        'patient__barangay'
+    ), id=alert_id)
 
-    # Calculate response times if available
+    # Parse location data
+    if alert.location:
+        try:
+            location_data = json.loads(alert.location)
+            alert.parsed_location = {
+                'coordinates': location_data.get('coordinates', ''),
+                'accuracy': location_data.get('accuracy'),
+                'altitude': location_data.get('altitude'),
+                'speed': location_data.get('speed'),
+                'timestamp': location_data.get('timestamp')
+            }
+        except json.JSONDecodeError:
+            alert.parsed_location = None
+    else:
+        alert.parsed_location = None
+
+    # Calculate response time in minutes if available
     response_time = None
+    if alert.response_time and alert.alert_time:
+        response_time = int((alert.response_time - alert.alert_time).total_seconds() / 60)
+
+    # Calculate resolution time in minutes if available
     resolution_time = None
+    if alert.resolved_time and alert.alert_time:
+        resolution_time = int((alert.resolved_time - alert.alert_time).total_seconds() / 60)
 
-    if alert.response_time:
-        response_time = (alert.response_time - alert.alert_time).total_seconds() // 60
+    # Get latest checkup
+    latest_checkup = PrenatalCheckup.objects.filter(
+        patient=alert.patient
+    ).order_by('-checkup_date').first()
 
-    if alert.resolved_time and alert.response_time:
-        resolution_time = (alert.resolved_time - alert.response_time).total_seconds() // 60
+    # Get previous alerts
+    previous_alerts = EmergencyAlert.objects.filter(
+        patient=alert.patient
+    ).exclude(
+        id=alert.id
+    ).order_by('-alert_time')[:5]
 
     context = {
         'alert': alert,
         'response_time': response_time,
         'resolution_time': resolution_time,
-        'title': f'Emergency Alert Details - {alert.patient.user.get_full_name()}'
+        'latest_checkup': latest_checkup,
+        'previous_alerts': previous_alerts,
+        'title': f'Emergency Alert #{alert.id}'
     }
 
     return render(request, 'rhu_management/emergency/emergency_detail.html', context)
@@ -2737,11 +2790,40 @@ def calculate_response_times(alerts):
 
     return response_times
 
-
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
-@require_GET
-def check_emergency_alerts(request):
-    """API endpoint to check for active emergency alerts"""
-    result = check_active_emergencies()
-    return JsonResponse(result)
+def emergency_alert_stream(request):
+    """SSE endpoint for real-time emergency alerts"""
+    def event_stream():
+        last_check = None
+        while True:
+            # Check for new active alerts
+            active_alerts = EmergencyAlert.objects.filter(status='ACTIVE').select_related(
+                'patient__user', 'patient__barangay'
+            )
+            
+            if active_alerts.exists():
+                alerts_data = []
+                for alert in active_alerts:
+                    alerts_data.append({
+                        'id': alert.id,
+                        'patient_name': alert.patient.user.get_full_name(),
+                        'sitio': alert.patient.sitio,
+                        'barangay': alert.patient.barangay.barangay_name,
+                        'alert_time': alert.alert_time.strftime('%B %d, %Y %I:%M %p'),
+                        'location': alert.location,
+                        'status': alert.status
+                    })
+                
+                # Send data only if there are changes
+                current_check = json.dumps(alerts_data)
+                if current_check != last_check:
+                    last_check = current_check
+                    yield f"data: {current_check}\n\n"
+            
+            time.sleep(2)  # Check every 2 seconds
+
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response

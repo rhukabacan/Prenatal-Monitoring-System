@@ -170,14 +170,19 @@
                                     <strong><i class="fas fa-map-marked-alt me-2"></i>Address:</strong><br>
                                     {{ alert.patient.sitio }} {{ alert.patient.barangay }}
                                 </p>
-                                {% if alert.location %}
+                                {% if alert.parsed_location %}
                                 <p class="mb-3">
                                     <strong><i class="fas fa-map-marker-alt me-2"></i>Location:</strong><br>
-                                    <a href="https://www.google.com/maps?q={{ alert.location }}"
-                                       target="_blank" class="location-link">
+                                    {% if alert.parsed_location.coordinates %}
+                                    <a href="https://www.google.com/maps?q={{ alert.parsed_location.coordinates }}"
+                                       target="_blank" class="badge rounded-pill bg-primary text-decoration-none">
                                         View on Map
                                     </a>
+                                    {% endif %}
                                 </p>
+                                {% else %}
+                                <!-- Debug info -->
+                                <p class="text-muted small">No location data available</p>
                                 {% endif %}
 
                                 <!-- Response Actions -->
@@ -280,6 +285,7 @@
                                     <th>Time</th>
                                     <th>Patient</th>
                                     <th>Address</th>
+                                    <th>Location</th>
                                     <th>Status</th>
                                     <th>Response Time</th>
                                     <th>Resolution Time</th>
@@ -292,6 +298,16 @@
                                     <td>{{ alert.alert_time|date:"g:i A" }}</td>
                                     <td>{{ alert.patient.user.get_full_name }}</td>
                                     <td>{{ alert.patient.sitio }} {{ alert.patient.barangay }}</td>
+                                    <td>
+                                        {% if alert.parsed_location.coordinates %}
+                                        <a href="https://www.google.com/maps?q={{ alert.parsed_location.coordinates }}"
+                                           target="_blank" class="badge rounded-pill bg-primary text-decoration-none">
+                                            View on Map
+                                        </a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <span class="badge {% if alert.status == 'ACTIVE' %}bg-danger
                                                        {% elif alert.status == 'RESOLVED' %}bg-success

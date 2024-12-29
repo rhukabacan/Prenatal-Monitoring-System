@@ -599,17 +599,25 @@ def pregnancy_history_update(request, history_id):
 def emergency_alert(request):
     """Handle emergency alert trigger"""
     try:
-        # Get location data if provided
+        # Get location data from request
         data = json.loads(request.body)
-        location = data.get('location', '')
-        coordinates = data.get('coordinates', '')
+        location_data = data.get('location', {})
+        
+        # Format location data for storage
+        location_info = {
+            'coordinates': location_data.get('coordinates', ''),
+            'accuracy': location_data.get('accuracy'),
+            'altitude': location_data.get('altitude'),
+            'speed': location_data.get('speed'),
+            'timestamp': location_data.get('timestamp')
+        }
 
         patient = request.user.patient
 
-        # Create emergency alert first to ensure it's recorded
+        # Create emergency alert with formatted location data
         alert = EmergencyAlert.objects.create(
             patient=patient,
-            location=location,
+            location=json.dumps(location_info),  # Store as JSON string
             status='ACTIVE'
         )
 
@@ -638,17 +646,17 @@ def emergency_alert(request):
                 if latest_checkup.weight:
                     message += f"Weight: {latest_checkup.weight} kg\n"
 
-            # Add location section
+            # Add location section with coordinates
             message += (
                 f"\nLOCATION:\n"
                 f"Barangay: {patient.barangay.barangay_name}\n"
                 f"Sitio: {patient.sitio}\n"
             )
 
-            if location:
-                message += f"Address: {location}\n"
-            if coordinates:
-                message += f"GPS: {coordinates}\n"
+            if location_info['coordinates']:
+                message += f"GPS Coordinates: {location_info['coordinates']}\n"
+                message += f"Location Accuracy: {location_info['accuracy']} meters\n"
+                message += f"Google Maps: https://www.google.com/maps?q={location_info['coordinates']}\n"
 
             # Add emergency contact section
             message += (
@@ -738,6 +746,23 @@ def emergency_history(request):
     alerts = EmergencyAlert.objects.filter(
         patient=request.user.patient
     ).order_by('-alert_time')
+
+    # Parse location data for each alert
+    for alert in alerts:
+        if alert.location:
+            try:
+                location_data = json.loads(alert.location)
+                alert.parsed_location = {
+                    'coordinates': location_data.get('coordinates', ''),
+                    'accuracy': location_data.get('accuracy'),
+                    'altitude': location_data.get('altitude'),
+                    'speed': location_data.get('speed'),
+                    'timestamp': location_data.get('timestamp')
+                }
+            except json.JSONDecodeError as e:
+                alert.parsed_location = None
+        else:
+            alert.parsed_location = None
 
     # Get statistics
     stats = {
