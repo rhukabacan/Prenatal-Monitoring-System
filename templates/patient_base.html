@@ -787,6 +787,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 } else {
                     updateLocationStatus("Location access denied", "fa-times-circle", "text-danger");
+                    const emergencyBtn = document.getElementById('emergencyBtn');
+                    emergencyBtn.disabled = true;
+                    emergencyBtn.style.opacity = '0.5';
+                    emergencyBtn.style.cursor = 'not-allowed';
                 }
             });
     } else {
