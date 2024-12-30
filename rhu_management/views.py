@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import time
 import json
+import calendar
 
 from django.conf import settings
 from django.contrib import messages
@@ -13,7 +14,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction, models
-from django.db.models import Count, Avg, Q, OuterRef, Subquery
+from django.db.models import Count, Avg, Q, OuterRef, Subquery, Case, When, ExpressionWrapper, F, Prefetch, Window
+from django.db.models.functions import RowNumber, Extract, ExtractWeekDay
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -375,13 +377,15 @@ def barangay_update(request, barangay_id):
 @superuser_required
 def patient_list(request):
     """Display list of all patients with barangay filtering and search"""
-    # Get filter parameters
     search_query = request.GET.get('search', '')
     barangay_filter = request.GET.get('barangay', '')
-
-    # Base query with related fields
-    patients = Patient.objects.select_related('user', 'barangay').prefetch_related(
-        models.Prefetch(
+    
+    # Build base query with necessary related fields
+    patients = Patient.objects.select_related(
+        'user',
+        'barangay'
+    ).prefetch_related(
+        Prefetch(
             'prenatalcheckup_set',
             queryset=PrenatalCheckup.objects.filter(
                 Q(status='COMPLETED') |
@@ -390,45 +394,52 @@ def patient_list(request):
             to_attr='checkups'
         )
     )
-
-    # Apply barangay filter first
+    
+    # Combine filters into a single Q object
+    filters = Q()
     if barangay_filter:
-        try:
-            barangay = Barangay.objects.get(id=barangay_filter)
-            patients = patients.filter(barangay=barangay)
-        except Barangay.DoesNotExist:
-            messages.error(request, 'Selected barangay not found.')
-
-    # Then apply search filter within the barangay results if any
+        filters &= Q(barangay_id=barangay_filter)
+    
     if search_query:
-        patients = patients.filter(
+        filters &= (
             Q(user__first_name__icontains=search_query) |
             Q(user__last_name__icontains=search_query) |
             Q(contact_number__icontains=search_query)
         )
-
-    # Get statistics
-    stats = {
-        'total_patients': Patient.objects.count(),
-        'pregnant_patients': Patient.objects.filter(
-            prenatalcheckup__isnull=False,
-            prenatalcheckup__checkup_date__gte=timezone.now() - timedelta(days=280)  # ~9 months
-        ).distinct().count(),
-        'due_this_month': Patient.objects.filter(
-            prenatalcheckup__last_menstrual_period__month=(
-                    timezone.now() - timedelta(days=280)).month,  # ~9 months ago
-            prenatalcheckup__status='SCHEDULED'
-        ).distinct().count()
-    }
-
-    # Get all barangays for the filter dropdown
-    barangays = Barangay.objects.all().order_by('barangay_name')
-
+    
+    patients = patients.filter(filters)
+    
+    # Get statistics in a single query
+    stats = Patient.objects.aggregate(
+        total_patients=Count('id'),
+        pregnant_patients=Count(
+            'id',
+            filter=Q(
+                prenatalcheckup__isnull=False,
+                prenatalcheckup__checkup_date__gte=timezone.now() - timedelta(days=280)
+            ),
+            distinct=True
+        ),
+        due_this_month=Count(
+            'id',
+            filter=Q(
+                prenatalcheckup__last_menstrual_period__month=(
+                    timezone.now() - timedelta(days=280)
+                ).month,
+                prenatalcheckup__status='SCHEDULED'
+            ),
+            distinct=True
+        )
+    )
+    
+    # Get all barangays for filter dropdown in a single query
+    barangays = Barangay.objects.order_by('barangay_name')
+    
     # Pagination
     paginator = Paginator(patients.order_by('-created_at'), 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-
+    
     context = {
         'page_obj': page_obj,
         'search_query': search_query,
@@ -437,7 +448,7 @@ def patient_list(request):
         'stats': stats,
         'title': 'Patient List'
     }
-
+    
     return render(request, 'rhu_management/patient/patient_list.html', context)
 
 
@@ -718,60 +729,57 @@ def get_available_time_slots(exclude_checkup=None):
 @superuser_required
 def checkup_list(request):
     """Display list of latest checkups per patient with filtering"""
-    # Get filter parameters
     patient_filter = request.GET.get('patient')
     barangay_filter = request.GET.get('barangay')
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
-
-    # Get the latest checkup for each patient using a subquery
-    latest_checkups = PrenatalCheckup.objects.filter(
-        patient=OuterRef('patient')
-    ).order_by('-checkup_date')
-
-    # Base queryset with distinct patients and their latest checkup
-    checkups = PrenatalCheckup.objects.filter(
-        id=Subquery(
-            latest_checkups.values('id')[:1]
-        )
-    ).order_by('-checkup_date')  # Move order_by here after the filter
-
-    # Apply filters
+    
+    # Build filter conditions
+    filters = Q()
     if patient_filter:
-        checkups = checkups.filter(patient_id=patient_filter)
-
+        filters &= Q(patient_id=patient_filter)
     if barangay_filter:
-        checkups = checkups.filter(patient__barangay_id=barangay_filter)
-
+        filters &= Q(patient__barangay_id=barangay_filter)
     if date_from:
-        checkups = checkups.filter(checkup_date__gte=date_from)
-
+        filters &= Q(checkup_date__gte=date_from)
     if date_to:
-        checkups = checkups.filter(checkup_date__lte=date_to)
-
-    # Get statistics
-    stats = {
-        'total_checkups': PrenatalCheckup.objects.count(),  # Total all checkups
-        'today_checkups': PrenatalCheckup.objects.filter(
+        filters &= Q(checkup_date__lte=date_to)
+    
+    # Get latest checkup for each patient using window function
+    latest_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user',
+        'patient__barangay'
+    ).filter(filters).annotate(
+        row_number=Window(
+            expression=RowNumber(),
+            partition_by=[F('patient')],
+            order_by=F('checkup_date').desc()
+        )
+    ).filter(row_number=1)
+    
+    # Get statistics in a single query
+    stats = PrenatalCheckup.objects.aggregate(
+        total_checkups=Count('id'),
+        today_checkups=Count('id', filter=Q(
             checkup_date__date=timezone.now().date()
-        ).count(),
-        'this_week': PrenatalCheckup.objects.filter(
+        )),
+        this_week=Count('id', filter=Q(
             checkup_date__gte=timezone.now().date() - timedelta(days=7)
-        ).count(),
-        'this_month': PrenatalCheckup.objects.filter(
+        )),
+        this_month=Count('id', filter=Q(
             checkup_date__gte=timezone.now().date().replace(day=1)
-        ).count()
-    }
-
+        ))
+    )
+    
     # Pagination
-    paginator = Paginator(checkups, 10)
+    paginator = Paginator(latest_checkups.order_by('-checkup_date'), 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-
-    # Get all patients and barangays for filters
-    patients = Patient.objects.all().order_by('user__first_name', 'user__last_name')
-    barangays = Barangay.objects.all().order_by('barangay_name')
-
+    
+    # Get filter options efficiently
+    patients = Patient.objects.select_related('user').order_by('user__first_name', 'user__last_name')
+    barangays = Barangay.objects.order_by('barangay_name')
+    
     context = {
         'page_obj': page_obj,
         'stats': stats,
@@ -783,7 +791,7 @@ def checkup_list(request):
         'date_to': date_to,
         'title': 'Checkup Records'
     }
-
+    
     return render(request, 'rhu_management/checkup/checkup_list.html', context)
 
 
@@ -1106,103 +1114,62 @@ def emergency_list(request):
     barangay_filter = request.GET.get('barangay', '')
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
+    today = timezone.now().date()
     
-    # Base query with select_related
+    # Build base query with select_related to reduce db hits
     alerts = EmergencyAlert.objects.select_related(
         'patient',
         'patient__user',
         'patient__barangay'
     )
 
-    # Apply filters first
+    # Apply all filters in a single query
+    filter_conditions = Q()
     if status_filter:
-        alerts = alerts.filter(status=status_filter)
+        filter_conditions &= Q(status=status_filter)
     if barangay_filter:
-        alerts = alerts.filter(patient__barangay_id=barangay_filter)
+        filter_conditions &= Q(patient__barangay_id=barangay_filter)
     if date_from:
-        alerts = alerts.filter(alert_time__date__gte=date_from)
+        filter_conditions &= Q(alert_time__date__gte=date_from)
     if date_to:
-        alerts = alerts.filter(alert_time__date__lte=date_to)
+        filter_conditions &= Q(alert_time__date__lte=date_to)
+    
+    alerts = alerts.filter(filter_conditions)
 
-    # Create separate querysets for each section
-    active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')
-    in_progress_alerts = alerts.filter(status__in=['RESPONDED', 'EN_ROUTE']).order_by('-alert_time')
-    recent_alerts = alerts.order_by('-alert_time')
-
-    # Convert to lists and parse location data
-    def parse_location_data(alert_list):
-        for alert in alert_list:
-            if alert.location:
-                try:
-                    location_data = json.loads(alert.location)
-                    alert.parsed_location = {
-                        'coordinates': location_data.get('coordinates', ''),
-                        'accuracy': location_data.get('accuracy'),
-                        'altitude': location_data.get('altitude'),
-                        'speed': location_data.get('speed'),
-                        'timestamp': location_data.get('timestamp')
-                    }
-                except json.JSONDecodeError:
-                    alert.parsed_location = None
-            else:
-                alert.parsed_location = None
-        return alert_list
-
-    # Convert querysets to lists and parse location data
-    active_alerts = parse_location_data(list(active_alerts))
-    in_progress_alerts = parse_location_data(list(in_progress_alerts))
-    recent_alerts = parse_location_data(list(recent_alerts))
-
-    # Create paginators
-    active_paginator = Paginator(active_alerts, 6)
-    in_progress_paginator = Paginator(in_progress_alerts, 10)
-    recent_paginator = Paginator(recent_alerts, 10)
-
-    # Get page numbers
-    active_page = request.GET.get('active_page', 1)
-    in_progress_page = request.GET.get('in_progress_page', 1)
-    recent_page = request.GET.get('recent_page', 1)
-
-    # Get page objects
-    active_page_obj = active_paginator.get_page(active_page)
-    in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
-    recent_page_obj = recent_paginator.get_page(recent_page)
-
-    # Use database aggregation for statistics
-    from django.db.models import Count
-    today = timezone.now().date()
-
+    # Use database aggregation for all stats in a single query
     stats = EmergencyAlert.objects.aggregate(
-        active_alerts=Count('id', filter=models.Q(status='ACTIVE')),
-        in_progress=Count('id', filter=models.Q(status__in=['RESPONDED', 'EN_ROUTE'])),
-        resolved_today=Count('id', filter=models.Q(
+        active_alerts=Count('id', filter=Q(status='ACTIVE')),
+        in_progress=Count('id', filter=Q(status__in=['RESPONDED', 'EN_ROUTE'])),
+        resolved_today=Count('id', filter=Q(
             status='RESOLVED',
             resolved_time__date=today
-        ))
+        )),
+        avg_response_time=Avg(
+            Case(
+                When(
+                    Q(status='RESOLVED') & 
+                    Q(response_time__isnull=False) & 
+                    Q(alert_time__isnull=False),
+                    then=Extract('response_time', 'epoch') - Extract('alert_time', 'epoch')
+                ),
+                output_field=models.FloatField(),
+            )
+        )
     )
 
-    # Calculate average response time efficiently
-    avg_response_time = EmergencyAlert.objects.filter(
-        status='RESOLVED',
-        response_time__isnull=False,
-        alert_time__isnull=False
-    ).exclude(
-        status='CANCELLED'
-    ).order_by('-alert_time')[:100].aggregate(
-        avg_time=models.Avg(
-            models.F('response_time') - models.F('alert_time')
-        )
-    )['avg_time']
-
-    if avg_response_time:
-        stats['average_response_time'] = avg_response_time.total_seconds() / 60
+    # Convert seconds to minutes for avg_response_time
+    if stats['avg_response_time']:
+        stats['average_response_time'] = stats['avg_response_time'] / 60
     else:
         stats['average_response_time'] = 0
 
+    # Create paginators
+    paginator = Paginator(alerts.order_by('-alert_time'), 10)
+    page = request.GET.get('page')
+    page_obj = paginator.get_page(page)
+
     context = {
-        'active_page_obj': active_page_obj,
-        'in_progress_page_obj': in_progress_page_obj,
-        'recent_page_obj': recent_page_obj,
+        'page_obj': page_obj,
         'stats': stats,
         'status_choices': EmergencyAlert.STATUS_CHOICES,
         'barangays': Barangay.objects.values('id', 'barangay_name'),
@@ -2175,15 +2142,14 @@ def download_report(request, report_id):
         return redirect('rhu_management:reports_dashboard')
 
 
+@cache_page(60 * 5)  # Cache for 5 minutes
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
 def analytics_view(request):
     """Display analytics dashboard with filters"""
-    # Get filter parameters
-    time_range = request.GET.get('range', '30')  # Default to 30 days
-    metric_type = request.GET.get('metric', 'all')  # Default to all metrics
+    time_range = request.GET.get('range', '30')
+    metric_type = request.GET.get('metric', 'all')
     
-    # Calculate date range
     end_date = timezone.now()
     start_date = end_date - timedelta(days=int(time_range))
     
@@ -2194,40 +2160,102 @@ def analytics_view(request):
     }
     
     try:
-        # Patient Analytics
+        # Patient Analytics with optimized queries
         if metric_type in ['all', 'patients']:
             patients_queryset = Patient.objects.filter(
                 created_at__range=(start_date, end_date)
+            ).select_related('barangay')
+            
+            # Use annotation for age calculation
+            age_annotation = ExpressionWrapper(
+                (timezone.now().date() - F('birth_date')) / 365.25,
+                output_field=models.FloatField()
             )
+            
+            age_distribution = patients_queryset.annotate(
+                age=age_annotation
+            ).values('age').annotate(
+                count=Count('id')
+            ).order_by('age')
+            
+            location_distribution = patients_queryset.values(
+                'barangay__barangay_name'
+            ).annotate(
+                count=Count('id')
+            ).order_by('-count')
+            
             context['patient_stats'] = {
-                'age_distribution': get_age_distribution(patients_queryset),
-                'location_distribution': get_location_distribution(patients_queryset),
+                'age_distribution': {
+                    f"{int(item['age'] // 5 * 5)}-{int(item['age'] // 5 * 5 + 4)}": item['count']
+                    for item in age_distribution
+                },
+                'location_distribution': list(location_distribution),
                 'total_patients': patients_queryset.count()
             }
         
-        # Checkup Analytics
+        # Checkup Analytics with optimized queries
         if metric_type in ['all', 'checkups']:
             checkups_queryset = PrenatalCheckup.objects.filter(
                 checkup_date__range=(start_date, end_date)
             )
+            
+            checkup_stats = checkups_queryset.aggregate(
+                total_checkups=Count('id'),
+                completed_checkups=Count('id', filter=Q(status='COMPLETED')),
+                scheduled_checkups=Count('id', filter=Q(status='SCHEDULED'))
+            )
+            
+            weekly_distribution = checkups_queryset.annotate(
+                weekday=ExtractWeekDay('checkup_date')
+            ).values('weekday').annotate(
+                count=Count('id')
+            ).order_by('weekday')
+            
             context['checkup_stats'] = {
-                'weekly_distribution': get_weekly_checkup_distribution(checkups_queryset),
-                'total_checkups': checkups_queryset.count(),
-                'completed_checkups': checkups_queryset.filter(status='COMPLETED').count(),
-                'scheduled_checkups': checkups_queryset.filter(status='SCHEDULED').count()
+                **checkup_stats,
+                'weekly_distribution': {
+                    calendar.day_name[item['weekday']-1]: item['count']
+                    for item in weekly_distribution
+                }
             }
         
-        # Emergency Analytics
+        # Emergency Analytics with optimized queries
         if metric_type in ['all', 'emergencies']:
             alerts_queryset = EmergencyAlert.objects.filter(
                 alert_time__range=(start_date, end_date)
             )
+            
+            emergency_stats = alerts_queryset.aggregate(
+                total_alerts=Count('id'),
+                active_alerts=Count('id', filter=Q(status='ACTIVE')),
+                avg_response_time=Avg(
+                    Case(
+                        When(
+                            response_time__isnull=False,
+                            then=Extract('response_time', 'epoch') - Extract('alert_time', 'epoch')
+                        ),
+                        output_field=models.FloatField(),
+                    )
+                ),
+                resolution_rate=Count(
+                    'id',
+                    filter=Q(status='RESOLVED')
+                ) * 100.0 / Count('id')
+            )
+            
+            status_distribution = alerts_queryset.values(
+                'status'
+            ).annotate(
+                count=Count('id')
+            )
+            
             context['emergency_stats'] = {
-                'avg_response_time': calculate_avg_response_time(alerts_queryset),
-                'resolution_rate': calculate_resolution_rate(alerts_queryset),
-                'status_distribution': get_status_distribution(alerts_queryset),
-                'total_alerts': alerts_queryset.count(),
-                'active_alerts': alerts_queryset.filter(status='ACTIVE').count()
+                **emergency_stats,
+                'avg_response_time': emergency_stats['avg_response_time'] / 60 if emergency_stats['avg_response_time'] else 0,
+                'status_distribution': {
+                    item['status']: item['count']
+                    for item in status_distribution
+                }
             }
     
     except Exception as e:
@@ -2471,69 +2499,55 @@ def get_status_distribution(alerts_queryset):
 def rhu_dashboard(request):
     """Display RHU dashboard with overview and quick stats"""
     today = timezone.now().date()
+    thirty_days_ago = today - timedelta(days=30)
     
-    # Use database aggregation for statistics
-    from django.db.models import Count, Q
-    
-    # Get patient stats
-    patient_stats = Patient.objects.aggregate(
+    # Combine all stats into a single aggregation query
+    combined_stats = Patient.objects.aggregate(
         total_patients=Count('id'),
-        new_patients=Count('id', filter=Q(
-            created_at__gte=today - timedelta(days=30)
-        ))
+        new_patients=Count('id', filter=Q(created_at__gte=thirty_days_ago)),
+        today_checkups=Count(
+            'prenatalcheckup',
+            filter=Q(prenatalcheckup__checkup_date__date=today, prenatalcheckup__status='SCHEDULED')
+        ),
+        upcoming_checkups=Count(
+            'prenatalcheckup',
+            filter=Q(prenatalcheckup__checkup_date__gt=today, prenatalcheckup__status='SCHEDULED')
+        ),
+        tomorrow_checkups=Count(
+            'prenatalcheckup',
+            filter=Q(prenatalcheckup__checkup_date__date=today + timedelta(days=1), prenatalcheckup__status='SCHEDULED')
+        ),
+        active_emergencies=Count(
+            'emergencyalert',
+            filter=Q(emergencyalert__status='ACTIVE')
+        ),
+        monthly_emergencies=Count(
+            'emergencyalert',
+            filter=Q(emergencyalert__alert_time__gte=thirty_days_ago)
+        )
     )
     
-    # Get checkup stats
-    checkup_stats = PrenatalCheckup.objects.aggregate(
-        today_checkups=Count('id', filter=Q(
-            checkup_date__date=today,
-            status='SCHEDULED'
-        )),
-        upcoming_checkups=Count('id', filter=Q(
-            checkup_date__gt=today,
-            status='SCHEDULED'
-        )),
-        tomorrow_checkups=Count('id', filter=Q(
-            checkup_date__date=today + timedelta(days=1),
-            status='SCHEDULED'
-        ))
-    )
-    
-    # Get emergency stats
-    emergency_stats = EmergencyAlert.objects.aggregate(
-        active_emergencies=Count('id', filter=Q(status='ACTIVE')),
-        monthly_emergencies=Count('id', filter=Q(
-            alert_time__gte=today - timedelta(days=30)
-        ))
-    )
-    
-    # Combine all stats
-    stats = {
-        **patient_stats,
-        **checkup_stats,
-        **emergency_stats
-    }
-    
-    # Get upcoming checkups efficiently
+    # Get upcoming checkups with optimized query
     upcoming_checkups = PrenatalCheckup.objects.select_related(
         'patient__user'
     ).filter(
         checkup_date__date=today,
         status='SCHEDULED'
-    ).order_by(
-        'checkup_date'
-    )[:5]
+    ).order_by('checkup_date')[:5]
     
-    # Get recent activities efficiently
-    recent_activities = []
-    
-    # Recent checkups
+    # Get recent activities efficiently using union
     recent_checkups = PrenatalCheckup.objects.select_related(
         'patient__user'
     ).filter(
         status='COMPLETED'
     ).order_by('-checkup_date')[:3]
     
+    recent_emergencies = EmergencyAlert.objects.select_related(
+        'patient__user'
+    ).order_by('-alert_time')[:3]
+    
+    # Combine activities in Python to avoid multiple queries
+    recent_activities = []
     for checkup in recent_checkups:
         recent_activities.append({
             'type': 'checkup',
@@ -2541,11 +2555,6 @@ def rhu_dashboard(request):
             'patient': checkup.patient,
             'description': 'completed a prenatal checkup'
         })
-    
-    # Recent emergencies
-    recent_emergencies = EmergencyAlert.objects.select_related(
-        'patient__user'
-    ).order_by('-alert_time')[:3]
     
     for emergency in recent_emergencies:
         recent_activities.append({
@@ -2555,20 +2564,23 @@ def rhu_dashboard(request):
             'description': 'triggered an emergency alert'
         })
     
-    # Sort activities by time
     recent_activities.sort(key=lambda x: x['time'], reverse=True)
     recent_activities = recent_activities[:3]
     
     # Get pending tasks efficiently
-    pending_tasks = []
-    
-    # Active emergencies as high priority tasks
     active_emergencies = EmergencyAlert.objects.select_related(
         'patient__user'
-    ).filter(
-        status='ACTIVE'
-    ).order_by('-alert_time')[:3]
+    ).filter(status='ACTIVE').order_by('-alert_time')[:3]
     
+    today_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        checkup_date__date=today,
+        status='SCHEDULED'
+    ).order_by('checkup_date')[:3]
+    
+    # Combine tasks in Python
+    pending_tasks = []
     for emergency in active_emergencies:
         pending_tasks.append({
             'type': 'emergency',
@@ -2576,14 +2588,6 @@ def rhu_dashboard(request):
             'reference_id': emergency.id,
             'description': f'Emergency alert from {emergency.patient.user.get_full_name()} needs response'
         })
-    
-    # Today's checkups as medium priority tasks
-    today_checkups = PrenatalCheckup.objects.select_related(
-        'patient__user'
-    ).filter(
-        checkup_date__date=today,
-        status='SCHEDULED'
-    ).order_by('checkup_date')[:3]
     
     for checkup in today_checkups:
         pending_tasks.append({
@@ -2593,15 +2597,15 @@ def rhu_dashboard(request):
             'description': f'Scheduled checkup for {checkup.patient.user.get_full_name()}'
         })
     
-    # Calculate monthly trends efficiently
-    monthly_trends = get_monthly_trends()
+    # Sort tasks by priority
+    pending_tasks.sort(key=lambda x: 0 if x['priority'] == 'high' else 1)
     
     context = {
-        'stats': stats,
+        'stats': combined_stats,
         'upcoming_checkups': upcoming_checkups,
         'recent_activities': recent_activities,
         'pending_tasks': pending_tasks,
-        'monthly_trends': monthly_trends,
+        'monthly_trends': get_monthly_trends(),
         'title': 'RHU Dashboard'
     }
     
