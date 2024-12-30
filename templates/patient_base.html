@@ -781,8 +781,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     initializeLocation();
                 } else if (permission.state === "prompt") {
                     updateLocationStatus("Please allow location access", "fa-location-dot", "text-warning");
-                    // Wait for user interaction to request location
-                    document.getElementById('emergencyBtn').addEventListener('click', function() {
+                    const emergencyBtn = document.getElementById('emergencyBtn');
+                    initializeLocation();
+                    emergencyBtn.disabled = true;
+                    emergencyBtn.style.opacity = '0.5';
+                    emergencyBtn.style.cursor = 'not-allowed';
+                    emergencyBtn.addEventListener('click', function() {
                         initializeLocation();
                     });
                 } else {
