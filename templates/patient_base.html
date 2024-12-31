@@ -81,16 +81,6 @@
             text-align: center;
         }
 
-        .notification-badge {
-            position: absolute;
-            top: 0.25rem;
-            right: 0.25rem;
-            min-width: 1.25rem;
-            height: 1.25rem;
-            font-size: 0.75rem;
-            padding: 2px;
-        }
-
         .dropdown-menu {
             border: none;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -267,6 +257,14 @@
                 margin: 0.25rem 0;
                 padding: 0.25rem;
             }
+
+            .top-nav .nav-link {
+                padding: 0.5rem;
+            }
+            
+            .top-nav .nav-link i {
+                font-size: 1.1rem;
+            }
         }
 
         /* Small Mobile Devices */
@@ -275,10 +273,19 @@
                 margin-right: 0.25rem;
             }
 
+            .top-nav .nav-link {
+                padding: 0.4rem;
+            }
+
+            .top-nav .nav-link i {
+                font-size: 1rem;
+            }
+
             .top-nav .dropdown-menu {
                 min-width: 180px;
                 max-width: 220px;
                 font-size: 0.8125rem;
+                right: -10px;  /* Adjust dropdown position */
             }
 
             .top-nav .dropdown-item {
@@ -309,6 +316,10 @@
         .d-none {
             display: none !important;
         }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.2rem;
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -334,32 +345,12 @@
 
             <!-- Top Nav Items (always visible) -->
             <ul class="navbar-nav top-nav">
-                <!-- Notifications -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown"
-                       aria-expanded="false">
-                        <i class="fas fa-bell"></i>
-                        {% if notifications_count %}
-                        <span class="notification-badge badge rounded-pill bg-danger">
-                            {{ notifications_count }}
-                        </span>
-                        {% endif %}
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-lg-end">
-                        {% if notifications %}
-                        {% for notification in notifications %}
-                        <li><a class="dropdown-item" href="#">{{ notification.message }}</a></li>
-                        {% endfor %}
-                        {% else %}
-                        <li><span class="dropdown-item text-muted">No new notifications</span></li>
-                        {% endif %}
-                    </ul>
-                </li>
                 <!-- Profile -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button"
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button"
                        data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user-circle fa-lg"></i>
+                        <i class="fas fa-user-circle"></i>
+                        <span class="d-none d-sm-inline-block ms-2">{{ request.user.get_full_name }}</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>
@@ -428,33 +419,12 @@
 
             <!-- Desktop Top Nav Items -->
             <ul class="navbar-nav d-none d-lg-flex">
-                <!-- Notifications -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link position-relative" href="#" role="button" data-bs-toggle="dropdown"
-                       aria-expanded="false">
-                        <i class="fas fa-bell"></i>
-                        {% if notifications_count %}
-                        <span class="notification-badge badge rounded-pill bg-danger">
-                            {{ notifications_count }}
-                        </span>
-                        {% endif %}
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        {% if notifications %}
-                        {% for notification in notifications %}
-                        <li><a class="dropdown-item" href="#">{{ notification.message }}</a></li>
-                        {% endfor %}
-                        {% else %}
-                        <li><span class="dropdown-item text-muted">No new notifications</span></li>
-                        {% endif %}
-                    </ul>
-                </li>
                 <!-- Profile -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button"
+                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button"
                        data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user-circle fa-lg me-1"></i>
-                        {{ request.user.get_full_name }}
+                        <i class="fas fa-user-circle"></i>
+                        <span class="ms-2">{{ request.user.get_full_name }}</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>

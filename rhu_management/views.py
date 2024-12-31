@@ -411,7 +411,7 @@ def patient_list(request):
     
     # Get statistics in a single query
     stats = Patient.objects.aggregate(
-        total_patients=Count('id'),
+        total_patients=Count('id', distinct=True),
         pregnant_patients=Count(
             'id',
             filter=Q(
@@ -758,7 +758,9 @@ def checkup_list(request):
     ).filter(row_number=1)
     
     # Get statistics in a single query
-    stats = PrenatalCheckup.objects.aggregate(
+    stats = PrenatalCheckup.objects.filter(
+        id__in=latest_checkups.values('id')
+    ).aggregate(
         total_checkups=Count('id'),
         today_checkups=Count('id', filter=Q(
             checkup_date__date=timezone.now().date()
