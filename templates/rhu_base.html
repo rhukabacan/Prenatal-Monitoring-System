@@ -519,18 +519,63 @@
             }); */
         });
 
-        // Emergency alert sound
-        const emergencySound = new Audio("{% static 'sounds/emergency.mp3' %}");
-        emergencySound.loop = true;
+        // Emergency alert sound setup
+        let emergencySound = null;
+        let soundEnabled = false;
+
+        // Initialize sound with user interaction
+        function initializeSound() {
+            if (!emergencySound) {
+                emergencySound = new Audio("{% static 'sounds/emergency.mp3' %}");
+                emergencySound.loop = true;
+                
+                // Add error handling for sound
+                emergencySound.addEventListener('error', (e) => {
+                    console.error('Error loading emergency sound:', e);
+                });
+            }
+        }
+
+        // Function to play sound with retry
+        async function playEmergencySound() {
+            if (!emergencySound || !soundEnabled) return;
+            
+            try {
+                // Reset the sound if it was playing
+                emergencySound.pause();
+                emergencySound.currentTime = 0;
+                
+                // Try to play with retry
+                const playAttempt = await emergencySound.play();
+                if (playAttempt !== undefined) {
+                    playAttempt.catch((error) => {
+                        console.log('Playback failed:', error);
+                    });
+                }
+            } catch (error) {
+                console.error('Error playing sound:', error);
+            }
+        }
 
         // Get emergency modal element
         const emergencyModal = document.getElementById('emergencyAlertModal');
         const emergencyModal_bs = new bootstrap.Modal(emergencyModal);
         
+        // Add event listener for when modal is shown
+        emergencyModal.addEventListener('shown.bs.modal', function () {
+            // Initialize sound on first modal show
+            initializeSound();
+            soundEnabled = true;
+            playEmergencySound();
+        });
+        
         // Add event listener for when modal is hidden
         emergencyModal.addEventListener('hidden.bs.modal', function () {
-            emergencySound.pause();
-            emergencySound.currentTime = 0;
+            if (emergencySound) {
+                emergencySound.pause();
+                emergencySound.currentTime = 0;
+            }
+            soundEnabled = false;
         });
         
         // Keep track of known alerts to prevent duplicate notifications
@@ -599,54 +644,78 @@
                 // Show modal for new alerts or if it's the initial load
                 if (hasNewAlerts || knownAlerts.size === 0) {
                     emergencyModal_bs.show();
-                    emergencySound.play().catch(() => {});
                 }
 
                 // Update known alerts
                 knownAlerts = currentAlertIds;
             } else {
-                // Stop sound if no active alerts
-                emergencySound.pause();
-                emergencySound.currentTime = 0;
+                // Stop sound and hide modal if no active alerts
+                if (emergencySound) {
+                    emergencySound.pause();
+                    emergencySound.currentTime = 0;
+                }
+                soundEnabled = false;
                 knownAlerts.clear();
                 emergencyModal_bs.hide();
             }
         }
 
-        // Set up SSE connection for real-time alerts
-        function setupEmergencyStream() {
+        // Set up polling for emergency alerts
+        function setupEmergencyPolling() {
             if (isEmergencyPage()) {
-                return; // Don't set up stream on emergency pages
+                return; // Don't poll on emergency pages
             }
 
-            const eventSource = new EventSource('{% url "rhu_management:emergency_alert_stream" %}');
-            
-            eventSource.onmessage = function(event) {
-                const alerts = JSON.parse(event.data);
-                handleEmergencyAlerts(alerts);
-            };
+            let pollInterval;
+            let isPolling = false;
 
-            eventSource.onerror = function(error) {
-                console.error('EventSource failed:', error);
-                eventSource.close();
-                // Try to reconnect after 5 seconds
-                setTimeout(setupEmergencyStream, 5000);
-            };
+            async function pollActiveEmergencies() {
+                if (isPolling) return;
+                isPolling = true;
+
+                try {
+                    const response = await fetch('{% url "rhu_management:get_active_emergencies" %}');
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const alerts = await response.json();
+                    handleEmergencyAlerts(alerts);
+                } catch (error) {
+                    console.error('Polling failed:', error);
+                } finally {
+                    isPolling = false;
+                }
+            }
+
+            // Start polling
+            pollActiveEmergencies(); // Initial check
+            pollInterval = setInterval(pollActiveEmergencies, 5000); // Poll every 5 seconds
 
             // Clean up when page is hidden
             document.addEventListener('visibilitychange', function() {
                 if (document.visibilityState === 'hidden') {
-                    emergencySound.pause();
-                    eventSource.close();
+                    clearInterval(pollInterval);
+                    if (emergencySound) {
+                        emergencySound.pause();
+                        emergencySound.currentTime = 0;
+                    }
+                    soundEnabled = false;
                 } else {
-                    setupEmergencyStream();
+                    pollActiveEmergencies();
+                    pollInterval = setInterval(pollActiveEmergencies, 5000);
+                }
+            });
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', function() {
+                clearInterval(pollInterval);
+                if (emergencySound) {
+                    emergencySound.pause();
                 }
             });
         }
 
         // Initialize emergency alert system when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            setupEmergencyStream();
+            setupEmergencyPolling();
         });
     </script>
     {% block extra_js %}{% endblock %}

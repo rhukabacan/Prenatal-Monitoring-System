@@ -64,6 +64,9 @@ urlpatterns = [
     path('reports/analytics/', views.analytics_view, name='analytics_view'),
     path('reports/analytics/export/', views.export_analytics, name='export_analytics'),
 
+    # Emergency Alert Endpoints
+    path('active-emergencies/', views.get_active_emergencies, name='get_active_emergencies'),
+
     # # Staff Management (Admin only)
     # path('staff/', views.staff_list, name='staff_list'),
     # path('staff/add/', views.staff_add, name='staff_add'),
@@ -78,7 +81,5 @@ urlpatterns = [
     # path('settings/notifications/', views.notification_settings,
     #      name='notification_settings'),
     # path('settings/schedule/', views.schedule_settings, name='schedule_settings'),
-
-    path('emergency-alert-stream/', views.emergency_alert_stream, name='emergency_alert_stream'),
 
 ]

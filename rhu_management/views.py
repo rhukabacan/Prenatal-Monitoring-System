@@ -2840,38 +2840,30 @@ def calculate_response_times(alerts):
 
 @login_required(login_url='rhu_management:rhu_login')
 @superuser_required
-def emergency_alert_stream(request):
-    """SSE endpoint for real-time emergency alerts"""
-    def event_stream():
-        last_check = None
-        while True:
-            # Check for new active alerts
-            active_alerts = EmergencyAlert.objects.filter(status='ACTIVE').select_related(
-                'patient__user', 'patient__barangay'
-            )
-            
-            if active_alerts.exists():
-                alerts_data = []
-                for alert in active_alerts:
-                    alerts_data.append({
-                        'id': alert.id,
-                        'patient_name': alert.patient.user.get_full_name(),
-                        'sitio': alert.patient.sitio,
-                        'barangay': alert.patient.barangay.barangay_name,
-                        'alert_time': alert.alert_time.strftime('%B %d, %Y %I:%M %p'),
-                        'location': alert.location,
-                        'status': alert.status
-                    })
-                
-                # Send data only if there are changes
-                current_check = json.dumps(alerts_data)
-                if current_check != last_check:
-                    last_check = current_check
-                    yield f"data: {current_check}\n\n"
-            
-            time.sleep(2)  # Check every 2 seconds
+def get_active_emergencies(request):
+    """API endpoint for polling active emergencies"""
+    try:
+        active_alerts = EmergencyAlert.objects.filter(
+            status='ACTIVE'
+        ).select_related(
+            'patient__user',
+            'patient__barangay'
+        )
+        
+        alerts_data = []
+        for alert in active_alerts:
+            alerts_data.append({
+                'id': alert.id,
+                'patient_name': alert.patient.user.get_full_name(),
+                'sitio': alert.patient.sitio,
+                'barangay': alert.patient.barangay.barangay_name,
+                'alert_time': alert.alert_time.strftime('%B %d, %Y %I:%M %p'),
+                'location': alert.location,
+                'status': alert.status
+            })
+        
+        return JsonResponse(alerts_data, safe=False)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
-    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
-    response['Cache-Control'] = 'no-cache'
-    response['X-Accel-Buffering'] = 'no'
-    return response
