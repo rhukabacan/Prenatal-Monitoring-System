@@ -1138,20 +1138,68 @@ def emergency_list(request):
     
     alerts = alerts.filter(filter_conditions)
 
-    # Get active alerts
+    # Get active alerts and parse location data
     active_alerts = alerts.filter(status='ACTIVE').order_by('-alert_time')
+    for alert in active_alerts:
+        if alert.location:
+            try:
+                location_data = json.loads(alert.location)
+                alert.parsed_location = {
+                    'coordinates': location_data.get('coordinates', ''),
+                    'accuracy': location_data.get('accuracy'),
+                    'altitude': location_data.get('altitude'),
+                    'speed': location_data.get('speed'),
+                    'timestamp': location_data.get('timestamp')
+                }
+            except json.JSONDecodeError:
+                alert.parsed_location = None
+        else:
+            alert.parsed_location = None
+    
     active_paginator = Paginator(active_alerts, 6)  # Show 6 active alerts per page
     active_page = request.GET.get('active_page')
     active_page_obj = active_paginator.get_page(active_page)
 
-    # Get in-progress alerts
+    # Get in-progress alerts and parse location data
     in_progress_alerts = alerts.filter(status__in=['RESPONDED', 'EN_ROUTE']).order_by('-alert_time')
+    for alert in in_progress_alerts:
+        if alert.location:
+            try:
+                location_data = json.loads(alert.location)
+                alert.parsed_location = {
+                    'coordinates': location_data.get('coordinates', ''),
+                    'accuracy': location_data.get('accuracy'),
+                    'altitude': location_data.get('altitude'),
+                    'speed': location_data.get('speed'),
+                    'timestamp': location_data.get('timestamp')
+                }
+            except json.JSONDecodeError:
+                alert.parsed_location = None
+        else:
+            alert.parsed_location = None
+            
     in_progress_paginator = Paginator(in_progress_alerts, 10)
     in_progress_page = request.GET.get('in_progress_page')
     in_progress_page_obj = in_progress_paginator.get_page(in_progress_page)
 
-    # Get recent alerts
+    # Get recent alerts and parse location data
     recent_alerts = alerts.exclude(status__in=['ACTIVE', 'RESPONDED', 'EN_ROUTE']).order_by('-alert_time')
+    for alert in recent_alerts:
+        if alert.location:
+            try:
+                location_data = json.loads(alert.location)
+                alert.parsed_location = {
+                    'coordinates': location_data.get('coordinates', ''),
+                    'accuracy': location_data.get('accuracy'),
+                    'altitude': location_data.get('altitude'),
+                    'speed': location_data.get('speed'),
+                    'timestamp': location_data.get('timestamp')
+                }
+            except json.JSONDecodeError:
+                alert.parsed_location = None
+        else:
+            alert.parsed_location = None
+            
     recent_paginator = Paginator(recent_alerts, 10)
     recent_page = request.GET.get('recent_page')
     recent_page_obj = recent_paginator.get_page(recent_page)

@@ -171,18 +171,15 @@
                                     {{ alert.patient.sitio }} {{ alert.patient.barangay }}
                                 </p>
                                 {% if alert.parsed_location %}
-                                <p class="mb-3">
-                                    <strong><i class="fas fa-map-marker-alt me-2"></i>Location:</strong><br>
                                     {% if alert.parsed_location.coordinates %}
-                                    <a href="https://www.google.com/maps?q={{ alert.parsed_location.coordinates }}"
-                                       target="_blank" class="badge rounded-pill bg-primary text-decoration-none">
-                                        View on Map
-                                    </a>
+                                    <p class="mb-3">
+                                        <strong><i class="fas fa-map-marker-alt me-2"></i>Location:</strong><br>
+                                        <a href="https://www.google.com/maps?q={{ alert.parsed_location.coordinates }}"
+                                           target="_blank" class="badge rounded-pill bg-primary text-decoration-none">
+                                            View on Map
+                                        </a>
+                                    </p>
                                     {% endif %}
-                                </p>
-                                {% else %}
-                                <!-- Debug info -->
-                                <p class="text-muted small">No location data available</p>
                                 {% endif %}
 
                                 <!-- Response Actions -->

@@ -666,6 +666,27 @@ def emergency_alert(request):
                 f"PLEASE RESPOND IMMEDIATELY!"
             )
 
+            # Prepare emergency contact message
+            emergency_contact_message = (
+                f"!!! EMERGENCY ALERT !!!\n\n"
+                f"Your emergency contact {patient.user.first_name} {patient.user.last_name} "
+                f"has triggered an emergency alert.\n\n"
+                f"Patient Location:\n"
+                f"Barangay: {patient.barangay.barangay_name}\n"
+                f"Sitio: {patient.sitio}\n"
+            )
+            
+            if location_info['coordinates']:
+                emergency_contact_message += (
+                    f"Google Maps: https://www.google.com/maps?q={location_info['coordinates']}\n\n"
+                )
+            
+            emergency_contact_message += (
+                f"Medical personnel have been notified and are responding.\n"
+                f"Please proceed to assist if possible.\n\n"
+                f"Patient Contact: {patient.contact_number}"
+            )
+
             # Verify TCL contact number exists
             if not hasattr(patient.barangay, 'contact_number') or not patient.barangay.contact_number:
                 # Continue with just RHU notification
@@ -703,6 +724,19 @@ def emergency_alert(request):
                     responses.append(('TCL', tcl_response))
                 except Exception as e:
                     print(f"Error sending TCL SMS: {str(e)}")
+
+            # Send to Emergency Contact
+            try:
+                emergency_contact_payload = {
+                    "apikey": settings.SEMAPHORE_API_KEY,
+                    "number": patient.emergency_contact_number,
+                    "message": emergency_contact_message,
+                    "sendername": settings.SEMAPHORE_SENDER_NAME
+                }
+                emergency_contact_response = requests.post(url, data=emergency_contact_payload)
+                responses.append(('Emergency Contact', emergency_contact_response))
+            except Exception as e:
+                print(f"Error sending Emergency Contact SMS: {str(e)}")
 
             # Check responses
             failed_requests = [(recipient, r) for recipient, r in responses if not r.ok]
