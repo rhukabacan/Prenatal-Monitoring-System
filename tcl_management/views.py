@@ -7,7 +7,7 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg, Exists, OuterRef
+from django.db.models import Q, Avg, Exists, OuterRef, Count, Case, When, Value, CharField, TruncDate, Prefetch, JSONField, ExtractWeek, ExtractYear, ExtractEpoch, FloatField
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
@@ -173,101 +173,162 @@ def dashboard(request):
     today = timezone.now().date()
     now = timezone.now()
 
-    # Base querysets
-    patients = Patient.objects.filter(barangay=tcl)
-    checkups = PrenatalCheckup.objects.filter(patient__barangay=tcl)
-    emergencies = EmergencyAlert.objects.filter(patient__barangay=tcl)
+    # Get all stats in a single query using aggregation
+    stats = Patient.objects.filter(barangay=tcl).aggregate(
+        total_patients=Count('id'),
+        new_patients=Count('id', filter=Q(created_at__gte=today - timedelta(days=30))),
+        today_checkups=Count(
+            'prenatalcheckup',
+            filter=Q(prenatalcheckup__checkup_date__date=today)
+        ),
+        active_emergencies=Count(
+            'emergencyalert',
+            filter=Q(emergencyalert__status='ACTIVE')
+        ),
+        recent_emergencies=Count(
+            'emergencyalert',
+            filter=Q(emergencyalert__alert_time__gte=now - timedelta(hours=24))
+        ),
+        high_risk_cases=Count(
+            'id',
+            filter=Q(prenatalcheckup__blood_pressure__contains='HIGH'),
+            distinct=True
+        ),
+        critical_cases=Count(
+            'emergencyalert',
+            filter=Q(
+                emergencyalert__status='ACTIVE',
+                emergencyalert__alert_time__lte=now - timedelta(hours=1)
+            )
+        ),
+        overdue_checkups=Count(
+            'prenatalcheckup',
+            filter=Q(
+                prenatalcheckup__checkup_date__lt=today,
+                prenatalcheckup__status='SCHEDULED'
+            )
+        ),
+        upcoming_deliveries=Count(
+            'id',
+            filter=Q(prenatalcheckup__last_menstrual_period__lte=today - timedelta(weeks=38)),
+            distinct=True
+        ),
+        pending_followups=Count(
+            'prenatalcheckup',
+            filter=Q(
+                prenatalcheckup__status='COMPLETED',
+                prenatalcheckup__checkup_date__date=today - timedelta(days=1)
+            )
+        )
+    )
 
-    # Enhanced statistics
-    stats = {
-        'total_patients': patients.count(),
-        'new_patients': patients.filter(
-            created_at__gte=today - timedelta(days=30)
-        ).count(),
-        'today_checkups': checkups.filter(
-            checkup_date__date=today
-        ).count(),
-        'active_emergencies': emergencies.filter(
-            status='ACTIVE'
-        ).count(),
-        'recent_emergencies': emergencies.filter(
-            alert_time__gte=now - timedelta(hours=24)
-        ).count(),
-        'high_risk_cases': patients.filter(
-            prenatalcheckup__blood_pressure__contains='HIGH'
-        ).distinct().count(),
-        'critical_cases': emergencies.filter(
-            status='ACTIVE',
-            alert_time__lte=now - timedelta(hours=1)
-        ).count(),
-        'overdue_checkups': checkups.filter(
-            checkup_date__lt=today,
-            status='SCHEDULED'
-        ).count(),
-        'upcoming_deliveries': patients.filter(
-            prenatalcheckup__last_menstrual_period__lte=today - timedelta(weeks=38)
-        ).distinct().count(),
-        'pending_followups': checkups.filter(
-            status='COMPLETED',
-            checkup_date__date=today - timedelta(days=1)
-        ).count()
-    }
+    # Get age distribution using database aggregation
+    age_distribution = Patient.objects.filter(barangay=tcl).annotate(
+        age_group=Case(
+            When(age__range=(18, 25), then=Value('18-25')),
+            When(age__range=(26, 35), then=Value('26-35')),
+            When(age__range=(36, 45), then=Value('36-45')),
+            default=Value('45+'),
+            output_field=CharField(),
+        )
+    ).values('age_group').annotate(
+        count=Count('id')
+    ).order_by('age_group')
 
-    # Age Distribution Data
-    age_ranges = {
-        '18-25': (18, 25),
-        '26-35': (26, 35),
-        '36-45': (36, 45),
-        '45+': (46, 200)
-    }
-    
-    age_distribution = {}
-    for label, (min_age, max_age) in age_ranges.items():
-        count = 0
-        for patient in patients:
-            if min_age <= patient.age <= max_age:
-                count += 1
-        age_distribution[label] = count
+    # Convert to dictionary format
+    age_distribution = {
+        item['age_group']: item['count'] 
+        for item in age_distribution
+    } or {'No Data': 1}
 
-    # If no data, set empty dictionary
-    if not any(age_distribution.values()):
-        age_distribution = {'No Data': 1}
+    # Get checkup status distribution in a single query
+    checkup_status = PrenatalCheckup.objects.filter(
+        patient__barangay=tcl
+    ).values('status').annotate(
+        count=Count('id')
+    ).order_by('status')
 
-    # Checkup Status Distribution
+    # Convert to dictionary format
     checkup_status = {
-        'Completed': checkups.filter(status='COMPLETED').count(),
-        'Scheduled': checkups.filter(status='SCHEDULED').count(),
-        'Missed': checkups.filter(status='MISSED').count()
-    }
+        item['status']: item['count']
+        for item in checkup_status
+    } or {'No Data': 1}
 
-    # If no data, set empty dictionary
-    if not any(checkup_status.values()):
-        checkup_status = {'No Data': 1}
+    # Get weekly trend using database aggregation
+    weekly_trend = PrenatalCheckup.objects.filter(
+        patient__barangay=tcl,
+        checkup_date__date__gte=today - timedelta(days=6),
+        checkup_date__date__lte=today
+    ).annotate(
+        day=TruncDate('checkup_date')
+    ).values('day').annotate(
+        count=Count('id')
+    ).order_by('day')
 
-    # Weekly Checkup Trend
+    # Format weekly trend data
+    trend_dict = {item['day']: item['count'] for item in weekly_trend}
     weekly_trend = []
     for i in range(7):
         day = today - timedelta(days=i)
-        count = checkups.filter(checkup_date__date=day).count()
         weekly_trend.append({
             'day': day.strftime('%a'),
-            'count': count
+            'count': trend_dict.get(day, 0)
         })
-    weekly_trend.reverse()  # Show oldest to newest
+    weekly_trend.reverse()
 
-    # Get recent activities with enhanced details
-    recent_activities = get_recent_barangay_activities(tcl)
+    # Get recent activities efficiently
+    recent_activities = []
+    
+    # Recent checkups with efficient querying
+    recent_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        patient__barangay=tcl
+    ).order_by('-checkup_date')[:5]
 
-    # Get today's checkups with more details
-    upcoming_checkups = checkups.filter(
+    for checkup in recent_checkups:
+        recent_activities.append({
+            'type': 'checkup',
+            'time': checkup.checkup_date,
+            'patient': checkup.patient,
+            'description': f"{checkup.patient.user.get_full_name()} had a prenatal checkup"
+        })
+
+    # Recent emergencies with efficient querying
+    recent_emergencies = EmergencyAlert.objects.select_related(
+        'patient__user'
+    ).filter(
+        patient__barangay=tcl
+    ).order_by('-alert_time')[:5]
+
+    for emergency in recent_emergencies:
+        recent_activities.append({
+            'type': 'emergency',
+            'time': emergency.alert_time,
+            'patient': emergency.patient,
+            'description': f"Emergency alert from {emergency.patient.user.get_full_name()}"
+        })
+
+    # Sort and limit recent activities
+    recent_activities.sort(key=lambda x: x['time'], reverse=True)
+    recent_activities = recent_activities[:10]
+
+    # Get upcoming checkups efficiently
+    upcoming_checkups = PrenatalCheckup.objects.select_related(
+        'patient__user'
+    ).filter(
+        patient__barangay=tcl,
         checkup_date__date=today,
         status='SCHEDULED'
-    ).select_related('patient__user').order_by('checkup_date')
+    ).order_by('checkup_date')
 
-    # Get active emergencies with location
-    active_emergencies = emergencies.filter(
+    # Get active emergencies efficiently
+    active_emergencies = EmergencyAlert.objects.select_related(
+        'patient__user'
+    ).filter(
+        patient__barangay=tcl,
         status='ACTIVE'
-    ).select_related('patient__user').order_by('-alert_time')
+    ).order_by('-alert_time')
 
     context = {
         'stats': stats,
@@ -290,10 +351,19 @@ def patient_list(request):
     """Display list of patients from TCL's barangay"""
     tcl = request.user.barangay
 
-    # Base queryset filtered by barangay
-    patients = Patient.objects.filter(barangay=tcl).order_by('-created_at')
+    # Base queryset with efficient joins
+    patients = Patient.objects.select_related(
+        'user',
+        'barangay'
+    ).prefetch_related(
+        Prefetch(
+            'prenatalcheckup_set',
+            queryset=PrenatalCheckup.objects.order_by('-checkup_date')[:1],
+            to_attr='latest_checkup'
+        )
+    ).filter(barangay=tcl).order_by('-created_at')
 
-    # Search functionality
+    # Search functionality with optimized query
     search_query = request.GET.get('search', '')
     if search_query:
         patients = patients.filter(
@@ -302,12 +372,15 @@ def patient_list(request):
             Q(contact_number__icontains=search_query)
         )
 
-    # Remove barangay filter since we're already filtering by TCL's barangay
-    # Calculate statistics for current barangay only
-    stats = {
-        'total_patients': Patient.objects.filter(barangay=tcl).count(),
-        'active_patients': Patient.objects.filter(barangay=tcl).count(),
-    }
+    # Get all stats in a single query
+    stats = Patient.objects.filter(barangay=tcl).aggregate(
+        total_patients=Count('id'),
+        active_patients=Count(
+            'id',
+            filter=Q(prenatalcheckup__status='SCHEDULED'),
+            distinct=True
+        )
+    )
 
     # Pagination
     paginator = Paginator(patients, 10)
@@ -388,24 +461,32 @@ def checkup_list(request):
     tcl = request.user.barangay
     today = timezone.now().date()
 
-    # Get base queryset
-    checkups = PrenatalCheckup.objects.filter(
+    # Get base queryset with efficient joins
+    checkups = PrenatalCheckup.objects.select_related(
+        'patient__user',
+        'patient__barangay'
+    ).filter(
         patient__barangay=tcl
     ).order_by('-checkup_date')
 
-    # Get all patients from this barangay for the filter
-    barangay_patients = Patient.objects.filter(barangay=tcl)
+    # Get all patients from this barangay efficiently
+    barangay_patients = Patient.objects.filter(
+        barangay=tcl
+    ).select_related('user').order_by('user__first_name')
 
-    # Calculate statistics
-    stats = {
-        'total_checkups': checkups.count(),
-        'today_checkups': checkups.filter(checkup_date__date=today).count(),
-        'completed_checkups': checkups.filter(status='COMPLETED').count(),
-        'upcoming_checkups': checkups.filter(
-            status='SCHEDULED',
-            checkup_date__gt=timezone.now()
-        ).count()
-    }
+    # Calculate all statistics in a single query
+    stats = checkups.aggregate(
+        total_checkups=Count('id'),
+        today_checkups=Count('id', filter=Q(checkup_date__date=today)),
+        completed_checkups=Count('id', filter=Q(status='COMPLETED')),
+        upcoming_checkups=Count(
+            'id',
+            filter=Q(
+                status='SCHEDULED',
+                checkup_date__gt=timezone.now()
+            )
+        )
+    )
 
     # Patient filter
     patient_filter = request.GET.get('patient')
@@ -423,11 +504,11 @@ def checkup_list(request):
     # Pagination
     paginator = Paginator(checkups, 10)
     page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)  # Changed variable name
+    page_obj = paginator.get_page(page_number)
 
     context = {
         'tcl': tcl,
-        'page_obj': page_obj,  # Changed from 'checkups' to 'page_obj'
+        'page_obj': page_obj,
         'stats': stats,
         'barangay_patients': barangay_patients,
         'patient_filter': patient_filter,
@@ -478,15 +559,15 @@ def emergency_monitor(request):
     """Monitor emergency alerts in the barangay"""
     tcl = request.user.barangay
 
-    # Get all alerts for the barangay
-    alerts = EmergencyAlert.objects.filter(
-        patient__barangay=tcl
-    ).select_related(
+    # Get all alerts with efficient joins
+    alerts = EmergencyAlert.objects.select_related(
         'patient__user',
         'patient__barangay'
+    ).filter(
+        patient__barangay=tcl
     ).order_by('-alert_time')
 
-    # Parse location data for each alert
+    # Parse location data efficiently
     for alert in alerts:
         if alert.location:
             try:
@@ -503,12 +584,12 @@ def emergency_monitor(request):
         else:
             alert.parsed_location = None
 
-    # Calculate statistics
-    stats = {
-        'active': alerts.filter(status='ACTIVE').count(),
-        'responded': alerts.filter(status__in=['RESPONDED', 'EN_ROUTE']).count(),
-        'resolved': alerts.filter(status='RESOLVED').count()
-    }
+    # Calculate all statistics in a single query
+    stats = alerts.aggregate(
+        active=Count('id', filter=Q(status='ACTIVE')),
+        responded=Count('id', filter=Q(status__in=['RESPONDED', 'EN_ROUTE'])),
+        resolved=Count('id', filter=Q(status='RESOLVED'))
+    )
 
     # Pagination
     paginator = Paginator(alerts, 10)
@@ -656,46 +737,49 @@ def checkup_report(request):
         patient__barangay=tcl
     )
 
-    # Get high blood pressure cases directly from PrenatalCheckup
-    high_bp_cases = checkups.filter(
-        blood_pressure__contains='HIGH'
-    ).count()
+    # Calculate all statistics in a single query
+    stats = checkups.aggregate(
+        total_checkups=Count('id'),
+        this_month=Count('id', filter=Q(checkup_date__month=today.month)),
+        high_bp_cases=Count('id', filter=Q(blood_pressure__contains='HIGH')),
+        completed=Count('id', filter=Q(status='COMPLETED')),
+        scheduled=Count('id', filter=Q(status='SCHEDULED')),
+        missed=Count('id', filter=Q(status='MISSED')),
+        cancelled=Count('id', filter=Q(status='CANCELLED'))
+    )
 
-    # Calculate statistics
-    stats = {
-        'total_checkups': checkups.count(),
-        'this_month': checkups.filter(checkup_date__month=today.month).count(),
-        'high_bp_cases': high_bp_cases,  # Use the new query result
-        'completed': checkups.filter(status='COMPLETED').count(),
-        'scheduled': checkups.filter(status='SCHEDULED').count(),
-        'missed': checkups.filter(status='MISSED').count(),
-        'cancelled': checkups.filter(status='CANCELLED').count()
-    }
+    # Set no_data flag if needed
+    stats['no_data'] = not any([
+        stats['completed'],
+        stats['scheduled'],
+        stats['missed'],
+        stats['cancelled']
+    ])
 
-    # If no checkups exist, set status counts to 'No Data'
-    if not any([stats['completed'], stats['scheduled'], stats['missed'], stats['cancelled']]):
-        stats.update({
-            'completed': 0,
-            'scheduled': 0,
-            'missed': 0,
-            'cancelled': 0,
-            'no_data': True
-        })
+    # Get weekly trend using efficient database aggregation
+    end_date = today
+    start_date = end_date - timedelta(days=7 * 8)  # 8 weeks of data
 
-    # Weekly checkup trend
-    weekly_trend = []
-    for i in range(8):
-        week_start = today - timedelta(days=7 * i)
-        week_end = week_start + timedelta(days=6)
-        count = checkups.filter(checkup_date__range=[week_start, week_end]).count()
-        weekly_trend.append({
-            'week': f'Week {i + 1}',
-            'count': count
+    weekly_trend = checkups.filter(
+        checkup_date__range=[start_date, end_date]
+    ).annotate(
+        week=ExtractWeek('checkup_date'),
+        year=ExtractYear('checkup_date')
+    ).values('week', 'year').annotate(
+        count=Count('id')
+    ).order_by('year', 'week')
+
+    # Format weekly trend data
+    formatted_trend = []
+    for i, data in enumerate(weekly_trend, 1):
+        formatted_trend.append({
+            'week': f'Week {i}',
+            'count': data['count']
         })
 
     context = {
         'stats': stats,
-        'weekly_trend': weekly_trend,
+        'weekly_trend': formatted_trend,
         'tcl': tcl,
         'today': today,
         'title': f'Checkup Report - {tcl.barangay_name}'
@@ -716,51 +800,63 @@ def emergency_report(request):
         patient__barangay=tcl
     )
 
-    # Calculate response time average manually
-    total_minutes = 0
-    count = 0
-    for e in emergencies.exclude(response_time=None):
-        if e.response_time and e.alert_time:
-            time_diff = (e.response_time - e.alert_time).total_seconds() / 60
-            total_minutes += time_diff
-            count += 1
+    # Calculate all statistics in a single query including average response time
+    stats = emergencies.aggregate(
+        total_alerts=Count('id'),
+        active_alerts=Count('id', filter=Q(status='ACTIVE')),
+        response_time_avg=Avg(
+            Case(
+                When(
+                    Q(status='RESOLVED') & 
+                    Q(response_time__isnull=False) & 
+                    Q(alert_time__isnull=False),
+                    then=ExtractEpoch(F('response_time')) - ExtractEpoch(F('alert_time'))
+                ),
+                output_field=FloatField(),
+            )
+        ),
+        resolved_cases=Count('id', filter=Q(status='RESOLVED')),
+        responded_cases=Count('id', filter=Q(status='RESPONDED')),
+        cancelled_cases=Count('id', filter=Q(status='CANCELLED'))
+    )
 
-    avg_response_time = (total_minutes / count) if count > 0 else None
+    # Convert average response time from seconds to minutes
+    if stats['response_time_avg'] is not None:
+        stats['response_time_avg'] = round(stats['response_time_avg'] / 60, 1)
 
-    # Calculate statistics
-    stats = {
-        'total_alerts': emergencies.count(),
-        'active_alerts': emergencies.filter(status='ACTIVE').count(),
-        'response_time_avg': round(avg_response_time, 1) if avg_response_time else None,
-        'resolved_cases': emergencies.filter(status='RESOLVED').count(),
-        'responded_cases': emergencies.filter(status='RESPONDED').count(),
-        'cancelled_cases': emergencies.filter(status='CANCELLED').count()
-    }
+    # Set no_data flag if needed
+    stats['no_data'] = not any([
+        stats['active_alerts'],
+        stats['responded_cases'],
+        stats['resolved_cases'],
+        stats['cancelled_cases']
+    ])
 
-    # If no emergencies exist, set status counts to 'No Data'
-    if not any([stats['active_alerts'], stats['responded_cases'], 
-                stats['resolved_cases'], stats['cancelled_cases']]):
-        stats.update({
-            'active_alerts': 0,
-            'responded_cases': 0,
-            'resolved_cases': 0,
-            'cancelled_cases': 0,
-            'no_data': True
-        })
+    # Get daily trend using efficient database aggregation
+    end_date = today
+    start_date = end_date - timedelta(days=6)
 
-    # Daily emergency trend
-    daily_trend = []
+    daily_trend = emergencies.filter(
+        alert_time__date__range=[start_date, end_date]
+    ).annotate(
+        day=TruncDate('alert_time')
+    ).values('day').annotate(
+        count=Count('id')
+    ).order_by('day')
+
+    # Format daily trend data with all days included
+    trend_dict = {item['day']: item['count'] for item in daily_trend}
+    formatted_trend = []
     for i in range(7):
         day = today - timedelta(days=i)
-        count = emergencies.filter(alert_time__date=day).count()
-        daily_trend.append({
+        formatted_trend.append({
             'day': day.strftime('%A'),
-            'count': count
+            'count': trend_dict.get(day, 0)
         })
 
     context = {
         'stats': stats,
-        'daily_trend': daily_trend,
+        'daily_trend': formatted_trend,
         'tcl': tcl,
         'today': today,
         'title': f'Emergency Report - {tcl.barangay_name}'

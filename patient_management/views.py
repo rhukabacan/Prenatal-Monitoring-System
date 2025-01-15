@@ -996,11 +996,15 @@ def update_vital_signs(request):
             messages.error(request, 'No checkup record found to update.')
             return redirect('patient_management:vital_signs')
 
+        # Helper function to handle decimal fields
+        def get_decimal_or_none(value):
+            return float(value) if value and value.strip() else None
+
         # Update the latest checkup with new vital signs data
-        latest_checkup.weight = request.POST.get('weight')
-        latest_checkup.height = request.POST.get('height')
+        latest_checkup.weight = get_decimal_or_none(request.POST.get('weight'))
+        latest_checkup.height = get_decimal_or_none(request.POST.get('height'))
         latest_checkup.blood_pressure = request.POST.get('blood_pressure')
-        latest_checkup.age_of_gestation = request.POST.get('age_of_gestation')
+        latest_checkup.age_of_gestation = request.POST.get('age_of_gestation') or None
         
         # Status & Planning
         latest_checkup.nutritional_status = request.POST.get('nutritional_status')
@@ -1009,7 +1013,7 @@ def update_vital_signs(request):
         latest_checkup.dental_checkup_date = request.POST.get('dental_checkup_date') or None
         
         # Laboratory Tests
-        latest_checkup.hemoglobin_count = request.POST.get('hemoglobin_count')
+        latest_checkup.hemoglobin_count = get_decimal_or_none(request.POST.get('hemoglobin_count'))
         latest_checkup.urinalysis_date = request.POST.get('urinalysis_date') or None
         latest_checkup.cbc_date = request.POST.get('cbc_date') or None
         latest_checkup.stool_exam_date = request.POST.get('stool_exam_date') or None
@@ -1034,6 +1038,8 @@ def update_vital_signs(request):
         
         messages.success(request, 'Vital signs updated successfully!')
         
+    except ValueError as e:
+        messages.error(request, 'Please enter valid numbers for measurements.')
     except Exception as e:
         messages.error(request, f'Error updating vital signs: {str(e)}')
     

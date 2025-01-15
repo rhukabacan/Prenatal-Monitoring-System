@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction, models
 from django.db.models import Count, Avg, Q, OuterRef, Subquery, Case, When, ExpressionWrapper, F, Prefetch, Window
-from django.db.models.functions import RowNumber, Extract, ExtractWeekDay
+from django.db.models.functions import RowNumber, Extract, ExtractWeekDay, ExtractYear
 from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -2231,30 +2231,12 @@ def analytics_view(request):
                 created_at__range=(start_date, end_date)
             ).select_related('barangay')
             
-            # Use annotation for age calculation
-            age_annotation = ExpressionWrapper(
-                (timezone.now().date() - F('birth_date')) / 365.25,
-                output_field=models.FloatField()
-            )
-            
-            age_distribution = patients_queryset.annotate(
-                age=age_annotation
-            ).values('age').annotate(
-                count=Count('id')
-            ).order_by('age')
-            
-            location_distribution = patients_queryset.values(
-                'barangay__barangay_name'
-            ).annotate(
-                count=Count('id')
-            ).order_by('-count')
+            location_distribution = get_location_distribution(patients_queryset)
+            print("Location Distribution:", location_distribution)  # Debug print
             
             context['patient_stats'] = {
-                'age_distribution': {
-                    f"{int(item['age'] // 5 * 5)}-{int(item['age'] // 5 * 5 + 4)}": item['count']
-                    for item in age_distribution
-                },
-                'location_distribution': list(location_distribution),
+                'age_distribution': get_age_distribution(patients_queryset),
+                'location_distribution': location_distribution,
                 'total_patients': patients_queryset.count()
             }
         
@@ -2551,11 +2533,13 @@ def calculate_resolution_rate(alerts_queryset):
 
 def get_status_distribution(alerts_queryset):
     """Get distribution of emergency alert statuses"""
-    return dict(alerts_queryset.values(
+    distribution = alerts_queryset.values(
         'status'
     ).annotate(
         count=Count('id')
-    ).values_list('status', 'count'))
+    ).order_by('status')
+    
+    return {item['status']: item['count'] for item in distribution}
 
 
 @cache_page(60 * 5)  # Cache for 5 minutes

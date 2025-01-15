@@ -1,6 +1,10 @@
 <!-- report_analytics.html -->
 {% extends 'rhu_base.html' %}
 
+{% block extra_css %}
+<script src="https://bernii.github.io/gauge.js/dist/gauge.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Filters -->
@@ -106,7 +110,7 @@
     {% endif %}
 
     <!-- Emergency Analytics -->
-    {% if metric_type in 'all,emergencies' %}
+    {% if metric_type in 'all,emergencies' and emergency_stats %}
         <div class="row mb-4">
             <div class="col-md-4">
                 <!-- Response Time -->
@@ -192,9 +196,9 @@ const locationCtx = document.getElementById('locationChart').getContext('2d');
 new Chart(locationCtx, {
     type: 'pie',
     data: {
-        labels: [{% for item in patient_stats.location_distribution %}'{{ item.location }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        labels: {{ patient_stats.location_distribution|safe }}.map(item => item.location),
         datasets: [{
-            data: [{% for item in patient_stats.location_distribution %}{{ item.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            data: {{ patient_stats.location_distribution|safe }}.map(item => item.count),
             backgroundColor: [
                 'rgba(255, 99, 132, 0.5)',
                 'rgba(54, 162, 235, 0.5)',
@@ -213,7 +217,25 @@ new Chart(locationCtx, {
         responsive: true,
         plugins: {
             legend: {
-                position: 'bottom'
+                position: 'bottom',
+                labels: {
+                    generateLabels: function(chart) {
+                        const dataset = chart.data.datasets[0];
+                        return chart.data.labels.map((label, index) => ({
+                            text: `${label} (${dataset.data[index]} patients)`,
+                            fillStyle: dataset.backgroundColor[index],
+                            hidden: false,
+                            index: index
+                        }));
+                    }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return `${context.label}: ${context.raw} patients`;
+                    }
+                }
             }
         }
     }
@@ -265,56 +287,69 @@ new Chart(weeklyCtx, {
 {% endif %}
 
 // Emergency Analytics
-{% if metric_type in 'all,emergencies' %}
-// Resolution Gauge
-const resolutionGauge = new Gauge(document.getElementById('resolutionGauge')).setOptions({
-    angle: 0.15,
-    lineWidth: 0.44,
-    radiusScale: 1,
-    pointer: {
-        length: 0.6,
-        strokeWidth: 0.035,
-        color: '#000000'
-    },
-    limitMax: false,
-    limitMin: false,
-    colorStart: '#FF4646',
-    colorStop: '#FF7676',
-    strokeColor: '#E0E0E0',
-    generateGradient: true,
-    highDpiSupport: true
-});
-resolutionGauge.maxValue = 100;
-resolutionGauge.setMinValue(0);
-resolutionGauge.animationSpeed = 32;
-resolutionGauge.set({{ emergency_stats.resolution_rate }});
-
-// Emergency Types Chart
-const emergencyCtx = document.getElementById('emergencyTypesChart').getContext('2d');
-new Chart(emergencyCtx, {
-    type: 'pie',
-    data: {
-        labels: [{% for type, data in emergency_stats.status_distribution.items %}'{{ type }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
-        datasets: [{
-            data: [{% for type, data in emergency_stats.status_distribution.items %}{{ data.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-            backgroundColor: [
-                'rgba(255, 99, 132, 0.5)',
-                'rgba(54, 162, 235, 0.5)',
-                'rgba(255, 206, 86, 0.5)',
-                'rgba(75, 192, 192, 0.5)',
-                'rgba(153, 102, 255, 0.5)'
-            ]
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
+{% if metric_type in 'all,emergencies' and emergency_stats %}
+    // Resolution Gauge
+    const gaugeElement = document.getElementById('resolutionGauge');
+    if (gaugeElement && typeof Gauge !== 'undefined') {
+        try {
+            const resolutionGauge = new Gauge(gaugeElement).setOptions({
+                angle: 0.15,
+                lineWidth: 0.44,
+                radiusScale: 1,
+                pointer: {
+                    length: 0.6,
+                    strokeWidth: 0.035,
+                    color: '#000000'
+                },
+                limitMax: false,
+                limitMin: false,
+                colorStart: '#FF4646',
+                colorStop: '#FF7676',
+                strokeColor: '#E0E0E0',
+                generateGradient: true,
+                highDpiSupport: true
+            });
+            resolutionGauge.maxValue = 100;
+            resolutionGauge.setMinValue(0);
+            resolutionGauge.animationSpeed = 32;
+            resolutionGauge.set({{ emergency_stats.resolution_rate|default:0|floatformat:0 }});
+        } catch (e) {
+            console.error('Error initializing gauge:', e);
         }
     }
-});
+
+    // Emergency Types Chart
+    const emergencyCtx = document.getElementById('emergencyTypesChart');
+    if (emergencyCtx && {{ emergency_stats.status_distribution|safe|default:'{}' }} != {}) {
+        try {
+            new Chart(emergencyCtx.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: [{% for status, count in emergency_stats.status_distribution.items %}'{{ status }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    datasets: [{
+                        data: [{% for status, count in emergency_stats.status_distribution.items %}{{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Error creating emergency chart:', e);
+        }
+    }
 {% endif %}
 
 // Export Analytics
