@@ -391,12 +391,18 @@ def patient_list(request):
             Q(contact_number__icontains=search_query)
         )
 
+    today = timezone.now().date()
+
     # Get all stats in a single query
     stats = Patient.objects.filter(barangay=tcl).aggregate(
-        total_patients=Count('id'),
+        total_patients=Count(
+            'id',
+            distinct=True),
         active_patients=Count(
             'id',
-            filter=Q(prenatalcheckup__status='SCHEDULED'),
+            filter=Q(
+                prenatalcheckup__checkup_date__gte=today - timedelta(days=280)  # Approximately 40 weeks
+            ),
             distinct=True
         ),
         total_checkups=Count('prenatalcheckup'),
