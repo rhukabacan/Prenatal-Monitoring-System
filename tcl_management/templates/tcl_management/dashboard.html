@@ -185,7 +185,9 @@
                             <div class="timeline-content">
                                 <div class="d-flex justify-content-between">
                                     <h6 class="mb-1">{{ activity.patient.user.get_full_name }}</h6>
-                                    <small class="text-muted">{{ activity.time|timesince }} ago</small>
+                                    <small class="text-muted time-ago" data-timestamp="{{ activity.timestamp }}">
+                                        {{ activity.time|timesince }} ago
+                                    </small>
                                 </div>
                                 <p class="mb-0 text-muted">{{ activity.description }}</p>
                             </div>
@@ -553,8 +555,54 @@
         document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', dateOptions);
     }
 
+    // Function to format time ago
+    function formatTimeAgo(timestamp) {
+        const now = new Date();
+        // Convert Django timestamp to JavaScript Date, handling timezone
+        const date = new Date(timestamp + 'Z');  // Add 'Z' to treat as UTC
+        const seconds = Math.floor((now - date) / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        // More precise thresholds for recent times
+        if (seconds < 30) {  // Less than 30 seconds
+            return 'just now';
+        } else if (seconds < 60) {  // Less than a minute
+            return `${seconds} seconds ago`;
+        } else if (minutes < 60) {
+            return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+        } else if (hours < 24) {
+            return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+        } else if (days < 7) {
+            return `${days} day${days !== 1 ? 's' : ''} ago`;
+        } else {
+            // Format date for older entries
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+    }
+
+    // Function to update all timestamps
+    function updateTimestamps() {
+        document.querySelectorAll('.time-ago').forEach(element => {
+            const timestamp = element.getAttribute('data-timestamp');
+            if (timestamp) {
+                element.textContent = formatTimeAgo(timestamp);
+            }
+        });
+    }
+
+    // Initial updates
     updateDateTime();
-    setInterval(updateDateTime, 1000);
+    updateTimestamps();
+
+    // Set intervals for updates
+    setInterval(updateDateTime, 1000);  // Update date every second
+    setInterval(updateTimestamps, 15000);  // Update timestamps every 15 seconds
 
     // Age Distribution Chart
     const ageData = {{ age_distribution|safe }} || { 'No Data': 1 };

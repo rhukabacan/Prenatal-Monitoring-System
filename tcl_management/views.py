@@ -7,7 +7,9 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
-from django.db.models import Q, Avg, Exists, OuterRef, Count, Case, When, Value, CharField, TruncDate, Prefetch, JSONField, ExtractWeek, ExtractYear, ExtractEpoch, FloatField
+from django.db.models import Q, Avg, Exists, OuterRef, Count, Case, When, Value, CharField, Prefetch, JSONField, \
+    FloatField, F, ExpressionWrapper, DurationField
+from django.db.models.functions import TruncDate, ExtractWeek, ExtractYear
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
@@ -224,11 +226,16 @@ def dashboard(request):
 
     # Get age distribution using database aggregation
     age_distribution = Patient.objects.filter(barangay=tcl).annotate(
+        age_days=ExpressionWrapper(
+            (timezone.now().date() - F('birth_date')),
+            output_field=DurationField()
+        )
+    ).annotate(
         age_group=Case(
-            When(age__range=(18, 25), then=Value('18-25')),
-            When(age__range=(26, 35), then=Value('26-35')),
-            When(age__range=(36, 45), then=Value('36-45')),
-            default=Value('45+'),
+            When(age_days__gt=timedelta(days=365*45), then=Value('45+')),
+            When(age_days__gt=timedelta(days=365*35), then=Value('36-45')),
+            When(age_days__gt=timedelta(days=365*25), then=Value('26-35')),
+            default=Value('18-25'),
             output_field=CharField(),
         )
     ).values('age_group').annotate(
@@ -290,6 +297,7 @@ def dashboard(request):
         recent_activities.append({
             'type': 'checkup',
             'time': checkup.checkup_date,
+            'timestamp': checkup.checkup_date.isoformat(),
             'patient': checkup.patient,
             'description': f"{checkup.patient.user.get_full_name()} had a prenatal checkup"
         })
@@ -305,6 +313,7 @@ def dashboard(request):
         recent_activities.append({
             'type': 'emergency',
             'time': emergency.alert_time,
+            'timestamp': emergency.alert_time.isoformat(),
             'patient': emergency.patient,
             'description': f"Emergency alert from {emergency.patient.user.get_full_name()}"
         })
@@ -379,8 +388,16 @@ def patient_list(request):
             'id',
             filter=Q(prenatalcheckup__status='SCHEDULED'),
             distinct=True
-        )
+        ),
+        total_checkups=Count('prenatalcheckup'),
+        patients_with_checkups=Count('id', filter=Q(prenatalcheckup__isnull=False), distinct=True)
     )
+
+    # Calculate average checkups per patient
+    if stats['patients_with_checkups'] > 0:
+        stats['avg_checkups'] = round(stats['total_checkups'] / stats['patients_with_checkups'], 1)
+    else:
+        stats['avg_checkups'] = 0
 
     # Pagination
     paginator = Paginator(patients, 10)
@@ -482,8 +499,8 @@ def checkup_list(request):
         upcoming_checkups=Count(
             'id',
             filter=Q(
-                status='SCHEDULED',
-                checkup_date__gt=timezone.now()
+            status='SCHEDULED',
+            checkup_date__gt=timezone.now()
             )
         )
     )
@@ -800,29 +817,36 @@ def emergency_report(request):
         patient__barangay=tcl
     )
 
-    # Calculate all statistics in a single query including average response time
+    # Calculate basic statistics in a single query
     stats = emergencies.aggregate(
         total_alerts=Count('id'),
         active_alerts=Count('id', filter=Q(status='ACTIVE')),
-        response_time_avg=Avg(
-            Case(
-                When(
-                    Q(status='RESOLVED') & 
-                    Q(response_time__isnull=False) & 
-                    Q(alert_time__isnull=False),
-                    then=ExtractEpoch(F('response_time')) - ExtractEpoch(F('alert_time'))
-                ),
-                output_field=FloatField(),
-            )
-        ),
         resolved_cases=Count('id', filter=Q(status='RESOLVED')),
         responded_cases=Count('id', filter=Q(status='RESPONDED')),
         cancelled_cases=Count('id', filter=Q(status='CANCELLED'))
     )
 
-    # Convert average response time from seconds to minutes
-    if stats['response_time_avg'] is not None:
-        stats['response_time_avg'] = round(stats['response_time_avg'] / 60, 1)
+    # Calculate average response time
+    resolved_alerts = emergencies.filter(
+        status='RESOLVED',
+        response_time__isnull=False,
+        alert_time__isnull=False
+    ).annotate(
+        response_minutes=ExpressionWrapper(
+            F('response_time') - F('alert_time'),
+            output_field=DurationField()
+        )
+    ).values_list('response_minutes', flat=True)
+
+    if resolved_alerts:
+        total_seconds = sum(
+            duration.total_seconds() 
+            for duration in resolved_alerts
+        )
+        avg_minutes = total_seconds / (60 * len(resolved_alerts))
+        stats['response_time_avg'] = round(avg_minutes, 1)
+    else:
+        stats['response_time_avg'] = None
 
     # Set no_data flag if needed
     stats['no_data'] = not any([
