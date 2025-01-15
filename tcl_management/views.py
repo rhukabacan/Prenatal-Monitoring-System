@@ -177,8 +177,18 @@ def dashboard(request):
 
     # Get all stats in a single query using aggregation
     stats = Patient.objects.filter(barangay=tcl).aggregate(
-        total_patients=Count('id'),
-        new_patients=Count('id', filter=Q(created_at__gte=today - timedelta(days=30))),
+        total_patients=Count(
+            'id',
+            filter=Q(
+                prenatalcheckup__checkup_date__gte=today - timedelta(days=280)  # Approximately 40 weeks
+            ),
+            distinct=True
+        ),
+        new_patients=Count(
+            'id',
+            filter=Q(created_at__gte=today - timedelta(days=30)),
+            distinct=True
+        ),
         today_checkups=Count(
             'prenatalcheckup',
             filter=Q(prenatalcheckup__checkup_date__date=today)
