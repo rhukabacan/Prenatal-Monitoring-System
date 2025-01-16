@@ -565,12 +565,53 @@ def checkup_detail(request, checkup_id):
         patient__barangay=request.user.barangay
     )
 
-    # Get previous and next checkups
+    # Calculate pregnancy week and progress
+    weeks_pregnant = None
+    progress_percentage = None
+    if checkup.last_menstrual_period:
+        days_pregnant = (timezone.now().date() - checkup.last_menstrual_period).days
+        weeks_pregnant = min(days_pregnant // 7, 42)  # Cap at 42 weeks
+        progress_percentage = min((weeks_pregnant / 42) * 100, 100)  # Cap at 100%
+
+    # Get previous checkup and calculate changes
     previous_checkup = PrenatalCheckup.objects.filter(
         patient=checkup.patient,
         checkup_date__lt=checkup.checkup_date
     ).order_by('-checkup_date').first()
 
+    # Calculate changes if previous checkup exists
+    changes = {}
+    if previous_checkup:
+        # Weight change
+        if checkup.weight and previous_checkup.weight:
+            weight_diff = float(checkup.weight) - float(previous_checkup.weight)
+            changes['weight'] = {
+                'diff': round(weight_diff, 2),
+                'increased': weight_diff > 0
+            }
+
+        # Height change
+        if checkup.height and previous_checkup.height:
+            height_diff = float(checkup.height) - float(previous_checkup.height)
+            changes['height'] = {
+                'diff': round(height_diff, 2),
+                'increased': height_diff > 0
+            }
+
+        # Track changes in various fields
+        for field in [
+            'blood_pressure', 'nutritional_status', 'birth_plan_status',
+            'dental_checkup_status', 'syphilis_treatment', 'arv_treatment',
+            'bacteriuria_treatment', 'anemia_treatment', 'age_of_gestation',
+            'hemoglobin_count', 'urinalysis_date', 'cbc_date', 'stool_exam_date',
+            'syphilis_test_date', 'syphilis_result', 'hiv_test_date', 'hiv_result',
+            'hepatitis_b_test_date', 'hepatitis_b_result', 'tetanus_vaccine_date',
+            'dental_checkup_date'
+        ]:
+            if getattr(checkup, field) != getattr(previous_checkup, field):
+                changes[field] = True
+
+    # Get next checkup
     next_checkup = PrenatalCheckup.objects.filter(
         patient=checkup.patient,
         checkup_date__gt=checkup.checkup_date
@@ -578,8 +619,11 @@ def checkup_detail(request, checkup_id):
 
     context = {
         'checkup': checkup,
+        'weeks_pregnant': weeks_pregnant,
+        'progress_percentage': progress_percentage,
         'previous_checkup': previous_checkup,
         'next_checkup': next_checkup,
+        'changes': changes,
         'title': f'Checkup Details - {checkup.patient.user.get_full_name()}'
     }
 

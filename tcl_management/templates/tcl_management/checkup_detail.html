@@ -55,85 +55,479 @@
 
         <!-- Checkup Details -->
         <div class="col-lg-8">
-            <div class="card shadow">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <!-- Navigation -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-white border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <!-- Previous Checkup -->
+                        {% if previous_checkup %}
+                        <a href="{% url 'tcl_management:checkup_detail' previous_checkup.id %}"
+                           class="btn btn-outline-primary">
+                            <i class="fas fa-chevron-left me-2"></i>Previous Checkup
+                            <small class="d-block text-muted">
+                                {{ previous_checkup.checkup_date|date:"M d, Y" }}
+                            </small>
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary disabled">
+                            <i class="fas fa-chevron-left me-2"></i>
+                            No Previous Checkup
+                        </button>
+                        {% endif %}
+
+                        <!-- Current Checkup Date -->
+                        <div class="text-center">
+                            <h5 class="mb-0">{{ checkup.checkup_date|date:"F d, Y" }}</h5>
+                            <small class="text-muted">{{ checkup.checkup_date|date:"g:i A" }}</small>
+                        </div>
+
+                        <!-- Next Checkup -->
+                        {% if next_checkup %}
+                        <a href="{% url 'tcl_management:checkup_detail' next_checkup.id %}"
+                           class="btn btn-outline-primary">
+                            Next Checkup<i class="fas fa-chevron-right ms-2"></i>
+                            <small class="d-block text-muted">
+                                {{ next_checkup.checkup_date|date:"M d, Y" }}
+                            </small>
+                        </a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary disabled">
+                            No Next Checkup
+                            <i class="fas fa-chevron-right ms-2"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Basic Measurements -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-notes-medical me-2"></i>Checkup Information
+                        <i class="fas fa-heartbeat text-info me-2"></i>Vital Signs
                     </h5>
-                    <span class="badge bg-{{ checkup.status|lower }}">
-                        {{ checkup.get_status_display }}
-                    </span>
                 </div>
                 <div class="card-body">
-                    <div class="row g-4">
-                        <!-- Vital Signs -->
-                        <div class="col-md-6">
+                    <div class="row g-3">
+                        <div class="col-md-3">
                             <div class="vital-sign-card">
                                 <div class="vital-icon bg-primary text-white">
                                     <i class="fas fa-weight"></i>
                                 </div>
                                 <div class="vital-info">
                                     <h6>Weight</h6>
-                                    <h4>{{ checkup.weight }} kg</h4>
-                                    {% if checkup.initial_weight %}
-                                        <small class="text-muted">
-                                            Initial: {{ checkup.initial_weight }} kg
+                                    <h4>{{ checkup.weight|default:"--" }} kg</h4>
+                                    {% if changes.weight %}
+                                        <small class="text-{% if changes.weight.increased %}success{% else %}danger{% endif %}">
+                                            ({{ changes.weight.diff }} kg)
+                                            <i class="fas fa-arrow-{% if changes.weight.increased %}up{% else %}down{% endif %}"></i>
                                         </small>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
-
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <div class="vital-sign-card">
                                 <div class="vital-icon bg-success text-white">
+                                    <i class="fas fa-ruler-vertical"></i>
+                                </div>
+                                <div class="vital-info">
+                                    <h6>Height</h6>
+                                    <h4>{{ checkup.height|default:"--" }} cm</h4>
+                                    {% if changes.height %}
+                                        <small class="text-{% if changes.height.increased %}success{% else %}danger{% endif %}">
+                                            ({{ changes.height.diff }} cm)
+                                            <i class="fas fa-arrow-{% if changes.height.increased %}up{% else %}down{% endif %}"></i>
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="vital-sign-card">
+                                <div class="vital-icon bg-danger text-white">
                                     <i class="fas fa-heart"></i>
                                 </div>
                                 <div class="vital-info">
                                     <h6>Blood Pressure</h6>
-                                    <h4>{{ checkup.blood_pressure }}</h4>
-                                    {% if checkup.initial_blood_pressure %}
-                                        <small class="text-muted">
-                                            Initial: {{ checkup.initial_blood_pressure }}
+                                    <h4>{{ checkup.blood_pressure|default:"--" }}</h4>
+                                    {% if changes.blood_pressure %}
+                                        <small class="text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="vital-sign-card">
+                                <div class="vital-icon bg-info text-white">
+                                    <i class="fas fa-calendar-week"></i>
+                                </div>
+                                <div class="vital-info">
+                                    <h6>Age of Gestation</h6>
+                                    <h4>{{ checkup.age_of_gestation|default:"--" }} weeks</h4>
+                                    {% if changes.age_of_gestation %}
+                                        <small class="text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status & Planning -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-check text-primary me-2"></i>Status & Planning
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-utensils text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Nutritional Status</small>
+                                    <strong>{{ checkup.get_nutritional_status_display|default:"--" }}</strong>
+                                    {% if changes.nutritional_status %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-baby-carriage text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Birth Plan Status</small>
+                                    <strong>{{ checkup.get_birth_plan_status_display|default:"--" }}</strong>
+                                    {% if changes.birth_plan_status %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-tooth text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Dental Status</small>
+                                    <strong>{{ checkup.get_dental_checkup_status_display|default:"--" }}</strong>
+                                    {% if changes.dental_checkup_status %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Dental Checkup Date</small>
+                                    <strong>{{ checkup.dental_checkup_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.dental_checkup_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Laboratory Tests -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-flask text-warning me-2"></i>Laboratory Tests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-tint text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Hemoglobin Count</small>
+                                    <strong>{{ checkup.hemoglobin_count|default:"--" }}</strong>
+                                    {% if changes.hemoglobin_count %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-vial text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Urinalysis Date</small>
+                                    <strong>{{ checkup.urinalysis_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.urinalysis_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-microscope text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">CBC Date</small>
+                                    <strong>{{ checkup.cbc_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.cbc_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-vials text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Stool Exam Date</small>
+                                    <strong>{{ checkup.stool_exam_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.stool_exam_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STI Tests -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-virus-slash text-danger me-2"></i>STI Tests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Syphilis -->
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-alt text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Syphilis Test</small>
+                                    <strong>{{ checkup.syphilis_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.syphilis_test_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">Result:</small>
+                                    <strong>{{ checkup.syphilis_result|default:"--" }}</strong>
+                                    {% if changes.syphilis_result %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
                                         </small>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Checkup Notes -->
-                        {% if checkup.notes %}
-                        <div class="col-12">
-                            <div class="notes-card">
-                                <h6 class="mb-3">Medical Notes</h6>
-                                <div class="notes-content">
-                                    {{ checkup.notes|linebreaks|default:"No notes provided" }}
+                        <!-- HIV -->
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-alt text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">HIV Test</small>
+                                    <strong>{{ checkup.hiv_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.hiv_test_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">Result:</small>
+                                    <strong>{{ checkup.hiv_result|default:"--" }}</strong>
+                                    {% if changes.hiv_result %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
+
+                        <!-- Hepatitis B -->
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-alt text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Hepatitis B Test</small>
+                                    <strong>{{ checkup.hepatitis_b_test_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.hepatitis_b_test_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">Result:</small>
+                                    <strong>{{ checkup.hepatitis_b_result|default:"--" }}</strong>
+                                    {% if changes.hepatitis_b_result %}
+                                        <small class="ms-2 text-warning">
+                                            <i class="fas fa-exchange-alt"></i> Changed
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Navigation -->
-            <div class="d-flex justify-content-between mt-4">
-                {% if previous_checkup %}
-                    <a href="{% url 'tcl_management:checkup_detail' previous_checkup.id %}"
-                       class="btn btn-outline-primary">
-                        <i class="fas fa-chevron-left me-2"></i>Previous Checkup
-                    </a>
-                {% else %}
-                    <div></div>
-                {% endif %}
-
-                {% if next_checkup %}
-                    <a href="{% url 'tcl_management:checkup_detail' next_checkup.id %}"
-                       class="btn btn-outline-primary">
-                        Next Checkup<i class="fas fa-chevron-right ms-2"></i>
-                    </a>
-                {% endif %}
+            <!-- Treatments -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-pills text-success me-2"></i>Treatments
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-syringe text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Tetanus Vaccine</small>
+                                    <strong>{{ checkup.tetanus_vaccine_date|date:"M d, Y"|default:"--" }}</strong>
+                                    {% if changes.tetanus_vaccine_date %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-calendar-plus"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-prescription-bottle-alt text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Syphilis Treatment</small>
+                                    <strong>{{ checkup.syphilis_treatment|default:"--" }}</strong>
+                                    {% if changes.syphilis_treatment %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-pen"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-capsules text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">ARV Treatment</small>
+                                    <strong>{{ checkup.arv_treatment|default:"--" }}</strong>
+                                    {% if changes.arv_treatment %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-pen"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-prescription text-info me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Anemia Treatment</small>
+                                    <strong>{{ checkup.anemia_treatment|default:"--" }}</strong>
+                                    {% if changes.anemia_treatment %}
+                                        <small class="ms-2 text-info">
+                                            <i class="fas fa-pen"></i> Updated
+                                        </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Pregnancy Progress -->
+            {% if checkup.last_menstrual_period %}
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-baby text-success me-2"></i>Pregnancy Progress
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mt-2 mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: {{ progress_percentage }}%"
+                             aria-valuenow="{{ weeks_pregnant }}"
+                             aria-valuemin="0" aria-valuemax="42">
+                            Week {{ weeks_pregnant }} of 42
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-alt text-success me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Last Menstrual Period</small>
+                                    <strong>{{ checkup.last_menstrual_period|date:"F d, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check text-success me-3"></i>
+                                <div>
+                                    <small class="text-muted d-block">Estimated Delivery Date</small>
+                                    <strong>{{ checkup.estimated_delivery_date|date:"F d, Y" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Notes -->
+            {% if checkup.notes %}
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list text-warning me-2"></i>Notes & Observations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="card bg-light shadow-sm">
+                        <div class="card-body py-2">
+                            {{ checkup.notes|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -207,19 +601,6 @@
     .vital-info h4 {
         color: #2c3e50;
         margin-bottom: 0.25rem;
-    }
-
-    .notes-card {
-        padding: 1.5rem;
-        background: rgba(52, 152, 219, 0.05);
-        border-radius: 12px;
-    }
-
-    .notes-content {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 8px;
-        border: 1px solid rgba(0,0,0,0.05);
     }
 
     .badge {
